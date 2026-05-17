@@ -1,9 +1,1442 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>My Website</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Intellikids Academy – Personalised Live Learning for Grades 3–12</title>
+<meta name="description" content="Live 1-on-1 and group tutoring for Grades 3–12. Coding, Maths, English, Physics, Chemistry & Computer Basics. Personalised curriculum. Book your free demo today!"/>
+<meta name="keywords" content="online tutoring India, kids education, coding for kids, maths tutor, personalised learning, intellikids academy"/>
+<meta property="og:title" content="Intellikids Academy – Live Personalised Learning"/>
+<meta property="og:description" content="1-on-1 and group sessions for Grades 3–12. Real teachers. Real results."/>
+<meta property="og:url" content="https://intellikidsacademy.in"/>
+<link rel="canonical" href="https://intellikidsacademy.in"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet"/>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, getDoc, collection, getDocs, query, where, addDoc, serverTimestamp, orderBy }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ─── FIREBASE CONFIG ───────────────────────────────────────────────────────
+// ⚠️  REPLACE WITH YOUR OWN FIREBASE PROJECT CONFIG
+// Go to: https://console.firebase.google.com → Your Project → Project Settings → Web App
+const firebaseConfig = {
+  apiKey: "AIzaSyBR5rtf3CFSL7CPDFSrtwe3Ynb5PdiGBIE",
+  authDomain: "intellikids-cf406.firebaseapp.com",
+  projectId: "intellikids-cf406",
+  storageBucket: "intellikids-cf406.firebasestorage.app",
+  messagingSenderId: "843995385791",
+  appId: "1:843995385791:web:46ac4cd17ba06732451b0a",
+  measurementId: "G-R1M379EB2M"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ─── AUTH STATE ────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    // Fetch user profile from Firestore
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) {
+      const profile = snap.data();
+      window._ika = { uid: user.uid, email: user.email, ...profile };
+      showDashboard(profile.role);
+    } else {
+      await signOut(auth);
+      showToast("Account not found. Contact your admin.", "error");
+    }
+  } else {
+    window._ika = null;
+  }
+});
+
+// ─── LOGIN ─────────────────────────────────────────────────────────────────
+window.doLogin = async function(email, password) {
+  try {
+    showLoader(true);
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (e) {
+    showLoader(false);
+    const msg = {
+      "auth/invalid-credential": "Wrong email or password.",
+      "auth/user-not-found": "No account found with this email.",
+      "auth/wrong-password": "Incorrect password.",
+      "auth/too-many-requests": "Too many attempts. Try again later."
+    }[e.code] || "Login failed. Please try again.";
+    showToast(msg, "error");
+  }
+};
+
+// ─── LOGOUT ────────────────────────────────────────────────────────────────
+window.doLogout = async function() {
+  await signOut(auth);
+  window._ika = null;
+  nav("home");
+  showToast("Logged out successfully.");
+};
+
+// ─── PASSWORD RESET ────────────────────────────────────────────────────────
+window.doReset = async function(email) {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    showToast("Reset link sent to your email!");
+  } catch(e) {
+    showToast("Could not send reset email.", "error");
+  }
+};
+
+// ─── LOAD STUDENT DATA ─────────────────────────────────────────────────────
+window.loadStudentData = async function() {
+  const uid = window._ika?.uid;
+  if (!uid) return {};
+  const [sessSnap, hwSnap] = await Promise.all([
+    getDocs(query(collection(db,"sessions"),  where("studentId","==",uid), orderBy("scheduledAt","asc"))),
+    getDocs(query(collection(db,"homework"),  where("studentId","==",uid)))
+  ]);
+  return {
+    sessions:  sessSnap.docs.map(d=>({id:d.id,...d.data()})),
+    homework:  hwSnap.docs.map(d=>({id:d.id,...d.data()}))
+  };
+};
+
+// ─── LOAD TEACHER DATA ─────────────────────────────────────────────────────
+window.loadTeacherData = async function() {
+  const uid = window._ika?.uid;
+  if (!uid) return {};
+  const [sessSnap, studSnap] = await Promise.all([
+    getDocs(query(collection(db,"sessions"), where("teacherId","==",uid), orderBy("scheduledAt","asc"))),
+    getDocs(query(collection(db,"users"),    where("teacherId","==",uid), where("role","==","student")))
+  ]);
+  return {
+    sessions: sessSnap.docs.map(d=>({id:d.id,...d.data()})),
+    students: studSnap.docs.map(d=>({id:d.id,...d.data()}))
+  };
+};
+
+// ─── CONTACT FORM SUBMIT ───────────────────────────────────────────────────
+window.submitContact = async function(data) {
+  await addDoc(collection(db,"enquiries"), { ...data, createdAt: serverTimestamp() });
+};
+</script>
+
+<style>
+/* ─── RESET & BASE ────────────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Nunito',sans-serif;background:#FFFDF8;color:#1a1a2e;overflow-x:hidden;min-height:100vh;}
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:#f0f0f0;}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#FF6B6B,#6C63FF);border-radius:6px;}
+
+/* ─── CSS VARIABLES ───────────────────────────────────────────────────── */
+:root{
+  --red:#FF6B6B; --orange:#FF9F43; --green:#1DD1A1;
+  --purple:#6C63FF; --blue:#54A0FF; --violet:#A29BFE;
+  --dark:#1a1a2e; --muted:#888; --card-bg:#fff;
+  --radius:20px; --shadow:0 4px 20px rgba(0,0,0,.08);
+}
+
+/* ─── TYPOGRAPHY ──────────────────────────────────────────────────────── */
+h1,h2,h3{font-family:'Baloo 2',sans-serif;font-weight:800;}
+h1{font-size:clamp(32px,5vw,58px);}
+h2{font-size:clamp(26px,4vw,42px);}
+
+/* ─── BUTTONS ─────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:50px;font-family:'Nunito',sans-serif;font-weight:800;cursor:pointer;transition:all .25s;text-decoration:none;}
+.btn-main{background:linear-gradient(135deg,#FF6B6B,#FF9F43);color:#fff;padding:14px 32px;font-size:16px;box-shadow:0 6px 20px rgba(255,107,107,.35);}
+.btn-main:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(255,107,107,.45);}
+.btn-sec{background:#fff;border:2.5px solid #FF6B6B;color:#FF6B6B;padding:12px 28px;font-size:15px;}
+.btn-sec:hover{background:#FF6B6B;color:#fff;transform:translateY(-2px);}
+.btn-purple{background:linear-gradient(135deg,#6C63FF,#A29BFE);color:#fff;padding:12px 28px;font-size:15px;box-shadow:0 5px 18px rgba(108,99,255,.3);}
+.btn-purple:hover{transform:translateY(-3px);}
+.btn-green{background:linear-gradient(135deg,#1DD1A1,#00B894);color:#fff;padding:10px 24px;font-size:14px;}
+.btn-green:hover{transform:translateY(-2px);}
+.btn-sm{padding:9px 20px!important;font-size:13px!important;}
+.btn-full{width:100%;padding:16px!important;font-size:16px!important;}
+
+/* ─── CARDS ───────────────────────────────────────────────────────────── */
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+.card-hover{transition:transform .25s,box-shadow .25s;}
+.card-hover:hover{transform:translateY(-6px);box-shadow:0 12px 32px rgba(0,0,0,.12);}
+
+/* ─── CHIPS ───────────────────────────────────────────────────────────── */
+.chip{display:inline-block;padding:5px 14px;border-radius:50px;font-size:12px;font-weight:800;letter-spacing:.3px;}
+.chip-red{background:#FFF0F0;color:#FF6B6B;}
+.chip-green{background:#E8FFF8;color:#1DD1A1;}
+.chip-purple{background:#F0EEFF;color:#6C63FF;}
+.chip-orange{background:#FFF6E8;color:#FF9F43;}
+.chip-blue{background:#EBF4FF;color:#54A0FF;}
+.chip-1on1{background:linear-gradient(135deg,#FD79A8,#e84393);color:#fff;}
+.chip-group{background:linear-gradient(135deg,#6C63FF,#a29bfe);color:#fff;}
+
+/* ─── FORM ELEMENTS ───────────────────────────────────────────────────── */
+input,textarea,select{background:#F8F8FF;border:2px solid #E8E8FF;border-radius:14px;color:#1a1a2e;font-family:'Nunito',sans-serif;font-size:15px;padding:13px 16px;width:100%;outline:none;transition:border-color .2s;font-weight:600;}
+input:focus,textarea:focus,select:focus{border-color:#6C63FF;background:#fff;}
+label{display:block;font-weight:800;font-size:14px;color:#555;margin-bottom:7px;}
+.form-group{margin-bottom:18px;}
+.form-error{color:#FF6B6B;font-size:13px;margin-top:5px;font-weight:700;display:none;}
+.form-error.show{display:block;}
+
+/* ─── PROGRESS ────────────────────────────────────────────────────────── */
+.progress-bar{background:#f0f0f0;border-radius:50px;height:8px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:50px;transition:width 1s ease;}
+
+/* ─── LAYOUT ──────────────────────────────────────────────────────────── */
+.section{max-width:1100px;margin:0 auto;padding:0 24px;}
+.page{display:none;}
+.page.active{display:block;}
+
+/* ─── NAVBAR ──────────────────────────────────────────────────────────── */
+#navbar{position:sticky;top:0;z-index:500;background:rgba(255,253,248,.95);backdrop-filter:blur(16px);border-bottom:2px solid #FFE8E8;}
+.nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:68px;padding:0 24px;}
+.nav-logo{display:flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none;}
+.nav-logo-icon{width:44px;height:44px;background:linear-gradient(135deg,#FF6B6B,#FF9F43);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 12px rgba(255,107,107,.35);}
+.nav-logo-text .brand{font-family:'Baloo 2',sans-serif;font-size:18px;font-weight:800;background:linear-gradient(135deg,#FF6B6B,#6C63FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;}
+.nav-logo-text .sub{font-size:10px;font-weight:800;color:#FF9F43;letter-spacing:1px;}
+.nav-links{display:flex;gap:4px;}
+.nav-link{background:transparent;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#444;padding:8px 14px;border-radius:50px;transition:all .2s;}
+.nav-link:hover,.nav-link.active{background:#FFF0F0;color:#FF6B6B;}
+.nav-actions{display:flex;gap:10px;align-items:center;}
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:8px;border:none;background:transparent;}
+.hamburger span{display:block;width:24px;height:2.5px;background:#444;border-radius:2px;transition:all .3s;}
+.mobile-menu{display:none;background:#fff;border-bottom:2px solid #FFE8E8;padding:16px 24px;flex-direction:column;gap:10px;}
+.mobile-menu.open{display:flex;}
+
+/* ─── HERO ────────────────────────────────────────────────────────────── */
+.hero{background:linear-gradient(160deg,#FFF9F0 0%,#F0F0FF 50%,#F0FFF8 100%);padding:80px 24px 60px;position:relative;overflow:hidden;}
+.hero-stars{position:absolute;inset:0;pointer-events:none;z-index:0;}
+.hero-blob{position:absolute;pointer-events:none;z-index:0;opacity:.18;}
+.hero-content{position:relative;z-index:1;max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;}
+.hero-badge{display:inline-block;background:#FFF0F0;border-radius:50px;padding:8px 20px;font-size:13px;font-weight:800;color:#FF6B6B;margin-bottom:16px;border:1.5px solid #FFD0D0;}
+.hero-title{margin-bottom:20px;line-height:1.15;}
+.hero-title span{background:linear-gradient(135deg,#FF6B6B,#FF9F43);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hero-desc{font-size:17px;color:#555;line-height:1.7;font-weight:600;margin-bottom:32px;}
+.hero-cta{display:flex;gap:16px;flex-wrap:wrap;}
+.hero-visual{position:relative;}
+.hero-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.hero-card{background:#fff;border-radius:18px;padding:18px;box-shadow:0 6px 24px rgba(0,0,0,.1);}
+.floating-emoji{position:absolute;pointer-events:none;font-size:28px;}
+
+/* ─── MARQUEE ─────────────────────────────────────────────────────────── */
+.marquee-wrap{overflow:hidden;width:100%;background:#fff;border-top:2px solid #FFE8E8;border-bottom:2px solid #FFE8E8;padding:14px 0;}
+.marquee-track{display:flex;gap:0;animation:marquee 22s linear infinite;white-space:nowrap;}
+@keyframes marquee{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+.marquee-item{display:inline-flex;align-items:center;gap:8px;padding:0 28px;font-weight:800;font-size:14px;color:#555;}
+
+/* ─── TABS ────────────────────────────────────────────────────────────── */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;}
+.tab-btn{background:transparent;border:none;padding:10px 20px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;cursor:pointer;border-radius:50px;transition:all .2s;color:#888;}
+.tab-btn.active{background:linear-gradient(135deg,#FF6B6B,#FF9F43);color:#fff;box-shadow:0 4px 12px rgba(255,107,107,.3);}
+
+/* ─── STAT STRIP ──────────────────────────────────────────────────────── */
+.stats-strip{background:linear-gradient(135deg,#1a1a2e,#2d1b69);padding:70px 24px;}
+
+/* ─── SECTIONS PADDING ────────────────────────────────────────────────── */
+.sec{padding:80px 24px;}
+.sec-light{background:#FFFDF8;}
+.sec-alt{background:linear-gradient(135deg,#FFF0F8,#F0EEFF);}
+.sec-dark{background:linear-gradient(135deg,#1a1a2e,#2d1b69);}
+.sec-header{text-align:center;margin-bottom:48px;}
+.sec-pill{display:inline-block;border-radius:50px;padding:6px 18px;font-size:13px;font-weight:800;margin-bottom:12px;}
+
+/* ─── SESSION ROW ─────────────────────────────────────────────────────── */
+.session-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:18px 22px;border-radius:16px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:12px;}
+
+/* ─── FAQ ─────────────────────────────────────────────────────────────── */
+.faq-item{background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:10px;overflow:hidden;cursor:pointer;}
+.faq-q{padding:18px 24px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:15px;}
+.faq-a{padding:0 24px 18px;color:#666;font-size:14px;line-height:1.8;font-weight:600;display:none;}
+.faq-item.open .faq-a{display:block;}
+.faq-icon{font-size:22px;font-weight:900;transition:transform .2s;flex-shrink:0;}
+.faq-item.open .faq-icon{transform:rotate(45deg);}
+
+/* ─── FOOTER ──────────────────────────────────────────────────────────── */
+footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
+.footer-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:40px;margin-bottom:48px;}
+.footer-link{font-size:13px;color:#888;margin-bottom:8px;cursor:pointer;font-weight:600;display:block;transition:color .2s;text-decoration:none;}
+.footer-link:hover{color:#FF6B6B;}
+.footer-bottom{border-top:1px solid #333;padding-top:24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+
+/* ─── LOGIN PAGE ──────────────────────────────────────────────────────── */
+.login-wrap{min-height:80vh;display:flex;align-items:center;justify-content:center;padding:40px 24px;background:linear-gradient(160deg,#FFF9F0,#F0F0FF);}
+.login-box{background:#fff;border-radius:28px;box-shadow:0 20px 60px rgba(0,0,0,.1);padding:48px;width:100%;max-width:440px;}
+.login-icon{width:64px;height:64px;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 20px;}
+.login-title{text-align:center;margin-bottom:6px;}
+.login-sub{text-align:center;color:#888;font-size:14px;font-weight:600;margin-bottom:32px;}
+
+/* ─── DASHBOARD ───────────────────────────────────────────────────────── */
+.dashboard{max-width:1100px;margin:0 auto;padding:40px 24px;}
+.dash-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:16px;}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:16px;margin-bottom:32px;}
+.stat-card{padding:20px;text-align:center;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.06);}
+.stat-val{font-size:26px;font-weight:900;margin-top:8px;}
+.stat-lbl{font-size:12px;color:#999;margin-top:4px;font-weight:700;}
+
+/* ─── LOADER & TOAST ──────────────────────────────────────────────────── */
+#global-loader{position:fixed;inset:0;background:rgba(255,253,248,.9);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:16px;}
+#global-loader.show{display:flex;}
+.spinner{width:52px;height:52px;border:5px solid #FFE8E8;border-top-color:#FF6B6B;border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:#1a1a2e;color:#fff;padding:14px 28px;border-radius:50px;font-weight:800;font-size:14px;z-index:9998;transition:transform .35s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.25);}
+#toast.show{transform:translateX(-50%) translateY(0);}
+#toast.error{background:linear-gradient(135deg,#FF6B6B,#ff4444);}
+#toast.success{background:linear-gradient(135deg,#1DD1A1,#00B894);}
+
+/* ─── ANIMATIONS ──────────────────────────────────────────────────────── */
+@keyframes float{0%,100%{transform:translateY(0) rotate(-2deg);}50%{transform:translateY(-12px) rotate(2deg);}}
+@keyframes fade-up{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+@keyframes bounce-in{0%{transform:scale(.85);opacity:0;}60%{transform:scale(1.04);}100%{transform:scale(1);opacity:1;}}
+.fade-up{animation:fade-up .6s ease both;}
+.float{animation:float 4s ease-in-out infinite;}
+.delay-1{animation-delay:.1s;}
+.delay-2{animation-delay:.2s;}
+.delay-3{animation-delay:.3s;}
+
+/* ─── RESPONSIVE ──────────────────────────────────────────────────────── */
+@media(max-width:900px){
+  .hero-content{grid-template-columns:1fr;}
+  .hero-visual{display:none;}
+  .nav-links,.nav-actions{display:none;}
+  .hamburger{display:flex;}
+}
+@media(max-width:600px){
+  .hero{padding:60px 16px 40px;}
+  .sec{padding:60px 16px;}
+  .login-box{padding:32px 24px;}
+  .dash-header{flex-direction:column;}
+}
+
+/* ─── SUBJECT CARD COLORS ─────────────────────────────────────────────── */
+.sc-cs{border-top:5px solid #FF6B6B;}
+.sc-code{border-top:5px solid #6C63FF;}
+.sc-math{border-top:5px solid #FF9F43;}
+.sc-eng{border-top:5px solid #1DD1A1;}
+.sc-phy{border-top:5px solid #54A0FF;}
+.sc-chem{border-top:5px solid #A29BFE;}
+
+/* ─── CONTACT CARDS ───────────────────────────────────────────────────── */
+.contact-card{padding:24px 28px;border-radius:20px;background:#fff;box-shadow:var(--shadow);display:flex;align-items:flex-start;gap:16px;margin-bottom:16px;}
+.contact-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+
+/* WhatsApp floating button */
+.wa-float{position:fixed;bottom:28px;right:28px;z-index:400;width:56px;height:56px;background:#25D366;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 6px 20px rgba(37,211,102,.4);cursor:pointer;transition:transform .2s;text-decoration:none;}
+.wa-float:hover{transform:scale(1.1);}
+
+/* scroll top */
+#scroll-top{position:fixed;bottom:96px;right:28px;z-index:400;width:44px;height:44px;background:linear-gradient(135deg,#FF6B6B,#FF9F43);border:none;border-radius:50%;color:#fff;font-size:20px;cursor:pointer;box-shadow:0 4px 14px rgba(255,107,107,.4);display:none;align-items:center;justify-content:center;transition:opacity .3s;}
+#scroll-top.show{display:flex;}
+</style>
 </head>
 <body>
-  <h1>Website Working 🎉</h1>
+
+<!-- ─── GLOBAL LOADER ────────────────────────────────────────────────────── -->
+<div id="global-loader">
+  <div class="spinner"></div>
+  <p style="font-weight:800;color:#FF6B6B;font-size:15px;">Loading your dashboard…</p>
+</div>
+
+<!-- ─── TOAST ────────────────────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<!-- ─── NAVBAR ───────────────────────────────────────────────────────────── -->
+<nav id="navbar">
+  <div class="nav-inner">
+    <a class="nav-logo" onclick="nav('home')">
+      <div class="nav-logo-icon">🧠</div>
+      <div class="nav-logo-text">
+        <div class="brand">Intellikids</div>
+        <div class="sub">ACADEMY</div>
+      </div>
+    </a>
+    <div class="nav-links" id="nav-links">
+      <button class="nav-link active" onclick="nav('home')"    id="nl-home">Home</button>
+      <button class="nav-link"        onclick="nav('subjects')"id="nl-subjects">Subjects</button>
+      <button class="nav-link"        onclick="nav('sessions')"id="nl-sessions">Sessions</button>
+      <button class="nav-link"        onclick="nav('contact')">Contact</button>
+    </div>
+    <div class="nav-actions" id="nav-actions">
+      <button class="btn btn-sec btn-sm"  onclick="nav('student-login')">Student Login</button>
+      <button class="btn btn-main btn-sm" onclick="nav('teacher-login')">Teacher Login</button>
+    </div>
+    <div class="hamburger" onclick="toggleMobile()" id="hamburger">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+  <div class="mobile-menu" id="mobile-menu">
+    <button class="nav-link" onclick="nav('home');toggleMobile()">🏠 Home</button>
+    <button class="nav-link" onclick="nav('subjects');toggleMobile()">📚 Subjects</button>
+    <button class="nav-link" onclick="nav('sessions');toggleMobile()">📅 Sessions</button>
+    <button class="nav-link" onclick="nav('contact');toggleMobile()">💬 Contact</button>
+    <hr style="border-color:#FFE8E8;margin:4px 0;"/>
+    <button class="btn btn-sec"  onclick="nav('student-login');toggleMobile()">🎒 Student Login</button>
+    <button class="btn btn-main" onclick="nav('teacher-login');toggleMobile()">👩‍🏫 Teacher Login</button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: HOME                                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page active" id="page-home">
+
+  <!-- HERO -->
+  <div class="hero">
+    <svg class="hero-stars" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="8%"  cy="15%" r="3"   fill="#FF6B6B" opacity=".3"><animate attributeName="opacity" values=".2;.7;.2" dur="2s" repeatCount="indefinite"/></circle>
+      <circle cx="22%" cy="70%" r="2"   fill="#6C63FF" opacity=".3"><animate attributeName="opacity" values=".3;.8;.3" dur="3s" repeatCount="indefinite"/></circle>
+      <circle cx="40%" cy="90%" r="1.5" fill="#FF9F43" opacity=".4"><animate attributeName="opacity" values=".2;.6;.2" dur="2.5s" repeatCount="indefinite"/></circle>
+      <circle cx="60%" cy="20%" r="2.5" fill="#1DD1A1" opacity=".3"><animate attributeName="opacity" values=".3;.7;.3" dur="1.8s" repeatCount="indefinite"/></circle>
+      <circle cx="75%" cy="55%" r="2"   fill="#FF6B6B" opacity=".25"><animate attributeName="opacity" values=".2;.6;.2" dur="2.2s" repeatCount="indefinite"/></circle>
+      <circle cx="88%" cy="80%" r="3"   fill="#A29BFE" opacity=".3"><animate attributeName="opacity" values=".3;.7;.3" dur="3s" repeatCount="indefinite"/></circle>
+      <circle cx="92%" cy="10%" r="1.5" fill="#54A0FF" opacity=".4"><animate attributeName="opacity" values=".2;.8;.2" dur="2.4s" repeatCount="indefinite"/></circle>
+      <circle cx="15%" cy="40%" r="2"   fill="#FD79A8" opacity=".3"><animate attributeName="opacity" values=".3;.6;.3" dur="2.8s" repeatCount="indefinite"/></circle>
+    </svg>
+    <div class="hero-content section">
+      <div class="fade-up">
+        <div class="hero-badge">🇮🇳 Trusted by 5,000+ Indian families</div>
+        <h1 class="hero-title">Where <span>curious kids</span> become confident learners 🚀</h1>
+        <p class="hero-desc">Live 1-on-1 & group sessions for Grades 3–12. Personalised curriculum, expert teachers, real results — in Coding, Maths, English, Physics, Chemistry & Computer Basics.</p>
+        <div class="hero-cta">
+          <button class="btn btn-main" onclick="nav('contact')">Book Free Demo 🎯</button>
+          <button class="btn btn-sec"  onclick="nav('subjects')">Explore Subjects →</button>
+        </div>
+        <div style="display:flex;gap:28px;margin-top:36px;flex-wrap:wrap;">
+          <div style="font-weight:700;font-size:14px;color:#777;">✅ No lock-in contracts</div>
+          <div style="font-weight:700;font-size:14px;color:#777;">✅ Max 4 per group</div>
+          <div style="font-weight:700;font-size:14px;color:#777;">✅ 100% personalised</div>
+        </div>
+      </div>
+      <div class="hero-visual fade-up delay-2">
+        <div class="hero-cards">
+          <div class="hero-card" style="border-top:4px solid #FF6B6B;">
+            <div style="font-size:28px;margin-bottom:8px;">💻</div>
+            <div style="font-weight:800;font-size:15px;margin-bottom:4px;">Computer Basics</div>
+            <div class="chip chip-red">Gr. 3–10</div>
+          </div>
+          <div class="hero-card" style="border-top:4px solid #6C63FF;margin-top:20px;">
+            <div style="font-size:28px;margin-bottom:8px;">🤖</div>
+            <div style="font-weight:800;font-size:15px;margin-bottom:4px;">Coding</div>
+            <div class="chip chip-purple">Gr. 3–10</div>
+          </div>
+          <div class="hero-card" style="border-top:4px solid #FF9F43;">
+            <div style="font-size:28px;margin-bottom:8px;">🔢</div>
+            <div style="font-weight:800;font-size:15px;margin-bottom:4px;">Maths</div>
+            <div class="chip chip-orange">Gr. 3–10</div>
+          </div>
+          <div class="hero-card" style="border-top:4px solid #1DD1A1;margin-top:20px;">
+            <div style="font-size:28px;margin-bottom:8px;">✍️</div>
+            <div style="font-weight:800;font-size:15px;margin-bottom:4px;">English</div>
+            <div class="chip chip-green">Gr. 3–10</div>
+          </div>
+        </div>
+        <!-- floating emojis -->
+        <div class="floating-emoji" style="top:-20px;left:-10px;animation:float 3s ease-in-out infinite;">🌟</div>
+        <div class="floating-emoji" style="bottom:10px;right:-10px;animation:float 4s ease-in-out infinite .5s;">🎓</div>
+        <div class="floating-emoji" style="top:50%;right:-30px;animation:float 3.5s ease-in-out infinite 1s;">🔬</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MARQUEE -->
+  <div class="marquee-wrap">
+    <div class="marquee-track" id="marquee-track">
+      <!-- duplicated for seamless loop -->
+    </div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div class="sec sec-light">
+    <div class="section">
+      <div class="sec-header">
+        <div class="sec-pill" style="background:#EBF4FF;color:#54A0FF;">HOW IT WORKS</div>
+        <h2>Learning made <span style="color:#FF6B6B;">ridiculously</span> simple 🙌</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;">
+        <div class="card card-hover" style="padding:32px;text-align:center;border-top:4px solid #FF6B6B;">
+          <div style="font-size:44px;margin-bottom:16px;">📋</div>
+          <div style="font-weight:800;font-size:28px;color:#FF6B6B;margin-bottom:8px;">01</div>
+          <h3 style="font-size:18px;margin-bottom:10px;font-family:'Nunito',sans-serif;">Book a Free Demo</h3>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;">Fill the contact form or WhatsApp us. Zero obligation — just see if we're the right fit!</p>
+        </div>
+        <div class="card card-hover" style="padding:32px;text-align:center;border-top:4px solid #6C63FF;">
+          <div style="font-size:44px;margin-bottom:16px;">🧬</div>
+          <div style="font-weight:800;font-size:28px;color:#6C63FF;margin-bottom:8px;">02</div>
+          <h3 style="font-size:18px;margin-bottom:10px;font-family:'Nunito',sans-serif;">Get Your Plan</h3>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;">We build a 100% personalised curriculum just for your child based on their level and goals.</p>
+        </div>
+        <div class="card card-hover" style="padding:32px;text-align:center;border-top:4px solid #FF9F43;">
+          <div style="font-size:44px;margin-bottom:16px;">🖥️</div>
+          <div style="font-weight:800;font-size:28px;color:#FF9F43;margin-bottom:8px;">03</div>
+          <h3 style="font-size:18px;margin-bottom:10px;font-family:'Nunito',sans-serif;">Learn Live</h3>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;">Attend live interactive sessions with your expert teacher — 1-on-1 or small group (max 4).</p>
+        </div>
+        <div class="card card-hover" style="padding:32px;text-align:center;border-top:4px solid #1DD1A1;">
+          <div style="font-size:44px;margin-bottom:16px;">📈</div>
+          <div style="font-weight:800;font-size:28px;color:#1DD1A1;margin-bottom:8px;">04</div>
+          <h3 style="font-size:18px;margin-bottom:10px;font-family:'Nunito',sans-serif;">Track Growth</h3>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;">Watch progress in real time on your dashboard. We celebrate every milestone together!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS STRIP -->
+  <div class="stats-strip">
+    <div class="section">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:24px;text-align:center;">
+        <div><div style="font-size:36px;">🌟</div><div style="font-size:38px;font-weight:900;background:linear-gradient(135deg,#FF6B6B,#FF9F43);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:8px;">5,000+</div><div style="color:#9090B0;font-size:14px;margin-top:4px;font-weight:700;">Happy Students</div></div>
+        <div><div style="font-size:36px;">📅</div><div style="font-size:38px;font-weight:900;background:linear-gradient(135deg,#FF6B6B,#FF9F43);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:8px;">120+</div><div style="color:#9090B0;font-size:14px;margin-top:4px;font-weight:700;">Live Classes/mo</div></div>
+        <div><div style="font-size:36px;">📚</div><div style="font-size:38px;font-weight:900;background:linear-gradient(135deg,#FF6B6B,#FF9F43);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:8px;">6</div><div style="color:#9090B0;font-size:14px;margin-top:4px;font-weight:700;">Subjects</div></div>
+        <div><div style="font-size:36px;">❤️</div><div style="font-size:38px;font-weight:900;background:linear-gradient(135deg,#FF6B6B,#FF9F43);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:8px;">98%</div><div style="color:#9090B0;font-size:14px;margin-top:4px;font-weight:700;">Would Recommend</div></div>
+        <div><div style="font-size:36px;">👥</div><div style="font-size:38px;font-weight:900;background:linear-gradient(135deg,#FF6B6B,#FF9F43);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:8px;">Max 4</div><div style="color:#9090B0;font-size:14px;margin-top:4px;font-weight:700;">Per Group</div></div>
+        <div><div style="font-size:36px;">🧬</div><div style="font-size:38px;font-weight:900;background:linear-gradient(135deg,#FF6B6B,#FF9F43);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-top:8px;">100%</div><div style="color:#9090B0;font-size:14px;margin-top:4px;font-weight:700;">Personalised</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEACHERS -->
+  <div class="sec sec-light">
+    <div class="section">
+      <div class="sec-header">
+        <div class="sec-pill" style="background:#FFF6E8;color:#FF9F43;">OUR TEACHERS</div>
+        <h2>The <span style="color:#FF6B6B;">legends</span> behind your learning 🏆</h2>
+      </div>
+      <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
+        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#6C63FF,#A29BFE);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">PS</div><div style="font-weight:800;font-size:15px;">Mrs. Archana Rawat</div><div style="font-size:13px;color:#6C63FF;font-weight:700;margin-top:4px;">Coding & CS</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">12 yrs experience</div></div>
+        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#FF9F43,#FDCB6E);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">AN</div><div style="font-weight:800;font-size:15px;">Ms. Priya Sharma </div><div style="font-size:13px;color:#FF9F43;font-weight:700;margin-top:4px;">Mathematics</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">10 yrs experience</div></div>
+        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#1DD1A1,#00B894);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">RK</div><div style="font-weight:800;font-size:15px;">Mr. Leandre Andre</div><div style="font-size:13px;color:#1DD1A1;font-weight:700;margin-top:4px;">English</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">7 yrs experience</div></div>
+        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#A29BFE,#6C63FF);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">SB</div><div style="font-weight:800;font-size:15px;">Mr. Sanjay Bose</div><div style="font-size:13px;color:#A29BFE;font-weight:700;margin-top:4px;">Chemistry</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">8 yrs experience</div></div>
+        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#54A0FF,#0984E3);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">AR</div><div style="font-weight:800;font-size:15px;">Ms. Anju Bani</div><div style="font-size:13px;color:#54A0FF;font-weight:700;margin-top:4px;">Physics</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">4 yrs experience</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TESTIMONIALS -->
+  <div class="sec sec-alt">
+    <div class="section">
+      <div class="sec-header">
+        <div class="sec-pill" style="background:#FFF0F0;color:#FF6B6B;">STUDENT STORIES</div>
+        <h2>Real students. <span style="color:#6C63FF;">Real results. 💬</span></h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;">
+        <div class="card card-hover" style="padding:28px;"><div style="font-size:36px;color:#FF6B6B;margin-bottom:12px;">"</div><p style="color:#555;font-size:14px;line-height:1.8;font-weight:600;margin-bottom:20px;">I went from dreading Maths to actually loving it. My teacher figured out exactly where I was stuck and we fixed it in two sessions. No cap 🙏</p><div style="display:flex;align-items:center;gap:12px;"><div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#FF6B6B,#FF9F43);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;">RI</div><div><div style="font-weight:800;font-size:14px;">Riya, Grade 8</div><div style="font-size:12px;color:#999;font-weight:600;">Maths</div></div></div></div>
+        <div class="card card-hover" style="padding:28px;"><div style="font-size:36px;color:#6C63FF;margin-bottom:12px;">"</div><p style="color:#555;font-size:14px;line-height:1.8;font-weight:600;margin-bottom:20px;">Physics used to feel impossible. After my personalised plan kicked in I'm doing derivations on my own. Intellikids changed my mindset 💥</p><div style="display:flex;align-items:center;gap:12px;"><div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#6C63FF,#A29BFE);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;">AR</div><div><div style="font-weight:800;font-size:14px;">Aryan, Grade 10</div><div style="font-size:12px;color:#999;font-weight:600;">Physics</div></div></div></div>
+        <div class="card card-hover" style="padding:28px;"><div style="font-size:36px;color:#FF9F43;margin-bottom:12px;">"</div><p style="color:#555;font-size:14px;line-height:1.8;font-weight:600;margin-bottom:20px;">I built my first website in the coding class and my parents were SO impressed 😭🔥 The group vibe with 3 other kids made it so much more fun!</p><div style="display:flex;align-items:center;gap:12px;"><div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#FF9F43,#FDCB6E);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;">ME</div><div><div style="font-weight:800;font-size:14px;">Meera, Grade 6</div><div style="font-size:12px;color:#999;font-weight:600;">Coding</div></div></div></div>
+        <div class="card card-hover" style="padding:28px;"><div style="font-size:36px;color:#1DD1A1;margin-bottom:12px;">"</div><p style="color:#555;font-size:14px;line-height:1.8;font-weight:600;margin-bottom:20px;">The 1-on-1 Chemistry sessions are unreal. My teacher literally designs every class around exactly what I don't understand yet. It's like a superpower.</p><div style="display:flex;align-items:center;gap:12px;"><div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#1DD1A1,#00B894);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;">KA</div><div><div style="font-weight:800;font-size:14px;">Kabir, Grade 9</div><div style="font-size:12px;color:#999;font-weight:600;">Chemistry</div></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div class="sec sec-light">
+    <div class="section">
+      <div class="sec-header">
+        <div class="sec-pill" style="background:#E8FFF8;color:#1DD1A1;">FAQs</div>
+        <h2>Got questions? <span style="color:#FF9F43;">We got answers 🙋</span></h2>
+      </div>
+      <div style="max-width:720px;margin:0 auto;" id="faq-list"></div>
+    </div>
+  </div>
+
+  <!-- CTA BAND -->
+  <div style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);padding:60px 24px;text-align:center;">
+    <h2 style="color:#fff;margin-bottom:12px;">Ready to unlock your child's potential? 🌟</h2>
+    <p style="color:rgba(255,255,255,.85);font-size:16px;font-weight:600;margin-bottom:28px;">First demo session is completely FREE. No cards. No pressure.</p>
+    <button class="btn" onclick="nav('contact')" style="background:#fff;color:#FF6B6B;padding:16px 40px;font-size:17px;font-weight:900;box-shadow:0 8px 28px rgba(0,0,0,.2);">Book Your Free Demo 🎯</button>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="section">
+      <div class="footer-grid">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+            <div style="width:40px;height:40px;background:linear-gradient(135deg,#FF6B6B,#FF9F43);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;">🧠</div>
+            <div><div style="font-family:'Baloo 2',sans-serif;font-weight:800;font-size:18px;color:#fff;">Intellikids</div><div style="font-size:10px;font-weight:800;color:#FF9F43;letter-spacing:1px;">ACADEMY</div></div>
+          </div>
+          <p style="font-size:13px;line-height:1.8;color:#888;font-weight:600;">Personalised live learning for curious minds, grades 3–12. Building tomorrow's thinkers today.</p>
+          <div style="margin-top:16px;display:flex;gap:12px;">
+            <a href="https://wa.me/7838540593" target="_blank" style="text-decoration:none;font-size:22px;" title="WhatsApp">💬</a>
+            <a href="mailto:hello@intellikidsacademy.in" style="text-decoration:none;font-size:22px;" title="Email">📧</a>
+          </div>
+        </div>
+        <div>
+          <div style="font-weight:800;font-size:15px;color:#fff;margin-bottom:16px;">Subjects</div>
+          <a class="footer-link">💻 Computer Basics (Gr. 3–10)</a>
+          <a class="footer-link">🤖 Coding (Gr. 3–10)</a>
+          <a class="footer-link">🔢 Maths (Gr. 3–10)</a>
+          <a class="footer-link">✍️ English (Gr. 3–10)</a>
+          <a class="footer-link">🚀 Physics (Gr. 9–12)</a>
+          <a class="footer-link">🔬 Chemistry (Gr. 9–12)</a>
+        </div>
+        <div>
+          <div style="font-weight:800;font-size:15px;color:#fff;margin-bottom:16px;">Quick Links</div>
+          <a class="footer-link" onclick="nav('home')">🏠 Home</a>
+          <a class="footer-link" onclick="nav('subjects')">📚 Subjects</a>
+          <a class="footer-link" onclick="nav('sessions')">📅 Sessions</a>
+          <a class="footer-link" onclick="nav('contact')">💬 Contact Us</a>
+          <a class="footer-link" onclick="nav('student-login')">🎒 Student Login</a>
+          <a class="footer-link" onclick="nav('teacher-login')">👩‍🏫 Teacher Login</a>
+        </div>
+        <div>
+          <div style="font-weight:800;font-size:15px;color:#fff;margin-bottom:16px;">Contact</div>
+          <div style="font-size:13px;color:#888;margin-bottom:10px;font-weight:600;">📧 hello@intellikidsacademy.in</div>
+          <div style="font-size:13px;color:#888;margin-bottom:10px;font-weight:600;">📧 support@intellikidsacademy.com</div>
+          <div style="font-size:13px;color:#888;margin-bottom:10px;font-weight:600;">📞 +91 7838540593</div>
+          <div style="font-size:13px;color:#888;margin-bottom:10px;font-weight:600;">📞 +91 8882905957</div>
+          <div style="font-size:13px;color:#888;font-weight:600;margin-top:16px;">🌐 intellikidsacademy.com<br/>🌐 intellikidsacademy.in</div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span style="font-size:13px;color:#555;font-weight:600;">© 2026 Intellikids Academy · Made with ❤️ for curious kids</span>
+        <span style="font-size:13px;color:#555;font-weight:600;">Grades 3–12 · Personalised · Live · Fun</span>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: SUBJECTS                                                         -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-subjects">
+  <div style="padding:60px 24px;min-height:80vh;background:#FFFDF8;">
+    <div class="section">
+      <div style="text-align:center;margin-bottom:52px;">
+        <h2>All Subjects <span style="color:#6C63FF;">✨</span></h2>
+        <p style="font-size:16px;color:#777;font-weight:600;margin-top:8px;">Live sessions — 1-on-1 or small group (max 4). Fully personalised curriculum.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;">
+        <div class="card card-hover sc-cs" style="padding:32px;cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+            <div style="width:60px;height:60px;border-radius:18px;background:#FFF0F0;display:flex;align-items:center;justify-content:center;font-size:32px;">🖥️</div>
+            <div><div style="font-weight:800;font-size:18px;">Computer Basics</div><span class="chip chip-red">Gr. 3–10</span></div>
+          </div>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Mouse, keyboard, internet, MS Office & digital safety — made fun! Essential digital skills for the modern world.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-red" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-red" style="font-size:11px;">Group (max 4)</span><span class="chip chip-red" style="font-size:11px;">Custom Curriculum</span></div>
+        </div>
+        <div class="card card-hover sc-code" style="padding:32px;cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+            <div style="width:60px;height:60px;border-radius:18px;background:#F0EEFF;display:flex;align-items:center;justify-content:center;font-size:32px;">🤖</div>
+            <div><div style="font-weight:800;font-size:18px;">Coding</div><span class="chip chip-purple">Gr. 3–10</span></div>
+          </div>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Scratch → Python → Web Dev. Build real stuff from day one. Projects-first approach that makes coding click.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-purple" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-purple" style="font-size:11px;">Group (max 4)</span><span class="chip chip-purple" style="font-size:11px;">Custom Curriculum</span></div>
+        </div>
+        <div class="card card-hover sc-math" style="padding:32px;cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+            <div style="width:60px;height:60px;border-radius:18px;background:#FFF6E8;display:flex;align-items:center;justify-content:center;font-size:32px;">🔢</div>
+            <div><div style="font-weight:800;font-size:18px;">Maths</div><span class="chip chip-orange">Gr. 3–10</span></div>
+          </div>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Numbers, algebra, geometry & beyond. We make it click, for real. From basic arithmetic to advanced algebra.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-orange" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-orange" style="font-size:11px;">Group (max 4)</span><span class="chip chip-orange" style="font-size:11px;">Custom Curriculum</span></div>
+        </div>
+        <div class="card card-hover sc-eng" style="padding:32px;cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+            <div style="width:60px;height:60px;border-radius:18px;background:#E8FFF8;display:flex;align-items:center;justify-content:center;font-size:32px;">✍️</div>
+            <div><div style="font-weight:800;font-size:18px;">English</div><span class="chip chip-green">Gr. 3–10</span></div>
+          </div>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Reading, writing, grammar & speaking — the whole package. Build confidence in communication from the ground up.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-green" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-green" style="font-size:11px;">Group (max 4)</span><span class="chip chip-green" style="font-size:11px;">Custom Curriculum</span></div>
+        </div>
+        <div class="card card-hover sc-phy" style="padding:32px;cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+            <div style="width:60px;height:60px;border-radius:18px;background:#EBF4FF;display:flex;align-items:center;justify-content:center;font-size:32px;">🚀</div>
+            <div><div style="font-weight:800;font-size:18px;">Physics</div><span class="chip chip-blue">Gr. 9–12</span></div>
+          </div>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Forces, waves, optics, electricity — physics that makes you go 'whoa'. CBSE & ICSE aligned curriculum.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-blue" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-blue" style="font-size:11px;">Group (max 4)</span><span class="chip chip-blue" style="font-size:11px;">Custom Curriculum</span></div>
+          <div style="margin-top:16px;background:#FFF6E8;border-radius:12px;padding:10px 14px;font-size:13px;color:#FF9F43;font-weight:700;">⚠️ Available for Grade 9, 10, 11 & 12 only</div>
+        </div>
+        <div class="card card-hover sc-chem" style="padding:32px;cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+            <div style="width:60px;height:60px;border-radius:18px;background:#F3F0FF;display:flex;align-items:center;justify-content:center;font-size:32px;">🔬</div>
+            <div><div style="font-weight:800;font-size:18px;">Chemistry</div><span class="chip chip-purple">Gr. 9–12</span></div>
+          </div>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Atoms, bonds, reactions & organic chem. Science but make it cool. Concept-first approach with real-world examples.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-purple" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-purple" style="font-size:11px;">Group (max 4)</span><span class="chip chip-purple" style="font-size:11px;">Custom Curriculum</span></div>
+          <div style="margin-top:16px;background:#FFF6E8;border-radius:12px;padding:10px 14px;font-size:13px;color:#FF9F43;font-weight:700;">⚠️ Available for Grade 9, 10, 11 & 12 only</div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:48px;">
+        <button class="btn btn-main" onclick="nav('contact')">Book Free Demo for Any Subject 🎯</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: SESSIONS                                                         -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-sessions">
+  <div style="padding:60px 24px;min-height:80vh;background:#FFFDF8;">
+    <div class="section">
+      <div style="margin-bottom:40px;">
+        <h2>Upcoming Sessions 📅</h2>
+        <p style="color:#777;font-weight:600;margin-top:8px;">Browse all scheduled live classes — filter by grade. Login to join sessions.</p>
+      </div>
+      <!-- Grade Filter -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;flex-wrap:wrap;" id="grade-filters"></div>
+      <!-- Sessions list -->
+      <div id="sessions-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: CONTACT                                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-contact">
+  <div class="sec" style="background:#FFFDF8;">
+    <div class="section">
+      <div class="sec-header">
+        <div class="sec-pill" style="background:#FFF0F0;color:#FF6B6B;">CONTACT US</div>
+        <h2>Let's get the <span style="color:#6C63FF;">conversation started! 💬</span></h2>
+        <p style="font-size:16px;color:#777;font-weight:600;margin-top:8px;">Book a free demo, ask anything, or just say hi!</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:32px;">
+        <!-- Contact Details -->
+        <div>
+          <div class="contact-card" style="border-left:5px solid #FF6B6B;">
+            <div class="contact-icon" style="background:#FFF0F0;">📞</div>
+            <div>
+              <div style="font-weight:800;font-size:15px;margin-bottom:4px;">Call / WhatsApp</div>
+              <div style="font-size:14px;color:#777;font-weight:600;">+91 7838540593</div>
+              <div style="font-size:14px;color:#777;font-weight:600;">+91 8882905957</div>
+            </div>
+          </div>
+          <div class="contact-card" style="border-left:5px solid #6C63FF;">
+            <div class="contact-icon" style="background:#F0EEFF;">📧</div>
+            <div>
+              <div style="font-weight:800;font-size:15px;margin-bottom:4px;">Email Us</div>
+              <div style="font-size:14px;color:#777;font-weight:600;">hello@intellikidsacademy.in</div>
+              <div style="font-size:14px;color:#777;font-weight:600;">support@intellikidsacademy.com</div>
+            </div>
+          </div>
+          <div class="contact-card" style="border-left:5px solid #1DD1A1;">
+            <div class="contact-icon" style="background:#E8FFF8;">⏰</div>
+            <div>
+              <div style="font-weight:800;font-size:15px;margin-bottom:4px;">Support Hours</div>
+              <div style="font-size:14px;color:#777;font-weight:600;">Mon – Sat: 9 AM – 9 PM IST</div>
+              <div style="font-size:14px;color:#777;font-weight:600;">Sunday: 10 AM – 6 PM IST</div>
+            </div>
+          </div>
+          <div class="contact-card" style="border-left:5px solid #FF9F43;">
+            <div class="contact-icon" style="background:#FFF6E8;">🌐</div>
+            <div>
+              <div style="font-weight:800;font-size:15px;margin-bottom:4px;">Website</div>
+              <div style="font-size:14px;color:#777;font-weight:600;">intellikidsacademy.com</div>
+              <div style="font-size:14px;color:#777;font-weight:600;">intellikidsacademy.in</div>
+            </div>
+          </div>
+        </div>
+        <!-- Contact Form -->
+        <div class="card" style="padding:36px;">
+          <h3 style="margin-bottom:6px;font-family:'Nunito',sans-serif;font-size:22px;">Book Your Free Demo 🎯</h3>
+          <p style="color:#888;font-size:14px;font-weight:600;margin-bottom:28px;">We'll reach out within 2 hours!</p>
+          <div id="contact-success" style="display:none;text-align:center;padding:32px;">
+            <div style="font-size:52px;margin-bottom:12px;">🎉</div>
+            <h3 style="color:#1DD1A1;margin-bottom:8px;">You're all set!</h3>
+            <p style="color:#777;font-size:14px;font-weight:600;">We'll contact you within 2 hours to schedule your free demo session.</p>
+          </div>
+          <div id="contact-form-wrap">
+            <div class="form-group">
+              <label>Parent / Student Name *</label>
+              <input type="text" id="cf-name" placeholder="e.g. Priya Sharma"/>
+              <div class="form-error" id="cf-name-err">Please enter your name</div>
+            </div>
+            <div class="form-group">
+              <label>Email Address *</label>
+              <input type="email" id="cf-email" placeholder="hello@example.com"/>
+              <div class="form-error" id="cf-email-err">Please enter a valid email</div>
+            </div>
+            <div class="form-group">
+              <label>Phone / WhatsApp *</label>
+              <input type="tel" id="cf-phone" placeholder="+91 7838540593"/>
+              <div class="form-error" id="cf-phone-err">Please enter your phone number</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+              <div class="form-group">
+                <label>Student's Grade *</label>
+                <select id="cf-grade">
+                  <option value="">Select Grade</option>
+                  <option>Grade 3</option><option>Grade 4</option><option>Grade 5</option>
+                  <option>Grade 6</option><option>Grade 7</option><option>Grade 8</option>
+                  <option>Grade 9</option><option>Grade 10</option><option>Grade 11</option><option>Grade 12</option>
+                </select>
+                <div class="form-error" id="cf-grade-err">Please select a grade</div>
+              </div>
+              <div class="form-group">
+                <label>Subject Interested In</label>
+                <select id="cf-subject">
+                  <option value="">Any / Not sure</option>
+                  <option>Computer Basics</option><option>Coding</option><option>Maths</option>
+                  <option>English</option><option>Physics</option><option>Chemistry</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Session Type</label>
+              <select id="cf-type">
+                <option>1-on-1 (Fully Personalised)</option>
+                <option>Group (Max 4 students)</option>
+                <option>Not sure yet</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Anything else? (Optional)</label>
+              <textarea id="cf-msg" rows="3" placeholder="Tell us about your child's current level, goals, or any challenges..."></textarea>
+            </div>
+            <button class="btn btn-main btn-full" onclick="submitContactForm()">Send & Book Demo 🚀</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: STUDENT LOGIN                                                    -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-student-login">
+  <div class="login-wrap">
+    <div class="login-box fade-up">
+      <div class="login-icon" style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);">🎒</div>
+      <h2 class="login-title" style="font-size:26px;">Student Portal</h2>
+      <p class="login-sub">Welcome back! Enter your credentials to access your dashboard.</p>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="sl-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLoginBtn('student')"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="sl-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLoginBtn('student')"/>
+      </div>
+      <div id="sl-error" style="color:#FF6B6B;font-size:13px;font-weight:700;margin-bottom:16px;display:none;"></div>
+      <button class="btn btn-main btn-full" onclick="doLoginBtn('student')">Login to Dashboard 🚀</button>
+      <div style="text-align:center;margin-top:20px;">
+        <span style="font-size:13px;color:#888;font-weight:600;">Forgot password? </span>
+        <button onclick="showReset('sl-email')" style="background:none;border:none;cursor:pointer;color:#FF6B6B;font-weight:800;font-size:13px;">Reset it →</button>
+      </div>
+      <div style="margin-top:20px;padding-top:20px;border-top:1px solid #f0f0f0;text-align:center;font-size:13px;color:#888;font-weight:600;">
+        New here? <button onclick="nav('contact')" style="background:none;border:none;cursor:pointer;color:#6C63FF;font-weight:800;font-size:13px;">Book a free demo →</button>
+      </div>
+      <div style="margin-top:16px;text-align:center;">
+        <button onclick="nav('teacher-login')" style="background:none;border:none;cursor:pointer;color:#999;font-size:13px;font-weight:600;">Are you a teacher? Login here →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: TEACHER LOGIN                                                    -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-teacher-login">
+  <div class="login-wrap">
+    <div class="login-box fade-up">
+      <div class="login-icon" style="background:linear-gradient(135deg,#6C63FF,#A29BFE);">👩‍🏫</div>
+      <h2 class="login-title" style="font-size:26px;">Teacher Portal</h2>
+      <p class="login-sub">Access your class schedule, student progress, and teaching tools.</p>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="tl-email" placeholder="teacher@intellikidsacademy.in" onkeydown="if(event.key==='Enter')doLoginBtn('teacher')"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="tl-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLoginBtn('teacher')"/>
+      </div>
+      <div id="tl-error" style="color:#FF6B6B;font-size:13px;font-weight:700;margin-bottom:16px;display:none;"></div>
+      <button class="btn btn-purple btn-full" onclick="doLoginBtn('teacher')">Login to Dashboard 🚀</button>
+      <div style="text-align:center;margin-top:20px;">
+        <span style="font-size:13px;color:#888;font-weight:600;">Forgot password? </span>
+        <button onclick="showReset('tl-email')" style="background:none;border:none;cursor:pointer;color:#6C63FF;font-weight:800;font-size:13px;">Reset it →</button>
+      </div>
+      <div style="margin-top:16px;text-align:center;">
+        <button onclick="nav('student-login')" style="background:none;border:none;cursor:pointer;color:#999;font-size:13px;font-weight:600;">Are you a student? Login here →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: STUDENT DASHBOARD                                                -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-student-dashboard">
+  <div class="dashboard fade-up">
+    <div class="dash-header">
+      <div>
+        <p style="font-size:13px;font-weight:800;color:#6C63FF;margin-bottom:4px;letter-spacing:.5px;">🎒 STUDENT PORTAL</p>
+        <h1 id="sd-greeting" style="font-size:clamp(24px,4vw,36px);">Hey there! 🙌</h1>
+        <p id="sd-streak" style="color:#888;font-size:15px;margin-top:4px;font-weight:600;"></p>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-sec btn-sm" onclick="nav('home')">← Home</button>
+        <button class="btn" onclick="doLogout()" style="background:#FFF0F0;color:#FF6B6B;padding:9px 20px;font-size:13px;font-weight:800;border-radius:50px;">Logout</button>
+      </div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="stat-grid" id="sd-stats"></div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="sdTab(this,'upcoming')">📅 Upcoming</button>
+      <button class="tab-btn" onclick="sdTab(this,'completed')">✅ Completed</button>
+      <button class="tab-btn" onclick="sdTab(this,'homework')">📝 Homework</button>
+      <button class="tab-btn" onclick="sdTab(this,'performance')">📈 Performance</button>
+    </div>
+
+    <div id="sd-content">
+      <div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading your data…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: TEACHER DASHBOARD                                                -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-teacher-dashboard">
+  <div class="dashboard fade-up">
+    <div class="dash-header">
+      <div>
+        <p style="font-size:13px;font-weight:800;color:#6C63FF;margin-bottom:4px;letter-spacing:.5px;">👩‍🏫 TEACHER PORTAL</p>
+        <h1 id="td-greeting" style="font-size:clamp(24px,4vw,36px);">Welcome back! 🏆</h1>
+        <p style="color:#888;font-size:15px;margin-top:4px;font-weight:600;">Here's your schedule and student overview for today.</p>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-sec btn-sm" onclick="nav('home')">← Home</button>
+        <button class="btn" onclick="doLogout()" style="background:#FFF0F0;color:#FF6B6B;padding:9px 20px;font-size:13px;font-weight:800;border-radius:50px;">Logout</button>
+      </div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="stat-grid" id="td-stats"></div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="tdTab(this,'sessions')">📅 Sessions</button>
+      <button class="tab-btn" onclick="tdTab(this,'students')">👥 Students</button>
+      <button class="tab-btn" onclick="tdTab(this,'curriculum')">🧬 Curriculum</button>
+      <button class="tab-btn" onclick="tdTab(this,'lms')">🛠️ LMS Tools</button>
+    </div>
+
+    <div id="td-content">
+      <div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading your data…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── FLOATING BUTTONS ──────────────────────────────────────────────── -->
+<a class="wa-float" href="https://wa.me/917838540593?text=Hi%20Intellikids%20Academy!%20I%27d%20like%20to%20book%20a%20free%20demo." target="_blank" title="Chat on WhatsApp">💬</a>
+<button id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">↑</button>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT                                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<script>
+// ─── DATA ─────────────────────────────────────────────────────────────────
+const SUBJECT_COLORS = {
+  "Computer Basics":{"color":"#FF6B6B","bg":"#FFF0F0","emoji":"🖥️"},
+  "Coding":          {"color":"#6C63FF","bg":"#F0EEFF","emoji":"🤖"},
+  "Maths":           {"color":"#FF9F43","bg":"#FFF6E8","emoji":"🔢"},
+  "English":         {"color":"#1DD1A1","bg":"#E8FFF8","emoji":"✍️"},
+  "Physics":         {"color":"#54A0FF","bg":"#EBF4FF","emoji":"🚀"},
+  "Chemistry":       {"color":"#A29BFE","bg":"#F3F0FF","emoji":"🔬"},
+};
+
+const DEMO_SESSIONS = [
+  {id:1,subject:"Coding",        topic:"Variables & Loops in Python",     date:"Mon, May 19",time:"4:00 PM",grade:6, teacher:"Ms. Priya",  type:"1-on-1"},
+  {id:2,subject:"Maths",         topic:"Linear Equations",                date:"Tue, May 20",time:"5:00 PM",grade:7, teacher:"Mr. Arjun",  type:"Group"},
+  {id:3,subject:"Computer Basics",topic:"How the Internet Works",          date:"Wed, May 21",time:"4:30 PM",grade:5, teacher:"Ms. Rhea",   type:"1-on-1"},
+  {id:4,subject:"English",       topic:"Creative Writing Workshop",       date:"Thu, May 22",time:"3:30 PM",grade:8, teacher:"Mr. Dev",    type:"Group"},
+  {id:5,subject:"Physics",       topic:"Newton's Laws of Motion",         date:"Fri, May 23",time:"5:30 PM",grade:9, teacher:"Ms. Anita",  type:"1-on-1"},
+  {id:6,subject:"Chemistry",     topic:"Periodic Table Deep Dive",        date:"Mon, May 26",time:"4:00 PM",grade:10,teacher:"Mr. Sanjay", type:"Group"},
+];
+
+const FAQS_DATA = [
+  {q:"What grades does Intellikids Academy support?",           c:"#FF6B6B", a:"We support students from Grade 3 to Grade 10 for Computer Basics, Coding, Maths & English. Physics and Chemistry are available for Grade 9 to Grade 12."},
+  {q:"What's the difference between 1-on-1 and Group sessions?",c:"#6C63FF", a:"1-on-1 sessions are fully personalised — just you and your teacher. Group sessions have a maximum of 4 students so every child still gets personal attention and the energy of peers."},
+  {q:"How personalised is the curriculum?",                     c:"#FF9F43", a:"Very! Every student gets a curriculum built from scratch based on their current level, goals, learning style and pace. No two students follow the same plan."},
+  {q:"How do live classes work?",                               c:"#1DD1A1", a:"All sessions are live and interactive over video. You can ask questions in real time, share your screen, and work through problems together."},
+  {q:"Can I revisit completed sessions?",                       c:"#54A0FF", a:"Yes! Every session is recorded and available in your dashboard under 'Completed' — rewatch as many times as you need."},
+  {q:"How are assessments graded?",                             c:"#A29BFE", a:"Assessments are reviewed by your teacher. Detailed written feedback is shared within 24 hours so you know exactly what to improve."},
+  {q:"Is there a free trial?",                                  c:"#FD79A8", a:"Absolutely! Book a free demo session and experience the Intellikids difference before committing to anything."},
+];
+
+const MARQUEE_ITEMS = ["🎯 1-on-1 Sessions","👥 Small Group (Max 4)","📚 Grades 3–12","🤖 Coding","🔢 Maths","✍️ English","🚀 Physics","🔬 Chemistry","💻 Computer Basics","🧬 100% Personalised","📹 Sessions Recorded","🇮🇳 Trusted by 5,000+ Families"];
+
+// ─── CURRENT STATE ─────────────────────────────────────────────────────────
+let currentPage = 'home';
+let gradeFilter = 'All';
+let studentTabState = 'upcoming';
+let teacherTabState = 'sessions';
+let studentData    = null;
+let teacherData    = null;
+
+// ─── NAVIGATION ────────────────────────────────────────────────────────────
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  const el = document.getElementById('page-' + page);
+  if (el) el.classList.add('active');
+  const nl = document.getElementById('nl-' + page);
+  if (nl) nl.classList.add('active');
+  currentPage = page;
+  window.scrollTo({top:0, behavior:'smooth'});
+
+  // Page-specific init
+  if (page === 'sessions') renderSessionsPage();
+  if (page === 'student-dashboard') initStudentDash();
+  if (page === 'teacher-dashboard') initTeacherDash();
+}
+
+function showDashboard(role) {
+  showLoader(false);
+  if (role === 'student') nav('student-dashboard');
+  else if (role === 'teacher') nav('teacher-dashboard');
+  else showToast("Unknown role. Contact admin.", "error");
+}
+
+// ─── MOBILE MENU ───────────────────────────────────────────────────────────
+function toggleMobile() {
+  document.getElementById('mobile-menu').classList.toggle('open');
+}
+
+// ─── LOADER ────────────────────────────────────────────────────────────────
+function showLoader(show) {
+  document.getElementById('global-loader').classList.toggle('show', show);
+}
+
+// ─── TOAST ─────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type === 'error' ? ' error' : type === 'success' ? ' success' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show','error','success'), 3200);
+}
+
+// ─── LOGIN HANDLER ─────────────────────────────────────────────────────────
+function doLoginBtn(role) {
+  const prefix = role === 'student' ? 'sl' : 'tl';
+  const email  = document.getElementById(prefix + '-email').value.trim();
+  const pass   = document.getElementById(prefix + '-pass').value;
+  const errEl  = document.getElementById(prefix + '-error');
+  errEl.style.display = 'none';
+  if (!email || !pass) {
+    errEl.textContent = 'Please enter both email and password.';
+    errEl.style.display = 'block';
+    return;
+  }
+  showLoader(true);
+  window.doLogin(email, pass);
+}
+
+// ─── PASSWORD RESET ─────────────────────────────────────────────────────────
+function showReset(inputId) {
+  const email = document.getElementById(inputId).value.trim();
+  if (!email) { showToast("Enter your email first.", "error"); return; }
+  window.doReset(email);
+}
+
+// ─── MARQUEE INIT ──────────────────────────────────────────────────────────
+function initMarquee() {
+  const track = document.getElementById('marquee-track');
+  const items = [...MARQUEE_ITEMS, ...MARQUEE_ITEMS];
+  track.innerHTML = items.map(i => `<span class="marquee-item">${i} <span style="color:#FFE8E8;margin-left:8px;">•</span></span>`).join('');
+}
+
+// ─── FAQ RENDER ─────────────────────────────────────────────────────────────
+function initFaq() {
+  const list = document.getElementById('faq-list');
+  list.innerHTML = FAQS_DATA.map((f,i) => `
+    <div class="faq-item" onclick="toggleFaq(${i})" id="faq-${i}" style="border-left:4px solid ${f.c};">
+      <div class="faq-q">
+        <span>${f.q}</span>
+        <span class="faq-icon" style="color:${f.c};">+</span>
+      </div>
+      <div class="faq-a">${f.a}</div>
+    </div>
+  `).join('');
+}
+
+function toggleFaq(i) {
+  const el = document.getElementById('faq-' + i);
+  const wasOpen = el.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(f => f.classList.remove('open'));
+  if (!wasOpen) el.classList.add('open');
+}
+
+// ─── SESSIONS PAGE ──────────────────────────────────────────────────────────
+function renderSessionsPage() {
+  // Grade filter buttons
+  const filtersEl = document.getElementById('grade-filters');
+  const grades = ['All', ...Array.from({length:10},(_,i)=>String(i+3))];
+  filtersEl.innerHTML = `<span style="font-size:14px;color:#888;font-weight:700;">Grade:</span>` +
+    grades.map(g => `<button onclick="setGradeFilter('${g}')" id="gf-${g}" style="padding:7px 16px;border-radius:50px;font-size:13px;font-weight:800;cursor:pointer;border:none;transition:all .2s;${gradeFilter===g?'background:linear-gradient(135deg,#FF6B6B,#FF9F43);color:#fff;box-shadow:0 4px 12px rgba(255,107,107,.3);':'background:#f0f0f0;color:#888;'}">${g==='All'?'All':'Gr. '+g}</button>`).join('');
+  renderSessionsList();
+}
+
+function setGradeFilter(g) {
+  gradeFilter = g;
+  renderSessionsPage();
+}
+
+function renderSessionsList() {
+  const list = document.getElementById('sessions-list');
+  const filtered = gradeFilter === 'All' ? DEMO_SESSIONS : DEMO_SESSIONS.filter(s => String(s.grade) === gradeFilter);
+  if (!filtered.length) {
+    list.innerHTML = `<div style="text-align:center;padding:48px;color:#888;font-weight:700;">No sessions found for Grade ${gradeFilter}.</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(s => {
+    const sc = SUBJECT_COLORS[s.subject] || {color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
+    return `
+    <div class="session-row" style="border-left:4px solid ${sc.color};">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="width:48px;height:48px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:24px;">${sc.emoji}</div>
+        <div>
+          <div style="font-weight:800;font-size:15px;">${s.topic}</div>
+          <div style="font-size:13px;color:#888;margin-top:3px;font-weight:600;">${s.subject} · Grade ${s.grade} · ${s.teacher}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span class="chip ${s.type==='1-on-1'?'chip-1on1':'chip-group'}">${s.type==='1-on-1'?'🎯 1-on-1':'👥 Group (max 4)'}</span>
+        <div style="text-align:right;">
+          <div style="font-size:14px;font-weight:800;">${s.date}</div>
+          <div style="font-size:13px;color:#999;font-weight:600;">${s.time}</div>
+        </div>
+        <button class="btn btn-main btn-sm" onclick="requireLogin()">Join →</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function requireLogin() {
+  showToast("Please login to join sessions.", "error");
+  setTimeout(() => nav('student-login'), 1200);
+}
+
+// ─── CONTACT FORM ──────────────────────────────────────────────────────────
+async function submitContactForm() {
+  let valid = true;
+  const fields = [
+    {id:'cf-name',  errId:'cf-name-err',  check: v => v.trim().length > 1},
+    {id:'cf-email', errId:'cf-email-err', check: v => /\S+@\S+\.\S+/.test(v)},
+    {id:'cf-phone', errId:'cf-phone-err', check: v => v.trim().length > 6},
+    {id:'cf-grade', errId:'cf-grade-err', check: v => v !== ''},
+  ];
+  fields.forEach(f => {
+    const el  = document.getElementById(f.id);
+    const err = document.getElementById(f.errId);
+    if (!f.check(el.value)) { err.classList.add('show'); valid = false; }
+    else err.classList.remove('show');
+  });
+  if (!valid) return;
+
+  const btn = document.querySelector('#contact-form-wrap .btn-main');
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+
+  const data = {
+    name:    document.getElementById('cf-name').value.trim(),
+    email:   document.getElementById('cf-email').value.trim(),
+    phone:   document.getElementById('cf-phone').value.trim(),
+    grade:   document.getElementById('cf-grade').value,
+    subject: document.getElementById('cf-subject').value,
+    type:    document.getElementById('cf-type').value,
+    message: document.getElementById('cf-msg').value.trim(),
+  };
+
+  try {
+    if (window.submitContact) await window.submitContact(data);
+    document.getElementById('contact-form-wrap').style.display = 'none';
+    document.getElementById('contact-success').style.display = 'block';
+    showToast("Demo booked! We'll reach out soon. 🎉", "success");
+  } catch(e) {
+    btn.textContent = 'Send & Book Demo 🚀';
+    btn.disabled = false;
+    showToast("Something went wrong. Please try WhatsApp.", "error");
+  }
+}
+
+// ─── STUDENT DASHBOARD ─────────────────────────────────────────────────────
+async function initStudentDash() {
+  const profile = window._ika || {};
+  const name = profile.name || profile.displayName || 'there';
+  document.getElementById('sd-greeting').textContent = `Hey ${name}! 🙌`;
+  document.getElementById('sd-streak').textContent = profile.streak ? `You're on a ${profile.streak}-day streak — keep it going! 🔥` : 'Welcome to your learning dashboard!';
+
+  // Stats
+  document.getElementById('sd-stats').innerHTML = `
+    <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">📈</div><div class="stat-val" style="color:#6C63FF;">${profile.progress||0}%</div><div class="stat-lbl">Progress</div></div>
+    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">🔥</div><div class="stat-val" style="color:#FF9F43;">${profile.streak||0}</div><div class="stat-lbl">Day Streak</div></div>
+    <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">📝</div><div class="stat-val" style="color:#FF6B6B;">—</div><div class="stat-lbl">Pending Tasks</div></div>
+    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;">—</div><div class="stat-lbl">Sessions Done</div></div>
+  `;
+
+  // Load real data
+  try {
+    studentData = await window.loadStudentData();
+  } catch(e) {
+    studentData = {sessions:[], homework:[]};
+  }
+  renderStudentTab('upcoming');
+}
+
+function sdTab(btn, tab) {
+  document.querySelectorAll('#page-student-dashboard .tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderStudentTab(tab);
+}
+
+function renderStudentTab(tab) {
+  studentTabState = tab;
+  const el = document.getElementById('sd-content');
+  if (!studentData) { el.innerHTML = '<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>'; return; }
+
+  if (tab === 'upcoming') {
+    const sessions = studentData.sessions.filter(s => !s.completed);
+    if (!sessions.length) {
+      // Show demo sessions as placeholder
+      el.innerHTML = `
+        <div style="background:#FFF6E8;border-radius:16px;padding:16px 20px;margin-bottom:20px;font-size:14px;color:#FF9F43;font-weight:700;">ℹ️ Your scheduled sessions will appear here. Showing sample schedule below.</div>
+        ${DEMO_SESSIONS.slice(0,3).map(s => sessionRowHtml(s)).join('')}`;
+    } else {
+      el.innerHTML = sessions.map(s => sessionRowHtml(s)).join('');
+    }
+  }
+
+  else if (tab === 'completed') {
+    const done = studentData.sessions.filter(s => s.completed);
+    if (!done.length) { el.innerHTML = emptyState('📹','No completed sessions yet','Your finished sessions will appear here.'); return; }
+    el.innerHTML = done.map(s => {
+      const sc = SUBJECT_COLORS[s.subject]||{color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
+      return `<div class="session-row" style="border-left:4px solid ${sc.color};">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:46px;height:46px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:24px;">${sc.emoji}</div>
+          <div><div style="font-weight:800;font-size:15px;">${s.topic||s.subject}</div><div style="font-size:13px;color:#999;font-weight:600;">${s.subject}</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="text-align:center;"><div style="font-size:22px;font-weight:900;color:#1DD1A1;">${s.score||'—'}%</div><div style="font-size:11px;color:#999;font-weight:700;">Score</div></div>
+          <button class="btn btn-purple btn-sm">Rewatch 📹</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  else if (tab === 'homework') {
+    const hw = studentData.homework;
+    if (!hw.length) { el.innerHTML = emptyState('📝','No homework assigned yet','Your teacher will assign homework here.'); return; }
+    el.innerHTML = hw.map(h => {
+      const done = h.status === 'done';
+      return `<div class="session-row" style="border-left:4px solid ${done?'#1DD1A1':'#FF9F43'};">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:46px;height:46px;border-radius:14px;background:${done?'#E8FFF8':'#FFF6E8'};display:flex;align-items:center;justify-content:center;font-size:24px;">${done?'✅':'📝'}</div>
+          <div><div style="font-weight:800;font-size:15px;">${h.title}</div><div style="font-size:13px;color:#999;font-weight:600;">${h.subject||''} · Due: ${h.due||'—'}</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          ${done?`<span style="font-size:22px;font-weight:900;color:#1DD1A1;">${h.score}%</span><span class="chip chip-green">Done ✓</span>`:
+                 `<span class="chip chip-orange">Pending</span><button class="btn btn-main btn-sm">Start ✏️</button>`}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  else if (tab === 'performance') {
+    const profile = window._ika || {};
+    el.innerHTML = `
+      <div style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:20px;margin-bottom:24px;border:2px dashed #C0B8FF;display:flex;align-items:center;gap:14px;">
+        <div style="font-size:36px;">🧬</div>
+        <div>
+          <div style="font-weight:800;font-size:16px;color:#6C63FF;">Your Personalised Learning Plan</div>
+          <div style="font-size:13px;color:#888;font-weight:600;margin-top:4px;">This curriculum is built 100% for you — updated every week based on your performance.</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px;">
+        ${Object.entries(SUBJECT_COLORS).slice(0,4).map(([name,sc],i) => {
+          const score = [84,91,78,88][i];
+          return `<div class="card" style="padding:20px;border-top:4px solid ${sc.color};">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:20px;">${sc.emoji}</span><span style="font-weight:800;font-size:13px;">${name}</span></div>
+            <div style="font-size:28px;font-weight:900;color:${score>=85?'#1DD1A1':score>=70?'#6C63FF':'#FF9F43'};margin-bottom:8px;">${score}%</div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${score}%;background:linear-gradient(90deg,${sc.color},${sc.color}88);"></div></div>
+            <div style="font-size:12px;color:#999;margin-top:8px;font-weight:700;">${score>=85?'🔥 Crushing it':score>=70?'💪 On track':'📈 Keep going'}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="card" style="padding:28px;">
+        <div style="font-weight:800;font-size:17px;margin-bottom:20px;">📈 8-week journey</div>
+        <div style="display:flex;align-items:flex-end;gap:8px;height:110px;">
+          ${[60,65,68,72,75,78,82,84].map((v,i) => `
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+              <div style="width:100%;background:${i===7?'linear-gradient(180deg,#FF6B6B,#FF9F43)':'rgba(255,107,107,.2)'};border-radius:6px 6px 0 0;height:${v}px;transition:height .5s ease;"></div>
+              <span style="font-size:10px;color:#bbb;font-weight:700;">W${i+1}</span>
+            </div>`).join('')}
+        </div>
+        <div style="text-align:center;margin-top:16px;font-size:14px;color:#888;font-weight:600;">Overall progress · <span style="color:#1DD1A1;font-weight:800;">+24% improvement 🎉</span></div>
+      </div>`;
+  }
+}
+
+function sessionRowHtml(s) {
+  const sc = SUBJECT_COLORS[s.subject]||{color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
+  return `<div class="session-row" style="border-left:4px solid ${sc.color};">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div style="width:46px;height:46px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:24px;">${sc.emoji}</div>
+      <div>
+        <div style="font-weight:800;font-size:15px;">${s.topic||s.subject}</div>
+        <div style="font-size:13px;color:#999;font-weight:600;">${s.subject}${s.teacher?' · with '+s.teacher:''}</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span class="chip ${s.type==='1-on-1'?'chip-1on1':'chip-group'}">${s.type==='1-on-1'?'🎯 1-on-1':'👥 Group'}</span>
+      <div style="text-align:right;">
+        <div style="font-weight:800;font-size:14px;">${s.date||'—'}</div>
+        <div style="font-size:12px;color:#999;font-weight:600;">${s.time||''}</div>
+      </div>
+      <button class="btn btn-main btn-sm">Join 🚀</button>
+    </div>
+  </div>`;
+}
+
+// ─── TEACHER DASHBOARD ──────────────────────────────────────────────────────
+async function initTeacherDash() {
+  const profile = window._ika || {};
+  const name = profile.name || profile.displayName || 'Teacher';
+  document.getElementById('td-greeting').textContent = `Welcome back, ${name}! 🏆`;
+
+  document.getElementById('td-stats').innerHTML = `
+    <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">👥</div><div class="stat-val" style="color:#6C63FF;">—</div><div class="stat-lbl">My Students</div></div>
+    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF9F43;">—</div><div class="stat-lbl">Sessions This Week</div></div>
+    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">⭐</div><div class="stat-val" style="color:#1DD1A1;">—</div><div class="stat-lbl">Avg. Progress</div></div>
+    <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">📝</div><div class="stat-val" style="color:#FF6B6B;">—</div><div class="stat-lbl">Pending Reviews</div></div>
+  `;
+
+  try {
+    teacherData = await window.loadTeacherData();
+    // Update stat counts
+    const statCards = document.querySelectorAll('#td-stats .stat-val');
+    if (statCards[0]) statCards[0].textContent = teacherData.students?.length || 0;
+    if (statCards[1]) statCards[1].textContent = teacherData.sessions?.length || 0;
+  } catch(e) {
+    teacherData = {sessions:[], students:[]};
+  }
+  renderTeacherTab('sessions');
+}
+
+function tdTab(btn, tab) {
+  document.querySelectorAll('#page-teacher-dashboard .tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTeacherTab(tab);
+}
+
+const AC = ["#FF6B6B","#FF9F43","#1DD1A1","#6C63FF","#54A0FF","#A29BFE","#FD79A8","#FDCB6E"];
+
+function renderTeacherTab(tab) {
+  teacherTabState = tab;
+  const el = document.getElementById('td-content');
+  if (!teacherData) { el.innerHTML = '<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>'; return; }
+
+  if (tab === 'sessions') {
+    const sessions = teacherData.sessions.length ? teacherData.sessions : DEMO_SESSIONS;
+    const isDemo   = !teacherData.sessions.length;
+    el.innerHTML = (isDemo ? `<div style="background:#FFF6E8;border-radius:16px;padding:16px 20px;margin-bottom:20px;font-size:14px;color:#FF9F43;font-weight:700;">ℹ️ Your sessions will appear here. Sample data shown below.</div>` : '') +
+      sessions.map(s => sessionRowHtml(s)).join('');
+  }
+
+  else if (tab === 'students') {
+    if (!teacherData.students.length) {
+      el.innerHTML = emptyState('👥','No students assigned yet','Your admin will assign students to your account.');
+      return;
+    }
+    el.innerHTML = teacherData.students.map((s,i) => `
+      <div class="session-row">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,${AC[i%AC.length]},${AC[(i+2)%AC.length]});display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;">${(s.name||'?')[0].toUpperCase()}</div>
+          <div>
+            <div style="font-weight:800;font-size:15px;">${s.name||'Student'}</div>
+            <div style="font-size:13px;color:#999;font-weight:600;">Grade ${s.grade||'—'} · ${s.subject||'—'}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:24px;">
+          <div style="min-width:160px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:12px;color:#999;font-weight:700;">Progress</span><span style="font-size:12px;font-weight:800;color:#6C63FF;">${s.progress||0}%</span></div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${s.progress||0}%;background:linear-gradient(90deg,${AC[i%AC.length]},${AC[(i+1)%AC.length]});"></div></div>
+          </div>
+          <div style="text-align:center;"><div style="font-size:20px;font-weight:800;color:#FF9F43;">🔥${s.streak||0}</div><div style="font-size:11px;color:#999;font-weight:700;">streak</div></div>
+        </div>
+      </div>`).join('');
+  }
+
+  else if (tab === 'curriculum') {
+    el.innerHTML = `
+      <div style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:24px;margin-bottom:24px;border:2px dashed #C0B8FF;">
+        <div style="font-size:24px;margin-bottom:8px;">🧬</div>
+        <div style="font-weight:800;font-size:17px;color:#6C63FF;margin-bottom:8px;">100% Personalised Curriculum</div>
+        <p style="font-size:14px;color:#666;line-height:1.7;font-weight:600;">Every student's curriculum is built from scratch. View and update each student's plan individually from your admin panel.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
+        ${Object.entries(SUBJECT_COLORS).map(([name,sc]) => `
+          <div class="card" style="padding:24px;border-top:4px solid ${sc.color};">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+              <span style="font-size:26px;">${sc.emoji}</span>
+              <div><span style="font-weight:800;font-size:16px;">${name}</span></div>
+            </div>
+            ${["Diagnostic & Baseline","Core Concept Blocks","Applied Practice","Projects & Capstone"].map((u,i) => `
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<3?'border-bottom:1px dashed #f0f0f0':''}">
+                <div style="width:7px;height:7px;border-radius:50%;background:${sc.color};flex-shrink:0;"></div>
+                <span style="font-size:13px;color:#777;font-weight:700;">Unit ${i+1}: ${u}</span>
+              </div>`).join('')}
+            <button class="btn btn-sec" style="width:100%;margin-top:16px;font-size:13px;border-color:${sc.color};color:${sc.color};">View Student Plans</button>
+          </div>`).join('')}
+      </div>`;
+  }
+
+  else if (tab === 'lms') {
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;">
+        ${[["📤","Upload Content","Add videos, PDFs & worksheets","#FF6B6B"],
+           ["📝","Create Assessment","Build quizzes & assignments","#6C63FF"],
+           ["📊","Analytics","Class performance reports","#FF9F43"],
+           ["📆","Schedule","Book class slots","#1DD1A1"],
+           ["💬","Announcement","Ping all students","#A29BFE"],
+           ["🗂️","Resources","Organise materials","#54A0FF"]].map(([ic,t,d,c]) => `
+          <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid ${c};">
+            <div style="font-size:32px;margin-bottom:14px;">${ic}</div>
+            <div style="font-weight:800;font-size:15px;margin-bottom:8px;">${t}</div>
+            <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">${d}</div>
+            <div style="margin-top:14px;font-size:13px;font-weight:800;color:${c};">Open →</div>
+          </div>`).join('')}
+      </div>`;
+  }
+}
+
+// ─── UTILS ─────────────────────────────────────────────────────────────────
+function emptyState(icon, title, desc) {
+  return `<div style="text-align:center;padding:60px 20px;">
+    <div style="font-size:52px;margin-bottom:12px;">${icon}</div>
+    <h3 style="font-family:'Nunito',sans-serif;font-size:18px;margin-bottom:8px;">${title}</h3>
+    <p style="color:#888;font-size:14px;font-weight:600;">${desc}</p>
+  </div>`;
+}
+
+// ─── SCROLL TOP BUTTON ─────────────────────────────────────────────────────
+window.addEventListener('scroll', () => {
+  const btn = document.getElementById('scroll-top');
+  btn.classList.toggle('show', window.scrollY > 400);
+});
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initMarquee();
+  initFaq();
+  renderSessionsPage();
+});
+</script>
 </body>
 </html>
