@@ -357,7 +357,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
     <div class="nav-links" id="nav-links">
       <button class="nav-link active" onclick="nav('home')"    id="nl-home">Home</button>
       <button class="nav-link"        onclick="nav('subjects')"id="nl-subjects">Subjects</button>
-      <button class="nav-link"        onclick="nav('sessions')"id="nl-sessions">Sessions</button>
+      
       <button class="nav-link"        onclick="nav('contact')">Contact</button>
     </div>
     <div class="nav-actions" id="nav-actions">
@@ -371,7 +371,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
   <div class="mobile-menu" id="mobile-menu">
     <button class="nav-link" onclick="nav('home');toggleMobile()">🏠 Home</button>
     <button class="nav-link" onclick="nav('subjects');toggleMobile()">📚 Subjects</button>
-    <button class="nav-link" onclick="nav('sessions');toggleMobile()">📅 Sessions</button>
+    
     <button class="nav-link" onclick="nav('contact');toggleMobile()">💬 Contact</button>
     <hr style="border-color:#FFE8E8;margin:4px 0;"/>
     <button class="btn btn-sec"  onclick="nav('student-login');toggleMobile()">🎒 Student Login</button>
@@ -670,22 +670,9 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- PAGE: SESSIONS                                                         -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="page" id="page-sessions">
-  <div style="padding:60px 24px;min-height:80vh;background:#FFFDF8;">
-    <div class="section">
-      <div style="margin-bottom:40px;">
-        <h2>Upcoming Sessions 📅</h2>
-        <p style="color:#777;font-weight:600;margin-top:8px;">Browse all scheduled live classes — filter by grade. Login to join sessions.</p>
-      </div>
-      <!-- Grade Filter -->
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;flex-wrap:wrap;" id="grade-filters"></div>
-      <!-- Sessions list -->
-      <div id="sessions-list"></div>
-    </div>
-  </div>
-</div>
+                                                 
+
+
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 <!-- PAGE: CONTACT                                                          -->
@@ -1180,7 +1167,7 @@ async function initStudentDash() {
     <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;">—</div><div class="stat-lbl">Sessions Done</div></div>
   `;
 
-  // Load real data
+  // Load real datalt;
   try {
     studentData = await window.loadStudentData();
   } catch(e) {
