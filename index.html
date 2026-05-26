@@ -13,117 +13,189 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet"/>
 
-<!-- Firebase SDK -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, collection, getDocs, query, where, addDoc, serverTimestamp, orderBy }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+<!-- Firebase SDK (compat - all functions globally accessible) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// ─── ADMIN EMAIL — set this to your own login email ───────────────────────
+const ADMIN_EMAIL = "hello@intellikidsacademy.in";
 
-// ─── FIREBASE CONFIG ───────────────────────────────────────────────────────
-// ⚠️  REPLACE WITH YOUR OWN FIREBASE PROJECT CONFIG
-// Go to: https://console.firebase.google.com → Your Project → Project Settings → Web App
 const firebaseConfig = {
   apiKey: "AIzaSyBR5rtf3CFSL7CPDFSrtwe3Ynb5PdiGBIE",
   authDomain: "intellikids-cf406.firebaseapp.com",
   projectId: "intellikids-cf406",
   storageBucket: "intellikids-cf406.firebasestorage.app",
   messagingSenderId: "843995385791",
-  appId: "1:843995385791:web:46ac4cd17ba06732451b0a",
-  measurementId: "G-R1M379EB2M"
+  appId: "1:843995385791:web:46ac4cd17ba06732451b0a"
 };
-
-const app  = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+googleProvider.addScope('https://www.googleapis.com/auth/calendar');
 
 // ─── AUTH STATE ────────────────────────────────────────────────────────────
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    // Fetch user profile from Firestore
-    const snap = await getDoc(doc(db, "users", user.uid));
-    if (snap.exists()) {
-      const profile = snap.data();
-      window._ika = { uid: user.uid, email: user.email, ...profile };
-      showDashboard(profile.role);
-    } else {
-      await signOut(auth);
-      showToast("Account not found. Contact your admin.", "error");
-    }
-  } else {
-    window._ika = null;
+auth.onAuthStateChanged(async (user) => {
+  showLoader(false);
+  if (!user) { window._ika = null; return; }
+  if (user.email === ADMIN_EMAIL) {
+    window._ika = { uid: user.uid, email: user.email, role: 'admin', name: 'Admin' };
+    nav('admin-dashboard'); return;
   }
+  try {
+    const snap = await db.doc('users/' + user.uid).get();
+    if (snap.exists) {
+      const p = snap.data();
+      if (p.status === 'pending')  { await auth.signOut(); showToast('Your account is pending admin approval. Check your email soon.','error'); return; }
+      if (p.status === 'rejected') { await auth.signOut(); showToast('Access denied. Contact us on WhatsApp.','error'); return; }
+      window._ika = { uid: user.uid, email: user.email, ...p };
+      showDashboard(p.role);
+    } else {
+      await db.doc('access_requests/' + user.uid).set({
+        uid: user.uid, email: user.email,
+        name: user.displayName || '', photo: user.photoURL || '',
+        requestedAt: firebase.firestore.FieldValue.serverTimestamp(), status: 'pending'
+      });
+      await auth.signOut();
+      window._ika = null;
+      nav('pending-approval');
+    }
+  } catch(e) { showToast('Login error. Try again.','error'); }
 });
 
-// ─── LOGIN ─────────────────────────────────────────────────────────────────
-window.doLogin = async function(email, password) {
-  try {
-    showLoader(true);
-    await signInWithEmailAndPassword(auth, email, password);
-  } catch (e) {
-    showLoader(false);
-    const msg = {
-      "auth/invalid-credential": "Wrong email or password.",
-      "auth/user-not-found": "No account found with this email.",
-      "auth/wrong-password": "Incorrect password.",
-      "auth/too-many-requests": "Too many attempts. Try again later."
-    }[e.code] || "Login failed. Please try again.";
-    showToast(msg, "error");
-  }
-};
+// ─── GOOGLE LOGIN ──────────────────────────────────────────────────────────
+function doGoogleLogin() {
+  showLoader(true);
+  auth.signInWithPopup(googleProvider)
+    .then(result => { window._googleToken = result.credential?.accessToken || null; })
+    .catch(e => { showLoader(false); showToast(e.code==='auth/popup-closed-by-user'?'Login cancelled.':'Google login failed.','error'); });
+}
+
+// ─── ADMIN EMAIL/PASS LOGIN ────────────────────────────────────────────────
+function doAdminLogin(email, password) {
+  showLoader(true);
+  auth.signInWithEmailAndPassword(email, password)
+    .catch(e => { showLoader(false); showToast('Wrong admin credentials.','error'); });
+}
 
 // ─── LOGOUT ────────────────────────────────────────────────────────────────
-window.doLogout = async function() {
-  await signOut(auth);
-  window._ika = null;
-  nav("home");
-  showToast("Logged out successfully.");
-};
+function doLogout() {
+  auth.signOut().then(() => { window._ika = null; nav('home'); showToast('Logged out.'); });
+}
 
-// ─── PASSWORD RESET ────────────────────────────────────────────────────────
-window.doReset = async function(email) {
+// ─── CREATE GOOGLE MEET LINK ───────────────────────────────────────────────
+async function createMeetLink(title, dateTimeISO, mins) {
+  if (!window._googleToken) return null;
   try {
-    await sendPasswordResetEmail(auth, email);
-    showToast("Reset link sent to your email!");
-  } catch(e) {
-    showToast("Could not send reset email.", "error");
+    const s = new Date(dateTimeISO), e = new Date(s.getTime() + mins*60000);
+    const body = { summary: title,
+      start: { dateTime: s.toISOString(), timeZone: 'Asia/Kolkata' },
+      end:   { dateTime: e.toISOString(), timeZone: 'Asia/Kolkata' },
+      conferenceData: { createRequest: { requestId: 'ika'+Date.now(), conferenceSolutionKey:{type:'hangoutsMeet'} } }
+    };
+    const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1',
+      { method:'POST', headers:{ Authorization:'Bearer '+window._googleToken, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+    const d = await res.json();
+    return d.hangoutLink || null;
+  } catch(e) { return null; }
+}
+
+// ─── BOOK SESSION ──────────────────────────────────────────────────────────
+async function bookSession(data) {
+  const uid  = window._ika?.uid;
+  const now  = new Date();
+  const at   = new Date(data.dateTimeISO);
+  const hrs  = (at - now) / 3600000;
+  if (hrs < 0) { showToast('Cannot book in the past.','error'); return null; }
+  if (hrs < 12 && window._ika?.role === 'student') {
+    await db.collection('session_requests').add({
+      ...data, studentId: uid, studentName: window._ika.name||window._ika.email,
+      status:'pending_approval', requestedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('Request raised! Admin will confirm soon.','success');
+    return { status:'pending_approval' };
   }
-};
+  const meet = await createMeetLink(`${data.subject} – ${data.studentName||'Student'} | Intellikids`, data.dateTimeISO, 60);
+  await db.collection('sessions').add({
+    ...data, studentId: uid, studentName: window._ika?.name||window._ika?.email||'',
+    status:'confirmed', meetLink: meet||'',
+    scheduledAt: firebase.firestore.Timestamp.fromDate(at),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  showToast('Session booked! Google Meet link created. 🚀','success');
+  return { meet };
+}
 
-// ─── LOAD STUDENT DATA ─────────────────────────────────────────────────────
-window.loadStudentData = async function() {
-  const uid = window._ika?.uid;
-  if (!uid) return {};
-  const [sessSnap, hwSnap] = await Promise.all([
-    getDocs(query(collection(db,"sessions"),  where("studentId","==",uid), orderBy("scheduledAt","asc"))),
-    getDocs(query(collection(db,"homework"),  where("studentId","==",uid)))
+// ─── LOAD DATA HELPERS ─────────────────────────────────────────────────────
+async function loadStudentData() {
+  const uid = window._ika?.uid; if (!uid) return {sessions:[],homework:[],requests:[]};
+  const [a,b,c] = await Promise.all([
+    db.collection('sessions').where('studentId','==',uid).orderBy('scheduledAt','asc').get(),
+    db.collection('homework').where('studentId','==',uid).get(),
+    db.collection('session_requests').where('studentId','==',uid).get()
+  ]);
+  return { sessions:a.docs.map(d=>({id:d.id,...d.data()})), homework:b.docs.map(d=>({id:d.id,...d.data()})), requests:c.docs.map(d=>({id:d.id,...d.data()})) };
+}
+
+async function loadTeacherData() {
+  const uid = window._ika?.uid; if (!uid) return {sessions:[],students:[]};
+  const [a,b] = await Promise.all([
+    db.collection('sessions').where('teacherId','==',uid).orderBy('scheduledAt','asc').get(),
+    db.collection('users').where('teacherId','==',uid).where('role','==','student').get()
+  ]);
+  return { sessions:a.docs.map(d=>({id:d.id,...d.data()})), students:b.docs.map(d=>({id:d.id,...d.data()})) };
+}
+
+async function loadAdminData() {
+  const [a,b,c,d,e] = await Promise.all([
+    db.collection('users').get(),
+    db.collection('sessions').orderBy('scheduledAt','asc').get(),
+    db.collection('session_requests').get(),
+    db.collection('enquiries').orderBy('createdAt','asc').get(),
+    db.collection('access_requests').where('status','==','pending').get()
   ]);
   return {
-    sessions:  sessSnap.docs.map(d=>({id:d.id,...d.data()})),
-    homework:  hwSnap.docs.map(d=>({id:d.id,...d.data()}))
+    users:    a.docs.map(d=>({id:d.id,...d.data()})),
+    sessions: b.docs.map(d=>({id:d.id,...d.data()})),
+    requests: c.docs.map(d=>({id:d.id,...d.data()})),
+    enquiries:d.docs.map(d=>({id:d.id,...d.data()})),
+    pending:  e.docs.map(d=>({id:d.id,...d.data()}))
   };
-};
+}
 
-// ─── LOAD TEACHER DATA ─────────────────────────────────────────────────────
-window.loadTeacherData = async function() {
-  const uid = window._ika?.uid;
-  if (!uid) return {};
-  const [sessSnap, studSnap] = await Promise.all([
-    getDocs(query(collection(db,"sessions"), where("teacherId","==",uid), orderBy("scheduledAt","asc"))),
-    getDocs(query(collection(db,"users"),    where("teacherId","==",uid), where("role","==","student")))
-  ]);
-  return {
-    sessions: sessSnap.docs.map(d=>({id:d.id,...d.data()})),
-    students: studSnap.docs.map(d=>({id:d.id,...d.data()}))
-  };
-};
+async function approveUser(reqId, role, name) {
+  const snap = await db.doc('access_requests/'+reqId).get();
+  if (!snap.exists) return;
+  const {uid,email,photo} = snap.data();
+  await db.doc('users/'+uid).set({ uid,email,name:name||snap.data().name||email,role,photo:photo||'',status:'approved',createdAt:firebase.firestore.FieldValue.serverTimestamp() });
+  await db.doc('access_requests/'+reqId).update({status:'approved'});
+  showToast('✅ '+email+' approved as '+role+'!','success');
+  _adminData=null; initAdminDash();
+}
 
-// ─── CONTACT FORM SUBMIT ───────────────────────────────────────────────────
-window.submitContact = async function(data) {
-  await addDoc(collection(db,"enquiries"), { ...data, createdAt: serverTimestamp() });
-};
+async function rejectUser(reqId) {
+  await db.doc('access_requests/'+reqId).update({status:'rejected'});
+  showToast('User rejected.','error'); _adminData=null; initAdminDash();
+}
+
+async function approveSessionRequest(reqId) {
+  const snap = await db.doc('session_requests/'+reqId).get();
+  if (!snap.exists) return;
+  const data = snap.data();
+  const meet = await createMeetLink(`${data.subject} – ${data.studentName}|Intellikids`, data.dateTimeISO, 60);
+  await db.collection('sessions').add({...data,status:'confirmed',meetLink:meet||'',
+    scheduledAt:firebase.firestore.Timestamp.fromDate(new Date(data.dateTimeISO)),
+    createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  await db.doc('session_requests/'+reqId).update({status:'approved'});
+  showToast('Session approved! Meet link created.','success'); _adminData=null; initAdminDash();
+}
+
+async function submitContact(data) {
+  await db.collection('enquiries').add({...data, createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+}
 </script>
+
 
 <style>
 /* ─── RESET & BASE ────────────────────────────────────────────────────── */
@@ -356,8 +428,8 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
     </a>
     <div class="nav-links" id="nav-links">
       <button class="nav-link active" onclick="nav('home')"    id="nl-home">Home</button>
-      <button class="nav-link"        onclick="nav('subjects')"id="nl-subjects">Subjects</button>
-      <button class="nav-link"        onclick="nav('pricing')" id="nl-pricing">Pricing</button>
+      <button class="nav-link"        onclick="nav('subjects')" id="nl-subjects">Subjects</button>
+      <button class="nav-link"        onclick="nav('pricing')"  id="nl-pricing">Pricing</button>
       <button class="nav-link"        onclick="nav('contact')">Contact</button>
     </div>
     <div class="nav-actions" id="nav-actions">
@@ -409,8 +481,6 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
           <div style="font-weight:700;font-size:14px;color:#777;">✅ No lock-in contracts</div>
           <div style="font-weight:700;font-size:14px;color:#777;">✅ Max 4 per group</div>
           <div style="font-weight:700;font-size:14px;color:#777;">✅ 100% personalised</div>
-          <div style="font-weight:700;font-size:14px;color:#777;">✅ Intel Labs certified teachers</div>
-          <div style="font-weight:700;font-size:14px;color:#777;">🎁 Free demo — you pick the topic</div>
         </div>
       </div>
       <div class="hero-visual fade-up delay-2">
@@ -501,98 +571,19 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
     </div>
   </div>
 
-  <!-- EVERY KID IS DIFFERENT HIGHLIGHT -->
-  <div style="background:linear-gradient(135deg,#1a1a2e 0%,#2d1b69 50%,#1a1a2e 100%);padding:80px 24px;position:relative;overflow:hidden;">
-    <div style="position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(255,107,107,.15),transparent 60%),radial-gradient(circle at 80% 50%,rgba(108,99,255,.15),transparent 60%);"></div>
-    <div class="section" style="position:relative;z-index:1;">
-      <div style="text-align:center;margin-bottom:52px;">
-        <div style="display:inline-block;background:linear-gradient(135deg,#FF6B6B,#FF9F43);border-radius:50px;padding:8px 24px;font-size:13px;font-weight:800;color:#fff;margin-bottom:16px;letter-spacing:.5px;">BUILT FOR GROWING KIDS</div>
-        <h2 style="color:#fff;margin-bottom:16px;">Every kid is <span style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">different.</span><br/>Every need is <span style="background:linear-gradient(135deg,#6C63FF,#A29BFE);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">different.</span> 🌱</h2>
-        <p style="color:#9090B0;font-size:17px;font-weight:600;max-width:640px;margin:0 auto;line-height:1.7;">Intellikids Academy is built exclusively for growing children — a space where we recognise that no two kids learn the same way, and no two kids have the same needs. We celebrate every child's uniqueness and make sure both kids and parents are heard, understood, and supported.</p>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;">
-        <div style="background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:20px;padding:28px;backdrop-filter:blur(10px);">
-          <div style="font-size:36px;margin-bottom:14px;">🧠</div>
-          <div style="font-weight:800;font-size:16px;color:#fff;margin-bottom:8px;">Unique Learning Pace</div>
-          <p style="color:#9090B0;font-size:14px;line-height:1.7;font-weight:600;">We never rush a child. Every lesson adapts to where your kid actually is — not where a textbook says they should be.</p>
-        </div>
-        <div style="background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:20px;padding:28px;backdrop-filter:blur(10px);">
-          <div style="font-size:36px;margin-bottom:14px;">💞</div>
-          <div style="font-weight:800;font-size:16px;color:#fff;margin-bottom:8px;">Parent Partnership</div>
-          <p style="color:#9090B0;font-size:14px;line-height:1.7;font-weight:600;">Parents are partners at Intellikids. We keep you informed, involved, and confident in your child's journey every step of the way.</p>
-        </div>
-        <div style="background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:20px;padding:28px;backdrop-filter:blur(10px);">
-          <div style="font-size:36px;margin-bottom:14px;">🌍</div>
-          <div style="font-weight:800;font-size:16px;color:#fff;margin-bottom:8px;">Global Kids, Local Heart</div>
-          <p style="color:#9090B0;font-size:14px;line-height:1.7;font-weight:600;">Kids from India, the UK, UAE, USA, Canada and beyond — we understand different educational systems and adapt accordingly.</p>
-        </div>
-        <div style="background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:20px;padding:28px;backdrop-filter:blur(10px);">
-          <div style="font-size:36px;margin-bottom:14px;">🎯</div>
-          <div style="font-weight:800;font-size:16px;color:#fff;margin-bottom:8px;">Zero One-Size-Fits-All</div>
-          <p style="color:#9090B0;font-size:14px;line-height:1.7;font-weight:600;">We don't use generic lesson plans. Every single child gets a plan built from scratch that fits their goals, strengths, and gaps.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- FREE DEMO + PERSONALISED CURRICULUM -->
-  <div class="sec" style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);">
-    <div class="section">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:40px;align-items:center;">
-        <div>
-          <div class="sec-pill" style="background:#FFF0F0;color:#FF6B6B;">FREE DEMO CLASS</div>
-          <h2 style="margin-top:12px;">Your demo, <span style="color:#FF6B6B;">your topic.</span> 🎁</h2>
-          <p style="font-size:16px;color:#555;line-height:1.7;font-weight:600;margin:16px 0 24px;">When you book your free demo, <strong>you choose exactly what topic you want to explore</strong> — no generic intro lesson. Whether it's fractions, Python loops, grammar, or atomic bonding, your child walks in learning something they actually want to learn.</p>
-          <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:28px;">
-            <div style="display:flex;align-items:flex-start;gap:14px;">
-              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FF6B6B,#FF9F43);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🎯</div>
-              <div><div style="font-weight:800;font-size:15px;margin-bottom:4px;">You Pick the Topic</div><p style="font-size:13px;color:#777;font-weight:600;line-height:1.6;">Tell us what area you'd like covered in the demo session — we'll make it happen.</p></div>
-            </div>
-            <div style="display:flex;align-items:flex-start;gap:14px;">
-              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6C63FF,#A29BFE);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🧬</div>
-              <div><div style="font-weight:800;font-size:15px;margin-bottom:4px;">Customised Curriculum — Not a Myth</div><p style="font-size:13px;color:#777;font-weight:600;line-height:1.6;">We actually build a bespoke learning roadmap for your child based on their pace, level, and goals. Fully personalised — for real.</p></div>
-            </div>
-            <div style="display:flex;align-items:flex-start;gap:14px;">
-              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#1DD1A1,#00B894);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">💸</div>
-              <div><div style="font-weight:800;font-size:15px;margin-bottom:4px;">Completely Free. No Card Needed.</div><p style="font-size:13px;color:#777;font-weight:600;line-height:1.6;">Zero obligation. Zero pressure. Just a real taste of the Intellikids experience.</p></div>
-            </div>
-          </div>
-          <button class="btn btn-main" onclick="nav('contact')">Book My Free Demo 🎯</button>
-        </div>
-        <div>
-          <div style="background:#fff;border-radius:24px;padding:32px;box-shadow:0 12px 40px rgba(0,0,0,.1);border:2px dashed #C0B8FF;">
-            <div style="font-size:32px;margin-bottom:12px;">🧬</div>
-            <div style="font-weight:900;font-size:20px;color:#6C63FF;margin-bottom:8px;">Fully Personalised Intellikids</div>
-            <p style="color:#555;font-size:14px;line-height:1.8;font-weight:600;margin-bottom:20px;">Customised curriculum is not a buzzword here — it's our entire philosophy. We study your child, understand their unique learning style, and craft a plan that evolves with them.</p>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-              <div style="background:#F0EEFF;border-radius:14px;padding:16px;text-align:center;"><div style="font-size:22px;">📊</div><div style="font-size:13px;font-weight:800;color:#6C63FF;margin-top:6px;">Learning Style<br/>Assessment</div></div>
-              <div style="background:#FFF0F0;border-radius:14px;padding:16px;text-align:center;"><div style="font-size:22px;">📐</div><div style="font-size:13px;font-weight:800;color:#FF6B6B;margin-top:6px;">Pace-Adaptive<br/>Lessons</div></div>
-              <div style="background:#FFF6E8;border-radius:14px;padding:16px;text-align:center;"><div style="font-size:22px;">🗺️</div><div style="font-size:13px;font-weight:800;color:#FF9F43;margin-top:6px;">Custom<br/>Roadmap</div></div>
-              <div style="background:#E8FFF8;border-radius:14px;padding:16px;text-align:center;"><div style="font-size:22px;">📈</div><div style="font-size:13px;font-weight:800;color:#1DD1A1;margin-top:6px;">Live Progress<br/>Tracking</div></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- TEACHERS -->
   <div class="sec sec-light">
     <div class="section">
       <div class="sec-header">
         <div class="sec-pill" style="background:#FFF6E8;color:#FF9F43;">OUR TEACHERS</div>
         <h2>The <span style="color:#FF6B6B;">legends</span> behind your learning 🏆</h2>
-        <div style="display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#0071C5,#00AEEF);border-radius:50px;padding:10px 24px;margin-top:16px;box-shadow:0 4px 16px rgba(0,113,197,.3);">
-          <span style="font-size:20px;">🏅</span>
-          <span style="color:#fff;font-weight:800;font-size:14px;letter-spacing:.3px;">All teachers are Certified by Intel Labs</span>
-        </div>
       </div>
       <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">
-        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#6C63FF,#A29BFE);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">PS</div><div style="font-weight:800;font-size:15px;">Mrs. Archana Rawat</div><div style="font-size:13px;color:#6C63FF;font-weight:700;margin-top:4px;">Coding & CS</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">12 yrs experience</div><div style="margin-top:8px;font-size:11px;background:linear-gradient(135deg,#0071C5,#00AEEF);color:#fff;border-radius:50px;padding:3px 10px;font-weight:800;">🏅 Intel Certified</div></div>
-        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#FF9F43,#FDCB6E);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">AN</div><div style="font-weight:800;font-size:15px;">Ms. Priya Sharma </div><div style="font-size:13px;color:#FF9F43;font-weight:700;margin-top:4px;">Mathematics</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">10 yrs experience</div><div style="margin-top:8px;font-size:11px;background:linear-gradient(135deg,#0071C5,#00AEEF);color:#fff;border-radius:50px;padding:3px 10px;font-weight:800;">🏅 Intel Certified</div></div>
-        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#1DD1A1,#00B894);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">RK</div><div style="font-weight:800;font-size:15px;">Mr. Leandre Andre</div><div style="font-size:13px;color:#1DD1A1;font-weight:700;margin-top:4px;">English</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">7 yrs experience</div><div style="margin-top:8px;font-size:11px;background:linear-gradient(135deg,#0071C5,#00AEEF);color:#fff;border-radius:50px;padding:3px 10px;font-weight:800;">🏅 Intel Certified</div></div>
-        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#A29BFE,#6C63FF);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">SB</div><div style="font-weight:800;font-size:15px;">Mr. Sanjay Bose</div><div style="font-size:13px;color:#A29BFE;font-weight:700;margin-top:4px;">Chemistry</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">8 yrs experience</div><div style="margin-top:8px;font-size:11px;background:linear-gradient(135deg,#0071C5,#00AEEF);color:#fff;border-radius:50px;padding:3px 10px;font-weight:800;">🏅 Intel Certified</div></div>
-        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#54A0FF,#0984E3);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">AR</div><div style="font-weight:800;font-size:15px;">Ms. Anju Bani</div><div style="font-size:13px;color:#54A0FF;font-weight:700;margin-top:4px;">Physics</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">4 yrs experience</div><div style="margin-top:8px;font-size:11px;background:linear-gradient(135deg,#0071C5,#00AEEF);color:#fff;border-radius:50px;padding:3px 10px;font-weight:800;">🏅 Intel Certified</div></div>
+        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#6C63FF,#A29BFE);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">PS</div><div style="font-weight:800;font-size:15px;">Mrs. Archana Rawat</div><div style="font-size:13px;color:#6C63FF;font-weight:700;margin-top:4px;">Coding & CS</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">12 yrs experience</div></div>
+        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#FF9F43,#FDCB6E);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">AN</div><div style="font-weight:800;font-size:15px;">Ms. Priya Sharma </div><div style="font-size:13px;color:#FF9F43;font-weight:700;margin-top:4px;">Mathematics</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">10 yrs experience</div></div>
+        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#1DD1A1,#00B894);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">RK</div><div style="font-weight:800;font-size:15px;">Mr. Leandre Andre</div><div style="font-size:13px;color:#1DD1A1;font-weight:700;margin-top:4px;">English</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">7 yrs experience</div></div>
+        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#A29BFE,#6C63FF);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">SB</div><div style="font-weight:800;font-size:15px;">Mr. Sanjay Bose</div><div style="font-size:13px;color:#A29BFE;font-weight:700;margin-top:4px;">Chemistry</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">8 yrs experience</div></div>
+        <div class="card card-hover" style="padding:28px;text-align:center;width:190px;"><div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#54A0FF,#0984E3);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;margin:0 auto 14px;">AR</div><div style="font-weight:800;font-size:15px;">Ms. Anju Bani</div><div style="font-size:13px;color:#54A0FF;font-weight:700;margin-top:4px;">Physics</div><div style="font-size:12px;color:#999;margin-top:4px;font-weight:600;">4 yrs experience</div></div>
       </div>
     </div>
   </div>
@@ -659,7 +650,6 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
           <div style="font-weight:800;font-size:15px;color:#fff;margin-bottom:16px;">Quick Links</div>
           <a class="footer-link" onclick="nav('home')">🏠 Home</a>
           <a class="footer-link" onclick="nav('subjects')">📚 Subjects</a>
-          <a class="footer-link" onclick="nav('pricing')">💰 Pricing</a>
           <a class="footer-link" onclick="nav('sessions')">📅 Sessions</a>
           <a class="footer-link" onclick="nav('contact')">💬 Contact Us</a>
           <a class="footer-link" onclick="nav('student-login')">🎒 Student Login</a>
@@ -755,86 +745,6 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
                                                  
 
 
-
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<!-- PAGE: PRICING                                                          -->
-<!-- ═══════════════════════════════════════════════════════════════════════ -->
-<div class="page" id="page-pricing">
-  <div style="background:#FFFDF8;min-height:80vh;">
-
-    <!-- HERO STRIP -->
-    <div style="background:linear-gradient(135deg,#1a1a2e,#2d1b69);padding:60px 24px;text-align:center;position:relative;overflow:hidden;">
-      <div style="position:absolute;inset:0;background:radial-gradient(circle at 30% 50%,rgba(255,107,107,.15),transparent 55%),radial-gradient(circle at 70% 50%,rgba(108,99,255,.15),transparent 55%);"></div>
-      <div style="position:relative;z-index:1;">
-        <div style="display:inline-block;background:linear-gradient(135deg,#FF6B6B,#FF9F43);border-radius:50px;padding:8px 24px;font-size:13px;font-weight:800;color:#fff;margin-bottom:16px;">SIMPLE, TRANSPARENT PRICING</div>
-        <h2 style="color:#fff;margin-bottom:12px;">Buy the classes <span style="background:linear-gradient(135deg,#FF9F43,#FDCB6E);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">you need.</span> Nothing more. 🎯</h2>
-        <p style="color:#9090B0;font-size:16px;font-weight:600;max-width:560px;margin:0 auto;">No monthly subscriptions, no lock-ins. Buy a pack of classes and learn at your own pace. Free demo always included.</p>
-      </div>
-    </div>
-
-    <!-- CURRENCY SELECTOR -->
-    <div style="padding:32px 24px 0;text-align:center;">
-      <div style="display:inline-flex;background:#fff;border-radius:50px;border:2px solid #FFE8E8;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.07);">
-        <button onclick="setCurrency('INR')" id="cur-INR" class="cur-btn active-cur" style="padding:10px 22px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;border-radius:50px;background:linear-gradient(135deg,#FF6B6B,#FF9F43);color:#fff;transition:all .2s;">🇮🇳 INR</button>
-        <button onclick="setCurrency('USD')" id="cur-USD" class="cur-btn" style="padding:10px 22px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;background:transparent;color:#888;transition:all .2s;">🇺🇸 USD</button>
-        <button onclick="setCurrency('GBP')" id="cur-GBP" class="cur-btn" style="padding:10px 22px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;background:transparent;color:#888;transition:all .2s;">🇬🇧 GBP</button>
-        <button onclick="setCurrency('AED')" id="cur-AED" class="cur-btn" style="padding:10px 22px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;background:transparent;color:#888;transition:all .2s;">🇦🇪 AED</button>
-        <button onclick="setCurrency('CAD')" id="cur-CAD" class="cur-btn" style="padding:10px 22px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;background:transparent;color:#888;transition:all .2s;">🇨🇦 CAD</button>
-      </div>
-    </div>
-
-    <!-- SESSION TYPE TOGGLE -->
-    <div style="padding:20px 24px 0;text-align:center;">
-      <div style="display:inline-flex;background:#F0EEFF;border-radius:50px;padding:4px;">
-        <button onclick="setSessionType('1on1')" id="type-1on1" style="padding:10px 24px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;border-radius:50px;background:linear-gradient(135deg,#6C63FF,#A29BFE);color:#fff;transition:all .2s;">🎯 1-on-1 Sessions</button>
-        <button onclick="setSessionType('group')" id="type-group" style="padding:10px 24px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;border-radius:50px;background:transparent;color:#6C63FF;transition:all .2s;">👥 Group Sessions (max 4)</button>
-      </div>
-    </div>
-
-    <!-- FREE DEMO BANNER -->
-    <div style="max-width:1100px;margin:28px auto 0;padding:0 24px;">
-      <div style="background:linear-gradient(135deg,#E8FFF8,#F0EEFF);border:2px solid #A8F0DC;border-radius:20px;padding:20px 28px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-        <div style="font-size:36px;">🎁</div>
-        <div style="flex:1;min-width:200px;">
-          <div style="font-weight:900;font-size:16px;color:#00B894;margin-bottom:4px;">First Demo Class is Always FREE!</div>
-          <p style="font-size:14px;color:#555;font-weight:600;margin:0;">You pick the topic you want for your demo — no generic intro. See the Intellikids difference before spending a single rupee.</p>
-        </div>
-        <button class="btn btn-green" onclick="nav('contact')">Book Free Demo 🎯</button>
-      </div>
-    </div>
-
-    <!-- PRICING CARDS -->
-    <div style="max-width:1100px;margin:40px auto;padding:0 24px;" id="pricing-cards">
-      <!-- Rendered by JS -->
-    </div>
-
-    <!-- WHAT'S INCLUDED -->
-    <div style="background:linear-gradient(135deg,#FFF0F8,#F0EEFF);padding:60px 24px;">
-      <div class="section">
-        <div class="sec-header">
-          <div class="sec-pill" style="background:#F0EEFF;color:#6C63FF;">EVERY PACK INCLUDES</div>
-          <h2>What you <span style="color:#6C63FF;">always</span> get 📦</h2>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;">
-          <div class="card" style="padding:24px;text-align:center;border-top:4px solid #FF6B6B;"><div style="font-size:32px;margin-bottom:12px;">🧬</div><div style="font-weight:800;font-size:15px;margin-bottom:8px;">Personalised Curriculum</div><p style="color:#777;font-size:13px;font-weight:600;line-height:1.6;">Built from scratch for your child — not a template.</p></div>
-          <div class="card" style="padding:24px;text-align:center;border-top:4px solid #6C63FF;"><div style="font-size:32px;margin-bottom:12px;">🏅</div><div style="font-weight:800;font-size:15px;margin-bottom:8px;">Intel-Certified Teachers</div><p style="color:#777;font-size:13px;font-weight:600;line-height:1.6;">Every teacher is certified directly by Intel Labs.</p></div>
-          <div class="card" style="padding:24px;text-align:center;border-top:4px solid #FF9F43;"><div style="font-size:32px;margin-bottom:12px;">📊</div><div style="font-weight:800;font-size:15px;margin-bottom:8px;">Progress Dashboard</div><p style="color:#777;font-size:13px;font-weight:600;line-height:1.6;">Track every session and milestone in real-time.</p></div>
-          <div class="card" style="padding:24px;text-align:center;border-top:4px solid #1DD1A1;"><div style="font-size:32px;margin-bottom:12px;">📝</div><div style="font-weight:800;font-size:15px;margin-bottom:8px;">Homework & Worksheets</div><p style="color:#777;font-size:13px;font-weight:600;line-height:1.6;">Custom assignments aligned to your child's level.</p></div>
-          <div class="card" style="padding:24px;text-align:center;border-top:4px solid #54A0FF;"><div style="font-size:32px;margin-bottom:12px;">💬</div><div style="font-weight:800;font-size:15px;margin-bottom:8px;">Parent Updates</div><p style="color:#777;font-size:13px;font-weight:600;line-height:1.6;">Regular feedback and progress reports for parents.</p></div>
-          <div class="card" style="padding:24px;text-align:center;border-top:4px solid #A29BFE;"><div style="font-size:32px;margin-bottom:12px;">🔄</div><div style="font-weight:800;font-size:15px;margin-bottom:8px;">Flexible Scheduling</div><p style="color:#777;font-size:13px;font-weight:600;line-height:1.6;">Book sessions when it works for your family.</p></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CTA -->
-    <div style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);padding:60px 24px;text-align:center;">
-      <h2 style="color:#fff;margin-bottom:12px;">Not sure where to start? 🤔</h2>
-      <p style="color:rgba(255,255,255,.85);font-size:16px;font-weight:600;margin-bottom:28px;">Start with a FREE demo class. You pick the topic, we show you the magic.</p>
-      <button class="btn" onclick="nav('contact')" style="background:#fff;color:#FF6B6B;padding:16px 40px;font-size:17px;font-weight:900;box-shadow:0 8px 28px rgba(0,0,0,.2);">Book Your Free Demo 🎯</button>
-    </div>
-
-  </div>
-</div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 <!-- PAGE: CONTACT                                                          -->
@@ -949,6 +859,25 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: PENDING APPROVAL                                                 -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-pending-approval">
+  <div class="login-wrap">
+    <div class="login-box fade-up" style="text-align:center;">
+      <div style="font-size:56px;margin-bottom:16px;">⏳</div>
+      <h2 style="margin-bottom:8px;">Request Received!</h2>
+      <p style="color:#888;font-size:15px;font-weight:600;line-height:1.7;margin-bottom:24px;">Your Google account has been registered. Our admin will review and approve your access within a few hours. You'll get an email when ready — then sign in again with the same Google account.</p>
+      <div style="background:#FFF6E8;border-radius:16px;padding:16px 20px;margin-bottom:24px;text-align:left;">
+        <div style="font-weight:800;font-size:14px;color:#FF9F43;margin-bottom:8px;">📋 What happens next:</div>
+        <div style="font-size:13px;color:#777;font-weight:600;line-height:1.8;">1. Admin reviews your request<br/>2. Your role (Student/Teacher) is assigned<br/>3. You'll be notified via email<br/>4. Log back in with Google → you're in!</div>
+      </div>
+      <button class="btn btn-main" onclick="nav('home')">← Back to Home</button>
+      <div style="margin-top:16px;"><a href="https://wa.me/917838540593" target="_blank" style="font-size:13px;color:#1DD1A1;font-weight:700;">Need faster access? WhatsApp us 💬</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
 <!-- PAGE: STUDENT LOGIN                                                    -->
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page" id="page-student-login">
@@ -956,26 +885,20 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
     <div class="login-box fade-up">
       <div class="login-icon" style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);">🎒</div>
       <h2 class="login-title" style="font-size:26px;">Student Portal</h2>
-      <p class="login-sub">Welcome back! Enter your credentials to access your dashboard.</p>
-      <div class="form-group">
-        <label>Email Address</label>
-        <input type="email" id="sl-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')doLoginBtn('student')"/>
+      <p class="login-sub">Sign in with your Google account to access your dashboard, book classes, and track your progress.</p>
+      <button onclick="doGoogleLogin()" style="width:100%;background:#fff;border:2px solid #e0e0e0;color:#333;padding:14px 20px;font-size:15px;font-weight:800;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:20px;cursor:pointer;font-family:'Nunito',sans-serif;">
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Continue with Google
+      </button>
+      <div style="background:#F0EEFF;border-radius:14px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#6C63FF;font-weight:700;line-height:1.6;">🔐 First time? Sign in with Google — admin approves your access (usually within 2–4 hours).</div>
+      <div style="margin-top:4px;padding-top:16px;border-top:1px solid #f0f0f0;text-align:center;font-size:13px;color:#888;font-weight:600;">
+        New here? <button onclick="nav('contact')" style="background:none;border:none;cursor:pointer;color:#6C63FF;font-weight:800;font-size:13px;">Book a free demo first →</button>
       </div>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="sl-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLoginBtn('student')"/>
+      <div style="margin-top:10px;text-align:center;">
+        <button onclick="nav('teacher-login')" style="background:none;border:none;cursor:pointer;color:#999;font-size:13px;font-weight:600;">Are you a teacher? →</button>
       </div>
-      <div id="sl-error" style="color:#FF6B6B;font-size:13px;font-weight:700;margin-bottom:16px;display:none;"></div>
-      <button class="btn btn-main btn-full" onclick="doLoginBtn('student')">Login to Dashboard 🚀</button>
-      <div style="text-align:center;margin-top:20px;">
-        <span style="font-size:13px;color:#888;font-weight:600;">Forgot password? </span>
-        <button onclick="showReset('sl-email')" style="background:none;border:none;cursor:pointer;color:#FF6B6B;font-weight:800;font-size:13px;">Reset it →</button>
-      </div>
-      <div style="margin-top:20px;padding-top:20px;border-top:1px solid #f0f0f0;text-align:center;font-size:13px;color:#888;font-weight:600;">
-        New here? <button onclick="nav('contact')" style="background:none;border:none;cursor:pointer;color:#6C63FF;font-weight:800;font-size:13px;">Book a free demo →</button>
-      </div>
-      <div style="margin-top:16px;text-align:center;">
-        <button onclick="nav('teacher-login')" style="background:none;border:none;cursor:pointer;color:#999;font-size:13px;font-weight:600;">Are you a teacher? Login here →</button>
+      <div style="margin-top:10px;text-align:center;">
+        <button onclick="nav('admin-login')" style="background:none;border:none;cursor:pointer;color:#ccc;font-size:12px;font-weight:600;">Admin login →</button>
       </div>
     </div>
   </div>
@@ -989,23 +912,39 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
     <div class="login-box fade-up">
       <div class="login-icon" style="background:linear-gradient(135deg,#6C63FF,#A29BFE);">👩‍🏫</div>
       <h2 class="login-title" style="font-size:26px;">Teacher Portal</h2>
-      <p class="login-sub">Access your class schedule, student progress, and teaching tools.</p>
+      <p class="login-sub">Sign in with your Google account to access your schedule, students, and teaching tools.</p>
+      <button onclick="doGoogleLogin()" style="width:100%;background:#fff;border:2px solid #e0e0e0;color:#333;padding:14px 20px;font-size:15px;font-weight:800;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:20px;cursor:pointer;font-family:'Nunito',sans-serif;">
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Continue with Google
+      </button>
+      <div style="background:#F0EEFF;border-radius:14px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#6C63FF;font-weight:700;line-height:1.6;">🔐 Use the Gmail address you registered with Intellikids. Access is approved by admin.</div>
+      <div style="margin-top:4px;padding-top:16px;border-top:1px solid #f0f0f0;text-align:center;">
+        <button onclick="nav('student-login')" style="background:none;border:none;cursor:pointer;color:#999;font-size:13px;font-weight:600;">Are you a student? →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: ADMIN LOGIN                                                      -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-admin-login">
+  <div class="login-wrap">
+    <div class="login-box fade-up">
+      <div class="login-icon" style="background:linear-gradient(135deg,#1a1a2e,#6C63FF);">🛡️</div>
+      <h2 class="login-title" style="font-size:26px;">Admin Portal</h2>
+      <p class="login-sub" style="color:#888;">Owner/Admin access only. Teachers & students use Google login.</p>
       <div class="form-group">
-        <label>Email Address</label>
-        <input type="email" id="tl-email" placeholder="teacher@intellikidsacademy.in" onkeydown="if(event.key==='Enter')doLoginBtn('teacher')"/>
+        <label>Admin Email</label>
+        <input type="email" id="al-email" placeholder="hello@intellikidsacademy.in"/>
       </div>
       <div class="form-group">
         <label>Password</label>
-        <input type="password" id="tl-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLoginBtn('teacher')"/>
+        <input type="password" id="al-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')adminLoginBtn()"/>
       </div>
-      <div id="tl-error" style="color:#FF6B6B;font-size:13px;font-weight:700;margin-bottom:16px;display:none;"></div>
-      <button class="btn btn-purple btn-full" onclick="doLoginBtn('teacher')">Login to Dashboard 🚀</button>
-      <div style="text-align:center;margin-top:20px;">
-        <span style="font-size:13px;color:#888;font-weight:600;">Forgot password? </span>
-        <button onclick="showReset('tl-email')" style="background:none;border:none;cursor:pointer;color:#6C63FF;font-weight:800;font-size:13px;">Reset it →</button>
-      </div>
-      <div style="margin-top:16px;text-align:center;">
-        <button onclick="nav('student-login')" style="background:none;border:none;cursor:pointer;color:#999;font-size:13px;font-weight:600;">Are you a student? Login here →</button>
+      <button class="btn btn-purple btn-full" onclick="adminLoginBtn()">Admin Login 🛡️</button>
+      <div style="text-align:center;margin-top:16px;">
+        <button onclick="nav('student-login')" style="background:none;border:none;cursor:pointer;color:#999;font-size:13px;font-weight:600;">← Back to portal</button>
       </div>
     </div>
   </div>
@@ -1017,31 +956,28 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
 <div class="page" id="page-student-dashboard">
   <div class="dashboard fade-up">
     <div class="dash-header">
-      <div>
-        <p style="font-size:13px;font-weight:800;color:#6C63FF;margin-bottom:4px;letter-spacing:.5px;">🎒 STUDENT PORTAL</p>
-        <h1 id="sd-greeting" style="font-size:clamp(24px,4vw,36px);">Hey there! 🙌</h1>
-        <p id="sd-streak" style="color:#888;font-size:15px;margin-top:4px;font-weight:600;"></p>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div id="sd-avatar" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#FF6B6B,#FF9F43);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;color:#fff;overflow:hidden;flex-shrink:0;"></div>
+        <div>
+          <p style="font-size:12px;font-weight:800;color:#FF6B6B;letter-spacing:.5px;">🎒 STUDENT PORTAL</p>
+          <h1 id="sd-greeting" style="font-size:clamp(20px,3vw,30px);">Hey there! 🙌</h1>
+          <p id="sd-email" style="color:#aaa;font-size:13px;font-weight:600;"></p>
+        </div>
       </div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
         <button class="btn btn-sec btn-sm" onclick="nav('home')">← Home</button>
         <button class="btn" onclick="doLogout()" style="background:#FFF0F0;color:#FF6B6B;padding:9px 20px;font-size:13px;font-weight:800;border-radius:50px;">Logout</button>
       </div>
     </div>
-
-    <!-- Stat cards -->
     <div class="stat-grid" id="sd-stats"></div>
-
-    <!-- Tabs -->
     <div class="tabs">
-      <button class="tab-btn active" onclick="sdTab(this,'upcoming')">📅 Upcoming</button>
-      <button class="tab-btn" onclick="sdTab(this,'completed')">✅ Completed</button>
+      <button class="tab-btn active" onclick="sdTab(this,'upcoming')">📅 My Classes</button>
+      <button class="tab-btn" onclick="sdTab(this,'book')">➕ Book a Class</button>
+      <button class="tab-btn" onclick="sdTab(this,'requests')">⏳ Requests</button>
       <button class="tab-btn" onclick="sdTab(this,'homework')">📝 Homework</button>
-      <button class="tab-btn" onclick="sdTab(this,'performance')">📈 Performance</button>
+      <button class="tab-btn" onclick="sdTab(this,'performance')">📈 Progress</button>
     </div>
-
-    <div id="sd-content">
-      <div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading your data…</div>
-    </div>
+    <div id="sd-content"><div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading your data…</div></div>
   </div>
 </div>
 
@@ -1051,31 +987,56 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
 <div class="page" id="page-teacher-dashboard">
   <div class="dashboard fade-up">
     <div class="dash-header">
-      <div>
-        <p style="font-size:13px;font-weight:800;color:#6C63FF;margin-bottom:4px;letter-spacing:.5px;">👩‍🏫 TEACHER PORTAL</p>
-        <h1 id="td-greeting" style="font-size:clamp(24px,4vw,36px);">Welcome back! 🏆</h1>
-        <p style="color:#888;font-size:15px;margin-top:4px;font-weight:600;">Here's your schedule and student overview for today.</p>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div id="td-avatar" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#6C63FF,#A29BFE);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;color:#fff;overflow:hidden;flex-shrink:0;"></div>
+        <div>
+          <p style="font-size:12px;font-weight:800;color:#6C63FF;letter-spacing:.5px;">👩‍🏫 TEACHER PORTAL · 🏅 Intel Certified</p>
+          <h1 id="td-greeting" style="font-size:clamp(20px,3vw,30px);">Welcome back! 🏆</h1>
+          <p id="td-email" style="color:#aaa;font-size:13px;font-weight:600;"></p>
+        </div>
       </div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
         <button class="btn btn-sec btn-sm" onclick="nav('home')">← Home</button>
         <button class="btn" onclick="doLogout()" style="background:#FFF0F0;color:#FF6B6B;padding:9px 20px;font-size:13px;font-weight:800;border-radius:50px;">Logout</button>
       </div>
     </div>
-
-    <!-- Stat cards -->
     <div class="stat-grid" id="td-stats"></div>
-
-    <!-- Tabs -->
     <div class="tabs">
-      <button class="tab-btn active" onclick="tdTab(this,'sessions')">📅 Sessions</button>
-      <button class="tab-btn" onclick="tdTab(this,'students')">👥 Students</button>
+      <button class="tab-btn active" onclick="tdTab(this,'sessions')">📅 My Schedule</button>
+      <button class="tab-btn" onclick="tdTab(this,'students')">👥 My Students</button>
       <button class="tab-btn" onclick="tdTab(this,'curriculum')">🧬 Curriculum</button>
       <button class="tab-btn" onclick="tdTab(this,'lms')">🛠️ LMS Tools</button>
     </div>
+    <div id="td-content"><div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading your data…</div></div>
+  </div>
+</div>
 
-    <div id="td-content">
-      <div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading your data…</div>
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: ADMIN DASHBOARD                                                  -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-admin-dashboard">
+  <div class="dashboard fade-up">
+    <div class="dash-header">
+      <div>
+        <p style="font-size:12px;font-weight:800;color:#FF6B6B;letter-spacing:.5px;">🛡️ ADMIN · INTELLIKIDS ACADEMY</p>
+        <h1 style="font-size:clamp(20px,3vw,30px);">Command Centre 🎛️</h1>
+        <p style="color:#aaa;font-size:13px;font-weight:600;" id="admin-date"></p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-sec btn-sm" onclick="nav('home')">← Home</button>
+        <button class="btn" onclick="doLogout()" style="background:#FFF0F0;color:#FF6B6B;padding:9px 20px;font-size:13px;font-weight:800;border-radius:50px;">Logout</button>
+      </div>
     </div>
+    <div class="stat-grid" id="admin-stats"></div>
+    <div class="tabs" style="flex-wrap:wrap;">
+      <button class="tab-btn active" onclick="adminTab(this,'today')">📊 Today's Sheet</button>
+      <button class="tab-btn" onclick="adminTab(this,'pending')">🔔 Approvals</button>
+      <button class="tab-btn" onclick="adminTab(this,'students')">🎒 Students</button>
+      <button class="tab-btn" onclick="adminTab(this,'teachers')">👩‍🏫 Teachers</button>
+      <button class="tab-btn" onclick="adminTab(this,'sessions')">📅 All Sessions</button>
+      <button class="tab-btn" onclick="adminTab(this,'enquiries')">📩 Enquiries</button>
+    </div>
+    <div id="admin-content"><div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div></div>
   </div>
 </div>
 
@@ -1087,7 +1048,11 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
 <!-- JAVASCRIPT                                                             -->
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 <script>
-// ─── DATA ─────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+// ALL NON-FIREBASE JAVASCRIPT — global scope, accessible from onclick
+// ══════════════════════════════════════════════════════════════════════
+
+// ─── CONSTANTS ────────────────────────────────────────────────────────
 const SUBJECT_COLORS = {
   "Computer Basics":{"color":"#FF6B6B","bg":"#FFF0F0","emoji":"🖥️"},
   "Coding":          {"color":"#6C63FF","bg":"#F0EEFF","emoji":"🤖"},
@@ -1096,37 +1061,36 @@ const SUBJECT_COLORS = {
   "Physics":         {"color":"#54A0FF","bg":"#EBF4FF","emoji":"🚀"},
   "Chemistry":       {"color":"#A29BFE","bg":"#F3F0FF","emoji":"🔬"},
 };
-
+const SUBJECTS = Object.keys(SUBJECT_COLORS);
+const TIMES = ["8:00 AM","8:30 AM","9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","12:30 PM","1:00 PM","1:30 PM","2:00 PM","2:30 PM","3:00 PM","3:30 PM","4:00 PM","4:30 PM","5:00 PM","5:30 PM","6:00 PM","6:30 PM","7:00 PM","7:30 PM","8:00 PM"];
 const DEMO_SESSIONS = [
-  {id:1,subject:"Coding",        topic:"Variables & Loops in Python",     date:"Mon, May 19",time:"4:00 PM",grade:6, teacher:"Ms. Priya",  type:"1-on-1"},
-  {id:2,subject:"Maths",         topic:"Linear Equations",                date:"Tue, May 20",time:"5:00 PM",grade:7, teacher:"Mr. Arjun",  type:"Group"},
-  {id:3,subject:"Computer Basics",topic:"How the Internet Works",          date:"Wed, May 21",time:"4:30 PM",grade:5, teacher:"Ms. Rhea",   type:"1-on-1"},
-  {id:4,subject:"English",       topic:"Creative Writing Workshop",       date:"Thu, May 22",time:"3:30 PM",grade:8, teacher:"Mr. Dev",    type:"Group"},
-  {id:5,subject:"Physics",       topic:"Newton's Laws of Motion",         date:"Fri, May 23",time:"5:30 PM",grade:9, teacher:"Ms. Anita",  type:"1-on-1"},
-  {id:6,subject:"Chemistry",     topic:"Periodic Table Deep Dive",        date:"Mon, May 26",time:"4:00 PM",grade:10,teacher:"Mr. Sanjay", type:"Group"},
+  {id:1,subject:"Coding",topic:"Variables & Loops in Python",date:"Mon, May 26",time:"4:00 PM",grade:6,teacher:"Ms. Archana",type:"1-on-1"},
+  {id:2,subject:"Maths",topic:"Linear Equations",date:"Tue, May 27",time:"5:00 PM",grade:7,teacher:"Ms. Priya",type:"Group"},
+  {id:3,subject:"Computer Basics",topic:"How the Internet Works",date:"Wed, May 28",time:"4:30 PM",grade:5,teacher:"Mr. Leandre",type:"1-on-1"},
+  {id:4,subject:"English",topic:"Creative Writing Workshop",date:"Thu, May 29",time:"3:30 PM",grade:8,teacher:"Mr. Leandre",type:"Group"},
+  {id:5,subject:"Physics",topic:"Newton's Laws of Motion",date:"Fri, May 30",time:"5:30 PM",grade:9,teacher:"Ms. Anju",type:"1-on-1"},
 ];
-
 const FAQS_DATA = [
-  {q:"What grades does Intellikids Academy support?",           c:"#FF6B6B", a:"We support students from Grade 3 to Grade 10 for Computer Basics, Coding, Maths & English. Physics and Chemistry are available for Grade 9 to Grade 12."},
-  {q:"What's the difference between 1-on-1 and Group sessions?",c:"#6C63FF", a:"1-on-1 sessions are fully personalised — just you and your teacher. Group sessions have a maximum of 4 students so every child still gets personal attention and the energy of peers."},
-  {q:"How personalised is the curriculum?",                     c:"#FF9F43", a:"Very! Every student gets a curriculum built from scratch based on their current level, goals, learning style and pace. No two students follow the same plan."},
-  {q:"How do live classes work?",                               c:"#1DD1A1", a:"All sessions are live and interactive over video. You can ask questions in real time, share your screen, and work through problems together."},
-  {q:"Can I revisit completed sessions?",                       c:"#54A0FF", a:"Yes! Every session is recorded and available in your dashboard under 'Completed' — rewatch as many times as you need."},
-  {q:"How are assessments graded?",                             c:"#A29BFE", a:"Assessments are reviewed by your teacher. Detailed written feedback is shared within 24 hours so you know exactly what to improve."},
-  {q:"Is there a free trial?",                                  c:"#FD79A8", a:"Absolutely! Book a free demo session and experience the Intellikids difference before committing to anything."},
+  {q:"What grades does Intellikids support?",c:"#FF6B6B",a:"Grades 3–10 for Computer Basics, Coding, Maths & English. Physics and Chemistry for Grades 9–12."},
+  {q:"Difference between 1-on-1 and Group sessions?",c:"#6C63FF",a:"1-on-1 is just you and your teacher. Group sessions have maximum 4 students — everyone still gets personal attention."},
+  {q:"How personalised is the curriculum?",c:"#FF9F43",a:"100% personalised. Every student gets a plan built from scratch based on their level, goals, and pace. No templates."},
+  {q:"How do live classes work?",c:"#1DD1A1",a:"All sessions are live over Google Meet. A link is automatically generated when you book. Ask questions in real time, share screens, work together."},
+  {q:"Can students self-schedule classes?",c:"#54A0FF",a:"Yes! Students can book any class 12+ hours ahead — confirmed instantly with a Meet link. Under 12 hours goes to admin as a request."},
+  {q:"Are teachers Intel Lab certified?",c:"#A29BFE",a:"Yes! Every Intellikids teacher is certified by Intel Labs, ensuring the highest standard of teaching quality."},
+  {q:"Is there a free trial?",c:"#FD79A8",a:"Absolutely! Book a free demo — you choose the topic. See the Intellikids experience before committing to anything."},
 ];
+const MARQUEE_ITEMS = ["🎯 1-on-1 Sessions","👥 Small Group (Max 4)","📚 Grades 3–12","🤖 Coding","🔢 Maths","✍️ English","🚀 Physics","🔬 Chemistry","💻 Computer Basics","🧬 100% Personalised","📅 Self-Schedule Classes","🏅 Intel-Certified Teachers","🇮🇳 Trusted by 5,000+ Families"];
+const AC = ["#FF6B6B","#FF9F43","#1DD1A1","#6C63FF","#54A0FF","#A29BFE","#FD79A8","#FDCB6E"];
 
-const MARQUEE_ITEMS = ["🎯 1-on-1 Sessions","👥 Small Group (Max 4)","📚 Grades 3–12","🤖 Coding","🔢 Maths","✍️ English","🚀 Physics","🔬 Chemistry","💻 Computer Basics","🧬 100% Personalised","📹 Sessions Recorded","🇮🇳 Trusted by 5,000+ Families"];
-
-// ─── CURRENT STATE ─────────────────────────────────────────────────────────
-let currentPage = 'home';
-let gradeFilter = 'All';
-let studentTabState = 'upcoming';
-let teacherTabState = 'sessions';
+// ─── STATE ────────────────────────────────────────────────────────────
+let currentPage    = 'home';
+let gradeFilter    = 'All';
 let studentData    = null;
 let teacherData    = null;
+let _adminData     = null;
+let _toastTimer;
 
-// ─── NAVIGATION ────────────────────────────────────────────────────────────
+// ─── NAV ─────────────────────────────────────────────────────────────
 function nav(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
@@ -1136,437 +1100,36 @@ function nav(page) {
   if (nl) nl.classList.add('active');
   currentPage = page;
   window.scrollTo({top:0, behavior:'smooth'});
-
-  // Page-specific init
-  if (page === 'sessions') renderSessionsPage();
+  if (page === 'sessions')          renderSessionsPage();
   if (page === 'student-dashboard') initStudentDash();
   if (page === 'teacher-dashboard') initTeacherDash();
-  if (page === 'pricing') renderPricingCards();
+  if (page === 'admin-dashboard')   initAdminDash();
+  if (page === 'pricing')           renderPricingCards();
 }
 
 function showDashboard(role) {
   showLoader(false);
   if (role === 'student') nav('student-dashboard');
   else if (role === 'teacher') nav('teacher-dashboard');
-  else showToast("Unknown role. Contact admin.", "error");
+  else if (role === 'admin')   nav('admin-dashboard');
+  else showToast('Unknown role. Contact admin.','error');
 }
 
-// ─── MOBILE MENU ───────────────────────────────────────────────────────────
-function toggleMobile() {
-  document.getElementById('mobile-menu').classList.toggle('open');
-}
+// ─── UTILS ────────────────────────────────────────────────────────────
+function toggleMobile() { document.getElementById('mobile-menu').classList.toggle('open'); }
 
-// ─── LOADER ────────────────────────────────────────────────────────────────
 function showLoader(show) {
   document.getElementById('global-loader').classList.toggle('show', show);
 }
 
-// ─── TOAST ─────────────────────────────────────────────────────────────────
-let toastTimer;
 function showToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg;
-  t.className = 'show' + (type === 'error' ? ' error' : type === 'success' ? ' success' : '');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show','error','success'), 3200);
+  t.className = 'show' + (type==='error'?' error':type==='success'?' success':'');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show','error','success'), 3500);
 }
 
-// ─── LOGIN HANDLER ─────────────────────────────────────────────────────────
-function doLoginBtn(role) {
-  const prefix = role === 'student' ? 'sl' : 'tl';
-  const email  = document.getElementById(prefix + '-email').value.trim();
-  const pass   = document.getElementById(prefix + '-pass').value;
-  const errEl  = document.getElementById(prefix + '-error');
-  errEl.style.display = 'none';
-  if (!email || !pass) {
-    errEl.textContent = 'Please enter both email and password.';
-    errEl.style.display = 'block';
-    return;
-  }
-  showLoader(true);
-  window.doLogin(email, pass);
-}
-
-// ─── PASSWORD RESET ─────────────────────────────────────────────────────────
-function showReset(inputId) {
-  const email = document.getElementById(inputId).value.trim();
-  if (!email) { showToast("Enter your email first.", "error"); return; }
-  window.doReset(email);
-}
-
-// ─── MARQUEE INIT ──────────────────────────────────────────────────────────
-function initMarquee() {
-  const track = document.getElementById('marquee-track');
-  const items = [...MARQUEE_ITEMS, ...MARQUEE_ITEMS];
-  track.innerHTML = items.map(i => `<span class="marquee-item">${i} <span style="color:#FFE8E8;margin-left:8px;">•</span></span>`).join('');
-}
-
-// ─── FAQ RENDER ─────────────────────────────────────────────────────────────
-function initFaq() {
-  const list = document.getElementById('faq-list');
-  list.innerHTML = FAQS_DATA.map((f,i) => `
-    <div class="faq-item" onclick="toggleFaq(${i})" id="faq-${i}" style="border-left:4px solid ${f.c};">
-      <div class="faq-q">
-        <span>${f.q}</span>
-        <span class="faq-icon" style="color:${f.c};">+</span>
-      </div>
-      <div class="faq-a">${f.a}</div>
-    </div>
-  `).join('');
-}
-
-function toggleFaq(i) {
-  const el = document.getElementById('faq-' + i);
-  const wasOpen = el.classList.contains('open');
-  document.querySelectorAll('.faq-item').forEach(f => f.classList.remove('open'));
-  if (!wasOpen) el.classList.add('open');
-}
-
-// ─── SESSIONS PAGE ──────────────────────────────────────────────────────────
-function renderSessionsPage() {
-  // Grade filter buttons
-  const filtersEl = document.getElementById('grade-filters');
-  const grades = ['All', ...Array.from({length:10},(_,i)=>String(i+3))];
-  filtersEl.innerHTML = `<span style="font-size:14px;color:#888;font-weight:700;">Grade:</span>` +
-    grades.map(g => `<button onclick="setGradeFilter('${g}')" id="gf-${g}" style="padding:7px 16px;border-radius:50px;font-size:13px;font-weight:800;cursor:pointer;border:none;transition:all .2s;${gradeFilter===g?'background:linear-gradient(135deg,#FF6B6B,#FF9F43);color:#fff;box-shadow:0 4px 12px rgba(255,107,107,.3);':'background:#f0f0f0;color:#888;'}">${g==='All'?'All':'Gr. '+g}</button>`).join('');
-  renderSessionsList();
-}
-
-function setGradeFilter(g) {
-  gradeFilter = g;
-  renderSessionsPage();
-}
-
-function renderSessionsList() {
-  const list = document.getElementById('sessions-list');
-  const filtered = gradeFilter === 'All' ? DEMO_SESSIONS : DEMO_SESSIONS.filter(s => String(s.grade) === gradeFilter);
-  if (!filtered.length) {
-    list.innerHTML = `<div style="text-align:center;padding:48px;color:#888;font-weight:700;">No sessions found for Grade ${gradeFilter}.</div>`;
-    return;
-  }
-  list.innerHTML = filtered.map(s => {
-    const sc = SUBJECT_COLORS[s.subject] || {color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
-    return `
-    <div class="session-row" style="border-left:4px solid ${sc.color};">
-      <div style="display:flex;align-items:center;gap:16px;">
-        <div style="width:48px;height:48px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:24px;">${sc.emoji}</div>
-        <div>
-          <div style="font-weight:800;font-size:15px;">${s.topic}</div>
-          <div style="font-size:13px;color:#888;margin-top:3px;font-weight:600;">${s.subject} · Grade ${s.grade} · ${s.teacher}</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-        <span class="chip ${s.type==='1-on-1'?'chip-1on1':'chip-group'}">${s.type==='1-on-1'?'🎯 1-on-1':'👥 Group (max 4)'}</span>
-        <div style="text-align:right;">
-          <div style="font-size:14px;font-weight:800;">${s.date}</div>
-          <div style="font-size:13px;color:#999;font-weight:600;">${s.time}</div>
-        </div>
-        <button class="btn btn-main btn-sm" onclick="requireLogin()">Join →</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function requireLogin() {
-  showToast("Please login to join sessions.", "error");
-  setTimeout(() => nav('student-login'), 1200);
-}
-
-// ─── CONTACT FORM ──────────────────────────────────────────────────────────
-async function submitContactForm() {
-  let valid = true;
-  const fields = [
-    {id:'cf-name',  errId:'cf-name-err',  check: v => v.trim().length > 1},
-    {id:'cf-email', errId:'cf-email-err', check: v => /\S+@\S+\.\S+/.test(v)},
-    {id:'cf-phone', errId:'cf-phone-err', check: v => v.trim().length > 6},
-    {id:'cf-grade', errId:'cf-grade-err', check: v => v !== ''},
-  ];
-  fields.forEach(f => {
-    const el  = document.getElementById(f.id);
-    const err = document.getElementById(f.errId);
-    if (!f.check(el.value)) { err.classList.add('show'); valid = false; }
-    else err.classList.remove('show');
-  });
-  if (!valid) return;
-
-  const btn = document.querySelector('#contact-form-wrap .btn-main');
-  btn.textContent = 'Sending…';
-  btn.disabled = true;
-
-  const data = {
-    name:    document.getElementById('cf-name').value.trim(),
-    email:   document.getElementById('cf-email').value.trim(),
-    phone:   document.getElementById('cf-phone').value.trim(),
-    grade:   document.getElementById('cf-grade').value,
-    subject: document.getElementById('cf-subject').value,
-    type:    document.getElementById('cf-type').value,
-    message: document.getElementById('cf-msg').value.trim(),
-  };
-
-  try {
-    if (window.submitContact) await window.submitContact(data);
-    document.getElementById('contact-form-wrap').style.display = 'none';
-    document.getElementById('contact-success').style.display = 'block';
-    showToast("Demo booked! We'll reach out soon. 🎉", "success");
-  } catch(e) {
-    btn.textContent = 'Send & Book Demo 🚀';
-    btn.disabled = false;
-    showToast("Something went wrong. Please try WhatsApp.", "error");
-  }
-}
-
-// ─── STUDENT DASHBOARD ─────────────────────────────────────────────────────
-async function initStudentDash() {
-  const profile = window._ika || {};
-  const name = profile.name || profile.displayName || 'there';
-  document.getElementById('sd-greeting').textContent = `Hey ${name}! 🙌`;
-  document.getElementById('sd-streak').textContent = profile.streak ? `You're on a ${profile.streak}-day streak — keep it going! 🔥` : 'Welcome to your learning dashboard!';
-
-  // Stats
-  document.getElementById('sd-stats').innerHTML = `
-    <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">📈</div><div class="stat-val" style="color:#6C63FF;">${profile.progress||0}%</div><div class="stat-lbl">Progress</div></div>
-    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">🔥</div><div class="stat-val" style="color:#FF9F43;">${profile.streak||0}</div><div class="stat-lbl">Day Streak</div></div>
-    <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">📝</div><div class="stat-val" style="color:#FF6B6B;">—</div><div class="stat-lbl">Pending Tasks</div></div>
-    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;">—</div><div class="stat-lbl">Sessions Done</div></div>
-  `;
-
-  // Load real datalt;
-  try {
-    studentData = await window.loadStudentData();
-  } catch(e) {
-    studentData = {sessions:[], homework:[]};
-  }
-  renderStudentTab('upcoming');
-}
-
-function sdTab(btn, tab) {
-  document.querySelectorAll('#page-student-dashboard .tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderStudentTab(tab);
-}
-
-function renderStudentTab(tab) {
-  studentTabState = tab;
-  const el = document.getElementById('sd-content');
-  if (!studentData) { el.innerHTML = '<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>'; return; }
-
-  if (tab === 'upcoming') {
-    const sessions = studentData.sessions.filter(s => !s.completed);
-    if (!sessions.length) {
-      // Show demo sessions as placeholder
-      el.innerHTML = `
-        <div style="background:#FFF6E8;border-radius:16px;padding:16px 20px;margin-bottom:20px;font-size:14px;color:#FF9F43;font-weight:700;">ℹ️ Your scheduled sessions will appear here. Showing sample schedule below.</div>
-        ${DEMO_SESSIONS.slice(0,3).map(s => sessionRowHtml(s)).join('')}`;
-    } else {
-      el.innerHTML = sessions.map(s => sessionRowHtml(s)).join('');
-    }
-  }
-
-  else if (tab === 'completed') {
-    const done = studentData.sessions.filter(s => s.completed);
-    if (!done.length) { el.innerHTML = emptyState('📹','No completed sessions yet','Your finished sessions will appear here.'); return; }
-    el.innerHTML = done.map(s => {
-      const sc = SUBJECT_COLORS[s.subject]||{color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
-      return `<div class="session-row" style="border-left:4px solid ${sc.color};">
-        <div style="display:flex;align-items:center;gap:14px;">
-          <div style="width:46px;height:46px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:24px;">${sc.emoji}</div>
-          <div><div style="font-weight:800;font-size:15px;">${s.topic||s.subject}</div><div style="font-size:13px;color:#999;font-weight:600;">${s.subject}</div></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:14px;">
-          <div style="text-align:center;"><div style="font-size:22px;font-weight:900;color:#1DD1A1;">${s.score||'—'}%</div><div style="font-size:11px;color:#999;font-weight:700;">Score</div></div>
-          <button class="btn btn-purple btn-sm">Rewatch 📹</button>
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  else if (tab === 'homework') {
-    const hw = studentData.homework;
-    if (!hw.length) { el.innerHTML = emptyState('📝','No homework assigned yet','Your teacher will assign homework here.'); return; }
-    el.innerHTML = hw.map(h => {
-      const done = h.status === 'done';
-      return `<div class="session-row" style="border-left:4px solid ${done?'#1DD1A1':'#FF9F43'};">
-        <div style="display:flex;align-items:center;gap:14px;">
-          <div style="width:46px;height:46px;border-radius:14px;background:${done?'#E8FFF8':'#FFF6E8'};display:flex;align-items:center;justify-content:center;font-size:24px;">${done?'✅':'📝'}</div>
-          <div><div style="font-weight:800;font-size:15px;">${h.title}</div><div style="font-size:13px;color:#999;font-weight:600;">${h.subject||''} · Due: ${h.due||'—'}</div></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;">
-          ${done?`<span style="font-size:22px;font-weight:900;color:#1DD1A1;">${h.score}%</span><span class="chip chip-green">Done ✓</span>`:
-                 `<span class="chip chip-orange">Pending</span><button class="btn btn-main btn-sm">Start ✏️</button>`}
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  else if (tab === 'performance') {
-    const profile = window._ika || {};
-    el.innerHTML = `
-      <div style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:20px;margin-bottom:24px;border:2px dashed #C0B8FF;display:flex;align-items:center;gap:14px;">
-        <div style="font-size:36px;">🧬</div>
-        <div>
-          <div style="font-weight:800;font-size:16px;color:#6C63FF;">Your Personalised Learning Plan</div>
-          <div style="font-size:13px;color:#888;font-weight:600;margin-top:4px;">This curriculum is built 100% for you — updated every week based on your performance.</div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px;">
-        ${Object.entries(SUBJECT_COLORS).slice(0,4).map(([name,sc],i) => {
-          const score = [84,91,78,88][i];
-          return `<div class="card" style="padding:20px;border-top:4px solid ${sc.color};">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:20px;">${sc.emoji}</span><span style="font-weight:800;font-size:13px;">${name}</span></div>
-            <div style="font-size:28px;font-weight:900;color:${score>=85?'#1DD1A1':score>=70?'#6C63FF':'#FF9F43'};margin-bottom:8px;">${score}%</div>
-            <div class="progress-bar"><div class="progress-fill" style="width:${score}%;background:linear-gradient(90deg,${sc.color},${sc.color}88);"></div></div>
-            <div style="font-size:12px;color:#999;margin-top:8px;font-weight:700;">${score>=85?'🔥 Crushing it':score>=70?'💪 On track':'📈 Keep going'}</div>
-          </div>`;
-        }).join('')}
-      </div>
-      <div class="card" style="padding:28px;">
-        <div style="font-weight:800;font-size:17px;margin-bottom:20px;">📈 8-week journey</div>
-        <div style="display:flex;align-items:flex-end;gap:8px;height:110px;">
-          ${[60,65,68,72,75,78,82,84].map((v,i) => `
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-              <div style="width:100%;background:${i===7?'linear-gradient(180deg,#FF6B6B,#FF9F43)':'rgba(255,107,107,.2)'};border-radius:6px 6px 0 0;height:${v}px;transition:height .5s ease;"></div>
-              <span style="font-size:10px;color:#bbb;font-weight:700;">W${i+1}</span>
-            </div>`).join('')}
-        </div>
-        <div style="text-align:center;margin-top:16px;font-size:14px;color:#888;font-weight:600;">Overall progress · <span style="color:#1DD1A1;font-weight:800;">+24% improvement 🎉</span></div>
-      </div>`;
-  }
-}
-
-function sessionRowHtml(s) {
-  const sc = SUBJECT_COLORS[s.subject]||{color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
-  return `<div class="session-row" style="border-left:4px solid ${sc.color};">
-    <div style="display:flex;align-items:center;gap:14px;">
-      <div style="width:46px;height:46px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:24px;">${sc.emoji}</div>
-      <div>
-        <div style="font-weight:800;font-size:15px;">${s.topic||s.subject}</div>
-        <div style="font-size:13px;color:#999;font-weight:600;">${s.subject}${s.teacher?' · with '+s.teacher:''}</div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-      <span class="chip ${s.type==='1-on-1'?'chip-1on1':'chip-group'}">${s.type==='1-on-1'?'🎯 1-on-1':'👥 Group'}</span>
-      <div style="text-align:right;">
-        <div style="font-weight:800;font-size:14px;">${s.date||'—'}</div>
-        <div style="font-size:12px;color:#999;font-weight:600;">${s.time||''}</div>
-      </div>
-      <button class="btn btn-main btn-sm">Join 🚀</button>
-    </div>
-  </div>`;
-}
-
-// ─── TEACHER DASHBOARD ──────────────────────────────────────────────────────
-async function initTeacherDash() {
-  const profile = window._ika || {};
-  const name = profile.name || profile.displayName || 'Teacher';
-  document.getElementById('td-greeting').textContent = `Welcome back, ${name}! 🏆`;
-
-  document.getElementById('td-stats').innerHTML = `
-    <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">👥</div><div class="stat-val" style="color:#6C63FF;">—</div><div class="stat-lbl">My Students</div></div>
-    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF9F43;">—</div><div class="stat-lbl">Sessions This Week</div></div>
-    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">⭐</div><div class="stat-val" style="color:#1DD1A1;">—</div><div class="stat-lbl">Avg. Progress</div></div>
-    <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">📝</div><div class="stat-val" style="color:#FF6B6B;">—</div><div class="stat-lbl">Pending Reviews</div></div>
-  `;
-
-  try {
-    teacherData = await window.loadTeacherData();
-    // Update stat counts
-    const statCards = document.querySelectorAll('#td-stats .stat-val');
-    if (statCards[0]) statCards[0].textContent = teacherData.students?.length || 0;
-    if (statCards[1]) statCards[1].textContent = teacherData.sessions?.length || 0;
-  } catch(e) {
-    teacherData = {sessions:[], students:[]};
-  }
-  renderTeacherTab('sessions');
-}
-
-function tdTab(btn, tab) {
-  document.querySelectorAll('#page-teacher-dashboard .tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderTeacherTab(tab);
-}
-
-const AC = ["#FF6B6B","#FF9F43","#1DD1A1","#6C63FF","#54A0FF","#A29BFE","#FD79A8","#FDCB6E"];
-
-function renderTeacherTab(tab) {
-  teacherTabState = tab;
-  const el = document.getElementById('td-content');
-  if (!teacherData) { el.innerHTML = '<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>'; return; }
-
-  if (tab === 'sessions') {
-    const sessions = teacherData.sessions.length ? teacherData.sessions : DEMO_SESSIONS;
-    const isDemo   = !teacherData.sessions.length;
-    el.innerHTML = (isDemo ? `<div style="background:#FFF6E8;border-radius:16px;padding:16px 20px;margin-bottom:20px;font-size:14px;color:#FF9F43;font-weight:700;">ℹ️ Your sessions will appear here. Sample data shown below.</div>` : '') +
-      sessions.map(s => sessionRowHtml(s)).join('');
-  }
-
-  else if (tab === 'students') {
-    if (!teacherData.students.length) {
-      el.innerHTML = emptyState('👥','No students assigned yet','Your admin will assign students to your account.');
-      return;
-    }
-    el.innerHTML = teacherData.students.map((s,i) => `
-      <div class="session-row">
-        <div style="display:flex;align-items:center;gap:14px;">
-          <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,${AC[i%AC.length]},${AC[(i+2)%AC.length]});display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;">${(s.name||'?')[0].toUpperCase()}</div>
-          <div>
-            <div style="font-weight:800;font-size:15px;">${s.name||'Student'}</div>
-            <div style="font-size:13px;color:#999;font-weight:600;">Grade ${s.grade||'—'} · ${s.subject||'—'}</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:24px;">
-          <div style="min-width:160px;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:12px;color:#999;font-weight:700;">Progress</span><span style="font-size:12px;font-weight:800;color:#6C63FF;">${s.progress||0}%</span></div>
-            <div class="progress-bar"><div class="progress-fill" style="width:${s.progress||0}%;background:linear-gradient(90deg,${AC[i%AC.length]},${AC[(i+1)%AC.length]});"></div></div>
-          </div>
-          <div style="text-align:center;"><div style="font-size:20px;font-weight:800;color:#FF9F43;">🔥${s.streak||0}</div><div style="font-size:11px;color:#999;font-weight:700;">streak</div></div>
-        </div>
-      </div>`).join('');
-  }
-
-  else if (tab === 'curriculum') {
-    el.innerHTML = `
-      <div style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:24px;margin-bottom:24px;border:2px dashed #C0B8FF;">
-        <div style="font-size:24px;margin-bottom:8px;">🧬</div>
-        <div style="font-weight:800;font-size:17px;color:#6C63FF;margin-bottom:8px;">100% Personalised Curriculum</div>
-        <p style="font-size:14px;color:#666;line-height:1.7;font-weight:600;">Every student's curriculum is built from scratch. View and update each student's plan individually from your admin panel.</p>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
-        ${Object.entries(SUBJECT_COLORS).map(([name,sc]) => `
-          <div class="card" style="padding:24px;border-top:4px solid ${sc.color};">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-              <span style="font-size:26px;">${sc.emoji}</span>
-              <div><span style="font-weight:800;font-size:16px;">${name}</span></div>
-            </div>
-            ${["Diagnostic & Baseline","Core Concept Blocks","Applied Practice","Projects & Capstone"].map((u,i) => `
-              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<3?'border-bottom:1px dashed #f0f0f0':''}">
-                <div style="width:7px;height:7px;border-radius:50%;background:${sc.color};flex-shrink:0;"></div>
-                <span style="font-size:13px;color:#777;font-weight:700;">Unit ${i+1}: ${u}</span>
-              </div>`).join('')}
-            <button class="btn btn-sec" style="width:100%;margin-top:16px;font-size:13px;border-color:${sc.color};color:${sc.color};">View Student Plans</button>
-          </div>`).join('')}
-      </div>`;
-  }
-
-  else if (tab === 'lms') {
-    el.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;">
-        ${[["📤","Upload Content","Add videos, PDFs & worksheets","#FF6B6B"],
-           ["📝","Create Assessment","Build quizzes & assignments","#6C63FF"],
-           ["📊","Analytics","Class performance reports","#FF9F43"],
-           ["📆","Schedule","Book class slots","#1DD1A1"],
-           ["💬","Announcement","Ping all students","#A29BFE"],
-           ["🗂️","Resources","Organise materials","#54A0FF"]].map(([ic,t,d,c]) => `
-          <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid ${c};">
-            <div style="font-size:32px;margin-bottom:14px;">${ic}</div>
-            <div style="font-weight:800;font-size:15px;margin-bottom:8px;">${t}</div>
-            <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">${d}</div>
-            <div style="margin-top:14px;font-size:13px;font-weight:800;color:${c};">Open →</div>
-          </div>`).join('')}
-      </div>`;
-  }
-}
-
-// ─── UTILS ─────────────────────────────────────────────────────────────────
 function emptyState(icon, title, desc) {
   return `<div style="text-align:center;padding:60px 20px;">
     <div style="font-size:52px;margin-bottom:12px;">${icon}</div>
@@ -1575,106 +1138,590 @@ function emptyState(icon, title, desc) {
   </div>`;
 }
 
-// ─── PRICING ────────────────────────────────────────────────────────────────
-let pricingCurrency = 'INR';
-let pricingType = '1on1';
-
-const PRICING_DATA = {
-  '1on1': {
-    label: '1-on-1 Sessions',
-    packs: [
-      { classes: 4,  label: 'Starter', tag: '', popular: false, perClass: { INR: 799,  USD: 10,  GBP: 8,  AED: 36,  CAD: 14 }, color: '#FF6B6B', emoji: '🌱' },
-      { classes: 8,  label: 'Builder', tag: 'Save 8%', popular: false, perClass: { INR: 749,  USD: 9,   GBP: 7,  AED: 34,  CAD: 13 }, color: '#FF9F43', emoji: '🚀' },
-      { classes: 16, label: 'Achiever', tag: 'Most Popular', popular: true, perClass: { INR: 699,  USD: 8,   GBP: 7,  AED: 31,  CAD: 11 }, color: '#6C63FF', emoji: '⭐' },
-      { classes: 32, label: 'Champion', tag: 'Best Value', popular: false, perClass: { INR: 649,  USD: 7.5, GBP: 6,  AED: 28,  CAD: 10 }, color: '#1DD1A1', emoji: '🏆' },
-    ]
-  },
-  'group': {
-    label: 'Group Sessions (max 4 kids)',
-    packs: [
-      { classes: 4,  label: 'Starter', tag: '', popular: false, perClass: { INR: 449,  USD: 5.5, GBP: 4.5, AED: 20, CAD: 7.5 }, color: '#FF6B6B', emoji: '🌱' },
-      { classes: 8,  label: 'Builder', tag: 'Save 8%', popular: false, perClass: { INR: 399,  USD: 5,   GBP: 4,  AED: 18, CAD: 7   }, color: '#FF9F43', emoji: '🚀' },
-      { classes: 16, label: 'Achiever', tag: 'Most Popular', popular: true, perClass: { INR: 369,  USD: 4.5, GBP: 3.5, AED: 17, CAD: 6.5 }, color: '#6C63FF', emoji: '⭐' },
-      { classes: 32, label: 'Champion', tag: 'Best Value', popular: false, perClass: { INR: 329,  USD: 4,   GBP: 3,  AED: 15, CAD: 5.5 }, color: '#1DD1A1', emoji: '🏆' },
-    ]
-  }
-};
-
-const CURRENCY_SYMBOL = { INR:'₹', USD:'$', GBP:'£', AED:'AED ', CAD:'CA$' };
-
-function setCurrency(c) {
-  pricingCurrency = c;
-  document.querySelectorAll('.cur-btn').forEach(b => {
-    const isActive = b.id === 'cur-' + c;
-    b.style.background = isActive ? 'linear-gradient(135deg,#FF6B6B,#FF9F43)' : 'transparent';
-    b.style.color = isActive ? '#fff' : '#888';
-  });
-  renderPricingCards();
+function fmtDate(ts) {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : (ts.seconds ? new Date(ts.seconds*1000) : new Date(ts));
+  return d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}) + ' · ' + d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
 }
 
-function setSessionType(t) {
-  pricingType = t;
-  const btn1 = document.getElementById('type-1on1');
-  const btn2 = document.getElementById('type-group');
-  if (t === '1on1') {
-    btn1.style.background = 'linear-gradient(135deg,#6C63FF,#A29BFE)'; btn1.style.color = '#fff';
-    btn2.style.background = 'transparent'; btn2.style.color = '#6C63FF';
-  } else {
-    btn2.style.background = 'linear-gradient(135deg,#6C63FF,#A29BFE)'; btn2.style.color = '#fff';
-    btn1.style.background = 'transparent'; btn1.style.color = '#6C63FF';
-  }
-  renderPricingCards();
+function meetBtn(link) {
+  if (!link) return '<span style="font-size:12px;color:#aaa;font-weight:700;">Meet link pending</span>';
+  return `<a href="${link}" target="_blank" class="btn btn-green btn-sm" style="text-decoration:none;">📹 Join Meet</a>`;
 }
 
-function renderPricingCards() {
-  const el = document.getElementById('pricing-cards');
-  if (!el) return;
-  const data = PRICING_DATA[pricingType];
-  const sym = CURRENCY_SYMBOL[pricingCurrency];
-  el.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px;">
-      ${data.packs.map(p => {
-        const total = Math.round(p.perClass[pricingCurrency] * p.classes);
-        const perCls = p.perClass[pricingCurrency];
-        return `
-          <div class="card ${p.popular ? '' : 'card-hover'}" style="padding:28px;border-top:5px solid ${p.color};position:relative;${p.popular ? 'box-shadow:0 16px 48px rgba(108,99,255,.22);transform:scale(1.03);' : ''}">
-            ${p.tag ? `<div style="position:absolute;top:-1px;right:20px;background:${p.popular ? 'linear-gradient(135deg,#6C63FF,#A29BFE)' : 'linear-gradient(135deg,#FF9F43,#FDCB6E)'};color:#fff;font-size:11px;font-weight:800;padding:5px 14px;border-radius:0 0 10px 10px;letter-spacing:.3px;">${p.tag}</div>` : ''}
-            <div style="font-size:32px;margin-bottom:10px;">${p.emoji}</div>
-            <div style="font-weight:900;font-size:18px;color:#1a1a2e;margin-bottom:4px;">${p.label}</div>
-            <div style="font-size:13px;color:#999;font-weight:700;margin-bottom:20px;">${p.classes} Classes Pack</div>
-            <div style="margin-bottom:6px;">
-              <span style="font-size:34px;font-weight:900;color:${p.color};">${sym}${total.toLocaleString()}</span>
-            </div>
-            <div style="font-size:13px;color:#999;font-weight:700;margin-bottom:20px;">${sym}${typeof perCls === 'number' && !Number.isInteger(perCls) ? perCls.toFixed(1) : perCls} per class</div>
-            <div style="border-top:1.5px dashed #f0f0f0;padding-top:16px;margin-bottom:20px;display:flex;flex-direction:column;gap:8px;">
-              <div style="font-size:13px;font-weight:700;color:#555;">✅ ${p.classes} live sessions</div>
-              <div style="font-size:13px;font-weight:700;color:#555;">✅ Personalised curriculum</div>
-              <div style="font-size:13px;font-weight:700;color:#555;">✅ Intel-certified teacher</div>
-              <div style="font-size:13px;font-weight:700;color:#555;">✅ Progress dashboard</div>
-              ${p.classes >= 16 ? '<div style="font-size:13px;font-weight:700;color:#555;">✅ Priority scheduling</div>' : ''}
-              ${p.classes >= 32 ? '<div style="font-size:13px;font-weight:700;color:#555;">✅ Dedicated support</div>' : ''}
-            </div>
-            <button class="btn btn-main" style="width:100%;background:linear-gradient(135deg,${p.color},${p.color}CC);" onclick="nav('contact')">Buy Now →</button>
-          </div>`;
-      }).join('')}
+function sessionRowHtml(s) {
+  const sc = SUBJECT_COLORS[s.subject]||{color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
+  const when = s.scheduledAt ? fmtDate(s.scheduledAt) : ((s.date||'') + (s.time?' · '+s.time:''));
+  return `<div class="session-row" style="border-left:4px solid ${sc.color};">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div style="width:46px;height:46px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:24px;">${sc.emoji}</div>
+      <div>
+        <div style="font-weight:800;font-size:15px;">${s.topic||s.subject}</div>
+        <div style="font-size:13px;color:#999;font-weight:600;">${s.subject}${s.teacher||s.teacherName?' · with '+(s.teacher||s.teacherName):''} · ${when}</div>
+      </div>
     </div>
-    <div style="text-align:center;margin-top:28px;padding:20px;background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.05);">
-      <p style="font-size:14px;color:#888;font-weight:700;">💡 All prices are per subject. Need multiple subjects? <button onclick="nav('contact')" style="border:none;background:none;color:#FF6B6B;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;font-size:14px;">Contact us for bundle deals →</button></p>
-    </div>`;
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="chip ${s.type==='1-on-1'?'chip-1on1':'chip-group'}">${s.type==='1-on-1'?'🎯 1-on-1':'👥 Group'}</span>
+      ${meetBtn(s.meetLink)}
+    </div>
+  </div>`;
 }
 
-// ─── SCROLL TOP BUTTON ─────────────────────────────────────────────────────
-window.addEventListener('scroll', () => {
-  const btn = document.getElementById('scroll-top');
-  btn.classList.toggle('show', window.scrollY > 400);
+// ─── ADMIN LOGIN BUTTON ───────────────────────────────────────────────
+function adminLoginBtn() {
+  const email = document.getElementById('al-email').value.trim();
+  const pass  = document.getElementById('al-pass').value;
+  if (!email||!pass) { showToast('Enter email and password.','error'); return; }
+  showLoader(true);
+  doAdminLogin(email, pass);
+}
+
+// ─── MARQUEE ─────────────────────────────────────────────────────────
+function initMarquee() {
+  const track = document.getElementById('marquee-track');
+  const items = [...MARQUEE_ITEMS,...MARQUEE_ITEMS];
+  track.innerHTML = items.map(i=>`<span class="marquee-item">${i} <span style="color:#FFE8E8;margin-left:8px;">•</span></span>`).join('');
+}
+
+// ─── FAQ ─────────────────────────────────────────────────────────────
+function initFaq() {
+  const list = document.getElementById('faq-list');
+  list.innerHTML = FAQS_DATA.map((f,i)=>`
+    <div class="faq-item" onclick="toggleFaq(${i})" id="faq-${i}" style="border-left:4px solid ${f.c};">
+      <div class="faq-q"><span>${f.q}</span><span class="faq-icon" style="color:${f.c};">+</span></div>
+      <div class="faq-a">${f.a}</div>
+    </div>`).join('');
+}
+function toggleFaq(i) {
+  const el = document.getElementById('faq-'+i);
+  const was = el.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(f=>f.classList.remove('open'));
+  if (!was) el.classList.add('open');
+}
+
+// ─── SESSIONS PAGE ────────────────────────────────────────────────────
+function renderSessionsPage() {
+  const fe = document.getElementById('grade-filters');
+  if (!fe) return;
+  const grades = ['All',...Array.from({length:10},(_,i)=>String(i+3))];
+  fe.innerHTML = `<span style="font-size:14px;color:#888;font-weight:700;">Grade:</span>` +
+    grades.map(g=>`<button onclick="setGradeFilter('${g}')" style="padding:7px 16px;border-radius:50px;font-size:13px;font-weight:800;cursor:pointer;border:none;transition:all .2s;${gradeFilter===g?'background:linear-gradient(135deg,#FF6B6B,#FF9F43);color:#fff;':'background:#f0f0f0;color:#888;'}">${g==='All'?'All':'Gr. '+g}</button>`).join('');
+  const list = document.getElementById('sessions-list');
+  const filtered = gradeFilter==='All' ? DEMO_SESSIONS : DEMO_SESSIONS.filter(s=>String(s.grade)===gradeFilter);
+  if (!filtered.length) { list.innerHTML=`<div style="text-align:center;padding:48px;color:#888;font-weight:700;">No sessions for Grade ${gradeFilter}.</div>`; return; }
+  list.innerHTML = filtered.map(s=>{
+    const sc=SUBJECT_COLORS[s.subject]||{color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
+    return `<div class="session-row" style="border-left:4px solid ${sc.color};">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="width:48px;height:48px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:24px;">${sc.emoji}</div>
+        <div><div style="font-weight:800;font-size:15px;">${s.topic}</div>
+        <div style="font-size:13px;color:#888;margin-top:3px;font-weight:600;">${s.subject} · Grade ${s.grade} · ${s.teacher}</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span class="chip ${s.type==='1-on-1'?'chip-1on1':'chip-group'}">${s.type==='1-on-1'?'🎯 1-on-1':'👥 Group (max 4)'}</span>
+        <div style="text-align:right;"><div style="font-size:14px;font-weight:800;">${s.date}</div><div style="font-size:13px;color:#999;font-weight:600;">${s.time}</div></div>
+        <button class="btn btn-main btn-sm" onclick="requireLogin()">Join →</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function setGradeFilter(g) { gradeFilter=g; renderSessionsPage(); }
+function requireLogin() { showToast('Please login to join sessions.','error'); setTimeout(()=>nav('student-login'),1200); }
+
+// ─── CONTACT FORM ─────────────────────────────────────────────────────
+async function submitContactForm() {
+  let valid=true;
+  [['cf-name','cf-name-err',v=>v.trim().length>1],['cf-email','cf-email-err',v=>/\S+@\S+\.\S+/.test(v)],
+   ['cf-phone','cf-phone-err',v=>v.trim().length>6],['cf-grade','cf-grade-err',v=>v!=='']].forEach(([id,eid,fn])=>{
+    const el=document.getElementById(id),err=document.getElementById(eid);
+    if(!fn(el.value)){err.classList.add('show');valid=false;}else err.classList.remove('show');
+  });
+  if (!valid) return;
+  const btn=document.querySelector('#contact-form-wrap .btn-main');
+  btn.textContent='Sending…'; btn.disabled=true;
+  const data={
+    name:document.getElementById('cf-name').value.trim(),
+    email:document.getElementById('cf-email').value.trim(),
+    phone:document.getElementById('cf-phone').value.trim(),
+    grade:document.getElementById('cf-grade').value,
+    subject:document.getElementById('cf-subject').value,
+    type:document.getElementById('cf-type').value,
+    message:document.getElementById('cf-msg').value.trim()
+  };
+  try {
+    await submitContact(data);
+    document.getElementById('contact-form-wrap').style.display='none';
+    document.getElementById('contact-success').style.display='block';
+    showToast('Demo booked! We\'ll reach out soon. 🎉','success');
+  } catch(e) {
+    btn.textContent='Send & Book Demo 🚀'; btn.disabled=false;
+    showToast('Something went wrong. Try WhatsApp.','error');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// STUDENT DASHBOARD
+// ══════════════════════════════════════════════════════════════════════
+async function initStudentDash() {
+  const p=window._ika||{};
+  const name=p.name||p.displayName||'there';
+  document.getElementById('sd-greeting').textContent=`Hey ${name}! 🙌`;
+  document.getElementById('sd-email').textContent=p.email||'';
+  const av=document.getElementById('sd-avatar');
+  if(p.photo){av.innerHTML=`<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;"/>`;}
+  else{av.textContent=(name[0]||'S').toUpperCase();}
+  document.getElementById('sd-stats').innerHTML=`
+    <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">📈</div><div class="stat-val" style="color:#6C63FF;">${p.progress||0}%</div><div class="stat-lbl">Progress</div></div>
+    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">🔥</div><div class="stat-val" style="color:#FF9F43;">${p.streak||0}</div><div class="stat-lbl">Day Streak</div></div>
+    <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF6B6B;" id="sd-up-cnt">—</div><div class="stat-lbl">Upcoming</div></div>
+    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;" id="sd-done-cnt">—</div><div class="stat-lbl">Done</div></div>`;
+  try {
+    studentData=await loadStudentData();
+    document.getElementById('sd-up-cnt').textContent=studentData.sessions.filter(s=>!s.completed).length;
+    document.getElementById('sd-done-cnt').textContent=studentData.sessions.filter(s=>s.completed).length;
+  } catch(e){studentData={sessions:[],homework:[],requests:[]};}
+  renderStudentTab('upcoming');
+}
+
+function sdTab(btn,tab){
+  document.querySelectorAll('#page-student-dashboard .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); renderStudentTab(tab);
+}
+
+function renderStudentTab(tab){
+  const el=document.getElementById('sd-content');
+  if(!studentData){el.innerHTML='<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>';return;}
+
+  if(tab==='upcoming'){
+    const sess=studentData.sessions.filter(s=>!s.completed);
+    el.innerHTML=sess.length?sess.map(s=>sessionRowHtml(s)).join(''):`
+      <div style="background:#FFF6E8;border-radius:16px;padding:16px 20px;margin-bottom:20px;font-size:14px;color:#FF9F43;font-weight:700;">ℹ️ No upcoming sessions. Book one using the "Book a Class" tab!</div>
+      ${DEMO_SESSIONS.slice(0,2).map(s=>sessionRowHtml(s)).join('')}`;
+  }
+
+  else if(tab==='book'){
+    const today=new Date().toISOString().split('T')[0];
+    el.innerHTML=`
+      <div style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:24px;margin-bottom:24px;border:2px dashed #C0B8FF;">
+        <div style="font-weight:800;font-size:17px;color:#6C63FF;margin-bottom:6px;">📅 Schedule a Class</div>
+        <p style="font-size:13px;color:#888;font-weight:600;margin:0;">Book ≥12 hours ahead → instant confirmation + Google Meet link.<br/>Under 12 hours → request sent to admin for approval.</p>
+      </div>
+      <div class="card" style="padding:28px;max-width:520px;">
+        <div class="form-group"><label>Subject</label>
+          <select id="bk-subject"><option value="">Choose subject…</option>
+            ${SUBJECTS.map(s=>`<option value="${s}">${SUBJECT_COLORS[s].emoji} ${s}</option>`).join('')}
+          </select></div>
+        <div class="form-group"><label>Topic (optional)</label>
+          <input type="text" id="bk-topic" placeholder="e.g. Quadratic Equations, Python loops…"/></div>
+        <div class="form-group"><label>Session Type</label>
+          <select id="bk-type">
+            <option value="1-on-1">🎯 1-on-1 Session</option>
+            <option value="Group">👥 Group Session (max 4)</option>
+          </select></div>
+        <div class="form-group"><label>Date</label>
+          <input type="date" id="bk-date" min="${today}" onchange="checkBookingTime()"/></div>
+        <div class="form-group"><label>Preferred Time</label>
+          <select id="bk-time" onchange="checkBookingTime()">
+            <option value="">Choose time…</option>
+            ${TIMES.map(t=>`<option value="${t}">${t}</option>`).join('')}
+          </select></div>
+        <div id="bk-notice" style="display:none;background:#FFF6E8;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#FF9F43;font-weight:700;"></div>
+        <button class="btn btn-main btn-full" id="bk-btn" onclick="submitBooking()">Book Class 🚀</button>
+      </div>`;
+  }
+
+  else if(tab==='requests'){
+    const reqs=studentData.requests||[];
+    if(!reqs.length){el.innerHTML=emptyState('⏳','No pending requests','Urgent session requests (< 12 hrs) appear here.');return;}
+    el.innerHTML=reqs.map(r=>{
+      const sc=SUBJECT_COLORS[r.subject]||{color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
+      const bc=r.status==='approved'?'#1DD1A1':r.status==='rejected'?'#FF6B6B':'#FF9F43';
+      const bl=r.status==='approved'?'✅ Approved':r.status==='rejected'?'❌ Rejected':'⏳ Pending Admin';
+      return `<div class="session-row" style="border-left:4px solid ${sc.color};">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:46px;height:46px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:24px;">${sc.emoji}</div>
+          <div><div style="font-weight:800;font-size:15px;">${r.subject}${r.topic?' · '+r.topic:''}</div>
+          <div style="font-size:13px;color:#999;font-weight:600;">${r.dateTimeISO?new Date(r.dateTimeISO).toLocaleString('en-IN'):'—'}</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="chip" style="background:${bc}22;color:${bc};">${bl}</span>
+          ${r.meetLink?`<a href="${r.meetLink}" target="_blank" class="btn btn-green btn-sm" style="text-decoration:none;">📹 Join Meet</a>`:''}
+        </div>
+      </div>`;}).join('');
+  }
+
+  else if(tab==='homework'){
+    const hw=studentData.homework;
+    if(!hw.length){el.innerHTML=emptyState('📝','No homework yet','Your teacher will assign homework here.');return;}
+    el.innerHTML=hw.map(h=>{
+      const done=h.status==='done';
+      return `<div class="session-row" style="border-left:4px solid ${done?'#1DD1A1':'#FF9F43'};">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:46px;height:46px;border-radius:14px;background:${done?'#E8FFF8':'#FFF6E8'};display:flex;align-items:center;justify-content:center;font-size:24px;">${done?'✅':'📝'}</div>
+          <div><div style="font-weight:800;font-size:15px;">${h.title}</div>
+          <div style="font-size:13px;color:#999;font-weight:600;">${h.subject||''} · Due: ${h.due||'—'}</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          ${done?`<span style="font-size:22px;font-weight:900;color:#1DD1A1;">${h.score}%</span><span class="chip chip-green">Done ✓</span>`:
+                 `<span class="chip chip-orange">Pending</span><button class="btn btn-main btn-sm">Start ✏️</button>`}
+        </div>
+      </div>`;}).join('');
+  }
+
+  else if(tab==='performance'){
+    el.innerHTML=`
+      <div style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:20px;margin-bottom:24px;border:2px dashed #C0B8FF;display:flex;align-items:center;gap:14px;">
+        <div style="font-size:36px;">🧬</div>
+        <div><div style="font-weight:800;font-size:16px;color:#6C63FF;">Your Personalised Learning Plan</div>
+        <div style="font-size:13px;color:#888;font-weight:600;margin-top:4px;">Built 100% for you — updated weekly based on your performance.</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
+        ${Object.entries(SUBJECT_COLORS).slice(0,4).map(([n,sc],i)=>{const s=[84,91,78,88][i];return`
+          <div class="card" style="padding:20px;border-top:4px solid ${sc.color};">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:20px;">${sc.emoji}</span><span style="font-weight:800;font-size:13px;">${n}</span></div>
+            <div style="font-size:28px;font-weight:900;color:${s>=85?'#1DD1A1':s>=70?'#6C63FF':'#FF9F43'};margin-bottom:8px;">${s}%</div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${s}%;background:${sc.color};"></div></div>
+            <div style="font-size:12px;color:#999;margin-top:8px;font-weight:700;">${s>=85?'🔥 Crushing it':s>=70?'💪 On track':'📈 Keep going'}</div>
+          </div>`;}).join('')}
+      </div>`;
+  }
+}
+
+function checkBookingTime(){
+  const dv=document.getElementById('bk-date')?.value, tv=document.getElementById('bk-time')?.value;
+  const notice=document.getElementById('bk-notice'); if(!dv||!tv||!notice)return;
+  const [h12,ap]=tv.split(' ');let[h,m]=h12.split(':').map(Number);
+  if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;
+  const dt=new Date(`${dv}T${String(h).padStart(2,'0')}:${String(m||0).padStart(2,'0')}:00`);
+  const diff=(dt-new Date())/3600000;
+  if(diff<0){notice.style.display='block';notice.textContent='⚠️ This time is in the past. Choose a future slot.';return;}
+  if(diff<12){notice.style.display='block';notice.textContent='⚠️ Less than 12 hours ahead — this will be sent as an admin request. You\'ll be notified on approval.';}
+  else notice.style.display='none';
+}
+
+async function submitBooking(){
+  const subject=document.getElementById('bk-subject').value;
+  const topic=document.getElementById('bk-topic').value.trim();
+  const type=document.getElementById('bk-type').value;
+  const dv=document.getElementById('bk-date').value;
+  const tv=document.getElementById('bk-time').value;
+  if(!subject||!dv||!tv){showToast('Fill in subject, date and time.','error');return;}
+  const[h12,ap]=tv.split(' ');let[h,m]=h12.split(':').map(Number);
+  if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;
+  const dateTimeISO=`${dv}T${String(h).padStart(2,'0')}:${String(m||0).padStart(2,'0')}:00`;
+  const btn=document.getElementById('bk-btn');btn.textContent='Booking…';btn.disabled=true;
+  try {
+    await bookSession({subject,topic,type,dateTimeISO,studentName:window._ika?.name||window._ika?.email||''});
+    studentData=null; initStudentDash();
+  } catch(e){showToast('Booking failed. Try WhatsApp.','error');}
+  btn.textContent='Book Class 🚀';btn.disabled=false;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// TEACHER DASHBOARD
+// ══════════════════════════════════════════════════════════════════════
+async function initTeacherDash(){
+  const p=window._ika||{};const name=p.name||'Teacher';
+  document.getElementById('td-greeting').textContent=`Welcome, ${name}! 🏆`;
+  document.getElementById('td-email').textContent=p.email||'';
+  const av=document.getElementById('td-avatar');
+  if(p.photo){av.innerHTML=`<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;"/>`;}
+  else{av.textContent=(name[0]||'T').toUpperCase();}
+  document.getElementById('td-stats').innerHTML=`
+    <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">👥</div><div class="stat-val" style="color:#6C63FF;" id="td-s-cnt">—</div><div class="stat-lbl">My Students</div></div>
+    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF9F43;" id="td-sess-cnt">—</div><div class="stat-lbl">Upcoming</div></div>
+    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#1DD1A1;" id="td-today-cnt">—</div><div class="stat-lbl">Today</div></div>
+    <div class="stat-card" style="border-top:4px solid #0071C5;background:#EBF4FF;"><div style="font-size:22px;">🏅</div><div class="stat-val" style="color:#0071C5;font-size:18px;">Intel</div><div class="stat-lbl">Certified</div></div>`;
+  try {
+    teacherData=await loadTeacherData();
+    const tod=new Date().toDateString();
+    document.getElementById('td-s-cnt').textContent=teacherData.students.length;
+    document.getElementById('td-sess-cnt').textContent=teacherData.sessions.filter(s=>!s.completed).length;
+    document.getElementById('td-today-cnt').textContent=teacherData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);return d.toDateString()===tod;}).length;
+  } catch(e){teacherData={sessions:[],students:[]};}
+  renderTeacherTab('sessions');
+}
+
+function tdTab(btn,tab){
+  document.querySelectorAll('#page-teacher-dashboard .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');renderTeacherTab(tab);
+}
+
+function renderTeacherTab(tab){
+  const el=document.getElementById('td-content');
+  if(!teacherData){el.innerHTML='<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>';return;}
+  if(tab==='sessions'){
+    const sess=teacherData.sessions.length?teacherData.sessions:DEMO_SESSIONS;
+    const isDemo=!teacherData.sessions.length;
+    el.innerHTML=(isDemo?`<div style="background:#FFF6E8;border-radius:16px;padding:16px 20px;margin-bottom:20px;font-size:14px;color:#FF9F43;font-weight:700;">ℹ️ Your sessions appear here. Sample shown below.</div>`:'')
+      +sess.map(s=>sessionRowHtml(s)).join('');
+  }
+  else if(tab==='students'){
+    if(!teacherData.students.length){el.innerHTML=emptyState('👥','No students assigned','Admin will assign students to your account.');return;}
+    el.innerHTML=teacherData.students.map((s,i)=>`
+      <div class="session-row">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,${AC[i%AC.length]},${AC[(i+2)%AC.length]});display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;">${(s.name||'?')[0].toUpperCase()}</div>
+          <div><div style="font-weight:800;font-size:15px;">${s.name||'Student'}</div>
+          <div style="font-size:13px;color:#999;font-weight:600;">Grade ${s.grade||'—'} · ${s.subject||'—'} · ${s.email||''}</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:24px;">
+          <div style="min-width:140px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:12px;color:#999;font-weight:700;">Progress</span><span style="font-size:12px;font-weight:800;color:#6C63FF;">${s.progress||0}%</span></div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${s.progress||0}%;background:${AC[i%AC.length]};"></div></div>
+          </div>
+          <div style="text-align:center;"><div style="font-size:20px;font-weight:800;color:#FF9F43;">🔥${s.streak||0}</div><div style="font-size:11px;color:#999;font-weight:700;">streak</div></div>
+        </div>
+      </div>`).join('');
+  }
+  else if(tab==='curriculum'){
+    el.innerHTML=`<div style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:24px;margin-bottom:24px;border:2px dashed #C0B8FF;">
+      <div style="font-size:24px;margin-bottom:8px;">🧬</div>
+      <div style="font-weight:800;font-size:17px;color:#6C63FF;margin-bottom:8px;">100% Personalised Curriculum</div>
+      <p style="font-size:14px;color:#666;line-height:1.7;font-weight:600;margin:0;">Every student's curriculum is built from scratch. View and update each student's plan via the admin panel.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;">
+      ${Object.entries(SUBJECT_COLORS).map(([n,sc])=>`
+        <div class="card" style="padding:24px;border-top:4px solid ${sc.color};">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;"><span style="font-size:26px;">${sc.emoji}</span><span style="font-weight:800;font-size:16px;">${n}</span></div>
+          ${["Diagnostic & Baseline","Core Concepts","Applied Practice","Projects & Capstone"].map((u,i)=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<3?'border-bottom:1px dashed #f0f0f0':''}">
+              <div style="width:7px;height:7px;border-radius:50%;background:${sc.color};flex-shrink:0;"></div>
+              <span style="font-size:13px;color:#777;font-weight:700;">Unit ${i+1}: ${u}</span>
+            </div>`).join('')}
+        </div>`).join('')}
+    </div>`;
+  }
+  else if(tab==='lms'){
+    el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;">
+      ${[["📤","Upload Content","Add videos, PDFs & worksheets","#FF6B6B"],["📝","Create Assessment","Build quizzes & assignments","#6C63FF"],
+         ["📊","Analytics","Class performance reports","#FF9F43"],["📆","Schedule","Book class slots","#1DD1A1"],
+         ["💬","Announcement","Ping all students","#A29BFE"],["🗂️","Resources","Organise materials","#54A0FF"]].map(([ic,t,d,c])=>`
+        <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid ${c};">
+          <div style="font-size:32px;margin-bottom:14px;">${ic}</div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:8px;">${t}</div>
+          <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">${d}</div>
+          <div style="margin-top:14px;font-size:13px;font-weight:800;color:${c};">Open →</div>
+        </div>`).join('')}
+    </div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ADMIN DASHBOARD
+// ══════════════════════════════════════════════════════════════════════
+async function initAdminDash(){
+  const dateEl=document.getElementById('admin-date');
+  if(dateEl) dateEl.textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  try{_adminData=await loadAdminData();}
+  catch(e){_adminData={users:[],sessions:[],requests:[],enquiries:[],pending:[]};}
+  const students=_adminData.users.filter(u=>u.role==='student');
+  const teachers=_adminData.users.filter(u=>u.role==='teacher');
+  const tod=new Date().toDateString();
+  const todSess=_adminData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);return d.toDateString()===tod;});
+  document.getElementById('admin-stats').innerHTML=`
+    <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">🎒</div><div class="stat-val" style="color:#FF6B6B;">${students.length}</div><div class="stat-lbl">Students</div></div>
+    <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">👩‍🏫</div><div class="stat-val" style="color:#6C63FF;">${teachers.length}</div><div class="stat-lbl">Teachers</div></div>
+    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF9F43;">${todSess.length}</div><div class="stat-lbl">Today's Classes</div></div>
+    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">📩</div><div class="stat-val" style="color:#1DD1A1;">${_adminData.enquiries.length}</div><div class="stat-lbl">Enquiries</div></div>
+    <div class="stat-card" style="border-top:4px solid #A29BFE;background:#F3F0FF;"><div style="font-size:22px;">🔔</div><div class="stat-val" style="color:#A29BFE;">${_adminData.pending.length}</div><div class="stat-lbl">Pending Access</div></div>
+    <div class="stat-card" style="border-top:4px solid #54A0FF;background:#EBF4FF;"><div style="font-size:22px;">⏳</div><div class="stat-val" style="color:#54A0FF;">${_adminData.requests.filter(r=>r.status==='pending_approval').length}</div><div class="stat-lbl">Urgent Req.</div></div>`;
+  renderAdminTab('today');
+}
+
+function adminTab(btn,tab){
+  document.querySelectorAll('#page-admin-dashboard .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');renderAdminTab(tab);
+}
+
+function renderAdminTab(tab){
+  const el=document.getElementById('admin-content');
+  if(!_adminData){el.innerHTML='<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>';return;}
+  const TH=cols=>`<thead><tr style="background:linear-gradient(135deg,#1a1a2e,#2d1b69);">${cols.map(c=>`<th style="padding:12px 14px;text-align:left;color:#fff;font-weight:800;white-space:nowrap;">${c}</th>`).join('')}</tr></thead>`;
+  const TR=(i,cells)=>`<tr style="border-bottom:1px solid #f0f0f0;background:${i%2?'#FAFAFA':'#fff'};">${cells.map(c=>`<td style="padding:11px 14px;">${c}</td>`).join('')}</tr>`;
+
+  if(tab==='today'){
+    const tod=new Date().toDateString();
+    const todSess=_adminData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);return d.toDateString()===tod;});
+    const urgReqs=_adminData.requests.filter(r=>r.status==='pending_approval');
+    el.innerHTML=`
+      <h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">📊 Today's Master Sheet — ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long'})}</h3>
+      ${urgReqs.length?`<div style="background:#FFF6E8;border-radius:16px;padding:16px 20px;margin-bottom:20px;border:2px solid #FDCB6E;">
+        <div style="font-weight:800;font-size:14px;color:#FF9F43;margin-bottom:12px;">⚡ ${urgReqs.length} Urgent Session Request(s) Need Approval</div>
+        ${urgReqs.map(r=>`<div style="background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.06);">
+          <div><div style="font-weight:800;font-size:14px;">${r.studentName||'Student'} — ${r.subject}</div>
+          <div style="font-size:12px;color:#999;font-weight:600;">${r.dateTimeISO?new Date(r.dateTimeISO).toLocaleString('en-IN'):''} · ${r.type||'1-on-1'}</div></div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="approveSessionRequest('${r.id}')" class="btn btn-green btn-sm">✅ Approve</button>
+            <button onclick="showToast('Declined.','error')" class="btn btn-sm" style="background:#FFF0F0;color:#FF6B6B;">❌ Decline</button>
+          </div>
+        </div>`).join('')}
+      </div>`:''}
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+        ${TH(['#','Student','Subject','Topic','Teacher','Time','Type','Status','Meet Link'])}
+        <tbody>${todSess.length?todSess.map((s,i)=>{
+          const sc=SUBJECT_COLORS[s.subject]||{color:"#6C63FF",emoji:"📘"};
+          const dt=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);
+          return TR(i,[i+1,`<span style="font-weight:800;">${s.studentName||'—'}</span>`,
+            `<span style="color:${sc.color};font-weight:800;">${sc.emoji} ${s.subject}</span>`,
+            s.topic||'—', s.teacherName||'—',
+            dt.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}),
+            `<span class="chip ${s.type==='1-on-1'?'chip-1on1':'chip-group'}">${s.type||'1-on-1'}</span>`,
+            `<span class="chip" style="background:${s.status==='confirmed'?'#E8FFF8':'#FFF6E8'};color:${s.status==='confirmed'?'#1DD1A1':'#FF9F43'};">${s.status||'pending'}</span>`,
+            s.meetLink?`<a href="${s.meetLink}" target="_blank" style="color:#6C63FF;font-weight:800;font-size:12px;">Join →</a>`:'—']);
+        }).join(''):`<tr><td colspan="9" style="text-align:center;padding:32px;color:#aaa;font-weight:700;">No sessions today.</td></tr>`}
+        </tbody></table></div>`;
+  }
+
+  else if(tab==='pending'){
+    const pend=_adminData.pending;
+    if(!pend.length){el.innerHTML=emptyState('🎉','No pending approvals!','All done.');return;}
+    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:20px;">🔔 Pending Access Requests (${pend.length})</h3>`+
+      pend.map(r=>`<div class="card" style="padding:20px;margin-bottom:14px;border-left:4px solid #FF9F43;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            ${r.photo?`<img src="${r.photo}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;"/>`:`<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#FF6B6B,#FF9F43);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;">${(r.name||r.email||'?')[0].toUpperCase()}</div>`}
+            <div><div style="font-weight:800;font-size:15px;">${r.name||'Unknown'}</div>
+            <div style="font-size:13px;color:#999;font-weight:600;">${r.email}</div></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <select id="role-sel-${r.id}" style="padding:8px 12px;border-radius:10px;border:2px solid #E8E8FF;font-weight:700;font-size:13px;">
+              <option value="student">🎒 Student</option><option value="teacher">👩‍🏫 Teacher</option>
+            </select>
+            <button onclick="approveUser('${r.id}',document.getElementById('role-sel-${r.id}').value,'${(r.name||'').replace(/'/g,"")}')" class="btn btn-green btn-sm">✅ Approve</button>
+            <button onclick="rejectUser('${r.id}')" class="btn btn-sm" style="background:#FFF0F0;color:#FF6B6B;">❌ Reject</button>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  else if(tab==='students'){
+    const students=_adminData.users.filter(u=>u.role==='student');
+    if(!students.length){el.innerHTML=emptyState('🎒','No students yet','Approve student access requests first.');return;}
+    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">🎒 All Students (${students.length})</h3>
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);">${['Name','Email','Grade','Subject','Teacher','Progress','Streak'].map(h=>`<th style="padding:12px 14px;text-align:left;color:#fff;font-weight:800;">${h}</th>`).join('')}</tr></thead>
+        <tbody>${students.map((s,i)=>TR(i,[`<span style="font-weight:800;">${s.name||'—'}</span>`,
+          `<span style="color:#6C63FF;font-weight:600;">${s.email}</span>`,
+          s.grade?'Gr. '+s.grade:'—', s.subject||'—', s.teacherName||'—',
+          `<div style="display:flex;align-items:center;gap:6px;"><div class="progress-bar" style="width:70px;"><div class="progress-fill" style="width:${s.progress||0}%;background:#6C63FF;"></div></div><span style="font-size:11px;color:#999;font-weight:700;">${s.progress||0}%</span></div>`,
+          `<span style="font-weight:800;color:#FF9F43;">🔥${s.streak||0}</span>`])).join('')}
+        </tbody></table></div>`;
+  }
+
+  else if(tab==='teachers'){
+    const teachers=_adminData.users.filter(u=>u.role==='teacher');
+    if(!teachers.length){el.innerHTML=emptyState('👩‍🏫','No teachers yet','Approve teacher access requests first.');return;}
+    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">👩‍🏫 All Teachers (${teachers.length})</h3>
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:linear-gradient(135deg,#6C63FF,#A29BFE);">${['Name','Email','Subject','Sessions','Certification'].map(h=>`<th style="padding:12px 14px;text-align:left;color:#fff;font-weight:800;">${h}</th>`).join('')}</tr></thead>
+        <tbody>${teachers.map((t,i)=>{const ms=_adminData.sessions.filter(s=>s.teacherId===t.id).length;
+          return TR(i,[`<span style="font-weight:800;">${t.name||'—'}</span>`,
+            `<span style="color:#6C63FF;font-weight:600;">${t.email}</span>`,
+            t.subject||'—', `<span style="font-weight:800;color:#FF9F43;">${ms}</span>`,
+            `<span class="chip" style="background:#EBF4FF;color:#0071C5;font-size:11px;">🏅 Intel Certified</span>`]);
+        }).join('')}</tbody></table></div>`;
+  }
+
+  else if(tab==='sessions'){
+    if(!_adminData.sessions.length){el.innerHTML=emptyState('📅','No sessions yet','Sessions booked by students appear here.');return;}
+    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">📅 All Sessions (${_adminData.sessions.length})</h3>
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+        ${TH(['#','Student','Subject','Teacher','Date & Time','Type','Status','Meet'])}
+        <tbody>${_adminData.sessions.map((s,i)=>{
+          const sc=SUBJECT_COLORS[s.subject]||{color:"#6C63FF",emoji:"📘"};
+          return TR(i,[i+1,`<span style="font-weight:800;">${s.studentName||'—'}</span>`,
+            `<span style="color:${sc.color};font-weight:800;">${sc.emoji} ${s.subject}</span>`,
+            s.teacherName||'—', s.scheduledAt?fmtDate(s.scheduledAt):'—',
+            `<span class="chip ${s.type==='1-on-1'?'chip-1on1':'chip-group'}">${s.type||'1-on-1'}</span>`,
+            `<span class="chip" style="background:${s.status==='confirmed'?'#E8FFF8':'#FFF6E8'};color:${s.status==='confirmed'?'#1DD1A1':'#FF9F43'};">${s.status||'pending'}</span>`,
+            s.meetLink?`<a href="${s.meetLink}" target="_blank" style="color:#6C63FF;font-weight:800;font-size:12px;">Join →</a>`:'—']);
+        }).join('')}</tbody></table></div>`;
+  }
+
+  else if(tab==='enquiries'){
+    if(!_adminData.enquiries.length){el.innerHTML=emptyState('📩','No enquiries yet','Demo booking forms appear here.');return;}
+    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">📩 Demo Enquiries (${_adminData.enquiries.length})</h3>
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);">${['Name','Email','Phone','Grade','Subject','Type','Message','Date'].map(h=>`<th style="padding:12px 14px;text-align:left;color:#fff;font-weight:800;">${h}</th>`).join('')}</tr></thead>
+        <tbody>${_adminData.enquiries.map((e,i)=>TR(i,[
+          `<span style="font-weight:800;">${e.name||'—'}</span>`,
+          `<span style="color:#6C63FF;font-weight:600;">${e.email||'—'}</span>`,
+          e.phone||'—', e.grade?'Gr.'+e.grade:'—', e.subject||'—', e.type||'—',
+          `<span style="color:#555;max-width:200px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.message||'—'}</span>`,
+          e.createdAt?.toDate?e.createdAt.toDate().toLocaleDateString('en-IN'):'—'])).join('')}
+        </tbody></table></div>`;
+  }
+}
+
+// ─── PRICING ──────────────────────────────────────────────────────────
+let pricingCurrency='INR', pricingType='1on1';
+const PRICING_DATA={
+  '1on1':{packs:[
+    {classes:4, label:'Starter', tag:'',             popular:false,perClass:{INR:799,USD:10, GBP:8,  AED:36,CAD:14},color:'#FF6B6B',emoji:'🌱'},
+    {classes:8, label:'Builder', tag:'Save 8%',      popular:false,perClass:{INR:749,USD:9,  GBP:7,  AED:34,CAD:13},color:'#FF9F43',emoji:'🚀'},
+    {classes:16,label:'Achiever',tag:'Most Popular',  popular:true, perClass:{INR:699,USD:8,  GBP:7,  AED:31,CAD:11},color:'#6C63FF',emoji:'⭐'},
+    {classes:32,label:'Champion',tag:'Best Value',    popular:false,perClass:{INR:649,USD:7.5,GBP:6,  AED:28,CAD:10},color:'#1DD1A1',emoji:'🏆'},
+  ]},
+  'group':{packs:[
+    {classes:4, label:'Starter', tag:'',             popular:false,perClass:{INR:449,USD:5.5,GBP:4.5,AED:20,CAD:7.5},color:'#FF6B6B',emoji:'🌱'},
+    {classes:8, label:'Builder', tag:'Save 8%',      popular:false,perClass:{INR:399,USD:5,  GBP:4,  AED:18,CAD:7  },color:'#FF9F43',emoji:'🚀'},
+    {classes:16,label:'Achiever',tag:'Most Popular',  popular:true, perClass:{INR:369,USD:4.5,GBP:3.5,AED:17,CAD:6.5},color:'#6C63FF',emoji:'⭐'},
+    {classes:32,label:'Champion',tag:'Best Value',    popular:false,perClass:{INR:329,USD:4,  GBP:3,  AED:15,CAD:5.5},color:'#1DD1A1',emoji:'🏆'},
+  ]}
+};
+const CURRENCY_SYMBOL={INR:'₹',USD:'$',GBP:'£',AED:'AED ',CAD:'CA$'};
+
+function setCurrency(c){
+  pricingCurrency=c;
+  document.querySelectorAll('.cur-btn').forEach(b=>{const a=b.id==='cur-'+c;b.style.background=a?'linear-gradient(135deg,#FF6B6B,#FF9F43)':'transparent';b.style.color=a?'#fff':'#888';});
+  renderPricingCards();
+}
+function setSessionType(t){
+  pricingType=t;
+  const b1=document.getElementById('type-1on1'),b2=document.getElementById('type-group');
+  if(t==='1on1'){b1.style.background='linear-gradient(135deg,#6C63FF,#A29BFE)';b1.style.color='#fff';b2.style.background='transparent';b2.style.color='#6C63FF';}
+  else{b2.style.background='linear-gradient(135deg,#6C63FF,#A29BFE)';b2.style.color='#fff';b1.style.background='transparent';b1.style.color='#6C63FF';}
+  renderPricingCards();
+}
+function renderPricingCards(){
+  const el=document.getElementById('pricing-cards');if(!el)return;
+  const sym=CURRENCY_SYMBOL[pricingCurrency];
+  el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px;">
+    ${PRICING_DATA[pricingType].packs.map(p=>{const tot=Math.round(p.perClass[pricingCurrency]*p.classes);return`
+      <div class="card ${p.popular?'':'card-hover'}" style="padding:28px;border-top:5px solid ${p.color};position:relative;${p.popular?'box-shadow:0 16px 48px rgba(108,99,255,.22);transform:scale(1.03);':''}">
+        ${p.tag?`<div style="position:absolute;top:-1px;right:20px;background:${p.popular?'linear-gradient(135deg,#6C63FF,#A29BFE)':'linear-gradient(135deg,#FF9F43,#FDCB6E)'};color:#fff;font-size:11px;font-weight:800;padding:5px 14px;border-radius:0 0 10px 10px;">${p.tag}</div>`:''}
+        <div style="font-size:32px;margin-bottom:10px;">${p.emoji}</div>
+        <div style="font-weight:900;font-size:18px;margin-bottom:4px;">${p.label}</div>
+        <div style="font-size:13px;color:#999;font-weight:700;margin-bottom:20px;">${p.classes} Classes Pack</div>
+        <div style="font-size:34px;font-weight:900;color:${p.color};margin-bottom:4px;">${sym}${tot.toLocaleString()}</div>
+        <div style="font-size:13px;color:#999;font-weight:700;margin-bottom:20px;">${sym}${Number.isInteger(p.perClass[pricingCurrency])?p.perClass[pricingCurrency]:p.perClass[pricingCurrency].toFixed(1)} per class</div>
+        <div style="border-top:1.5px dashed #f0f0f0;padding-top:16px;margin-bottom:20px;display:flex;flex-direction:column;gap:8px;">
+          <div style="font-size:13px;font-weight:700;color:#555;">✅ ${p.classes} live sessions</div>
+          <div style="font-size:13px;font-weight:700;color:#555;">✅ Personalised curriculum</div>
+          <div style="font-size:13px;font-weight:700;color:#555;">✅ Intel-certified teacher</div>
+          <div style="font-size:13px;font-weight:700;color:#555;">✅ Auto Google Meet link</div>
+          ${p.classes>=16?'<div style="font-size:13px;font-weight:700;color:#555;">✅ Priority scheduling</div>':''}
+          ${p.classes>=32?'<div style="font-size:13px;font-weight:700;color:#555;">✅ Dedicated support</div>':''}
+        </div>
+        <button class="btn btn-main" style="width:100%;background:linear-gradient(135deg,${p.color},${p.color}CC);" onclick="nav('contact')">Buy Now →</button>
+      </div>`;}).join('')}
+  </div>
+  <div style="text-align:center;margin-top:28px;padding:20px;background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.05);">
+    <p style="font-size:14px;color:#888;font-weight:700;">💡 Prices per subject. Need multiple? <button onclick="nav('contact')" style="border:none;background:none;color:#FF6B6B;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;font-size:14px;">Contact us for bundle deals →</button></p>
+  </div>`;
+}
+
+// ─── SCROLL TOP ───────────────────────────────────────────────────────
+window.addEventListener('scroll',()=>{
+  const b=document.getElementById('scroll-top');if(b)b.classList.toggle('show',window.scrollY>400);
 });
 
-// ─── INIT ──────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  initMarquee();
-  initFaq();
-  renderSessionsPage();
+// ─── INIT ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  initMarquee(); initFaq(); renderSessionsPage();
 });
 </script>
+
 </body>
 </html>
