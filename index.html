@@ -22,7 +22,7 @@
 const ADMIN_EMAIL = "admin@intellikidsacademy.in";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCFWK0iuWALDpn1AfxZNE_Q1Bk60i7yP3U",
+   apiKey: "AIzaSyCFWK0iuWALDpn1AfxZNE_Q1Bk60i7yP3U",
   authDomain: "intellikids-academy.firebaseapp.com",
   projectId: "intellikids-academy",
   storageBucket: "intellikids-academy.firebasestorage.app",
@@ -68,10 +68,23 @@ auth.onAuthStateChanged(async (user) => {
 // ─── GOOGLE LOGIN ──────────────────────────────────────────────────────────
 function doGoogleLogin() {
   showLoader(true);
-  auth.signInWithPopup(googleProvider)
-    .then(result => { window._googleToken = result.credential?.accessToken || null; })
-    .catch(e => { showLoader(false); showToast(e.code==='auth/popup-closed-by-user'?'Login cancelled.':'Google login failed.','error'); });
+  // Use redirect instead of popup — avoids security warning on all browsers
+  auth.signInWithRedirect(googleProvider)
+    .catch(e => { showLoader(false); showToast('Google login failed. Please try again.','error'); });
 }
+
+// Handle redirect result on page load
+auth.getRedirectResult()
+  .then(result => {
+    if (result && result.credential) {
+      window._googleToken = result.credential.accessToken || null;
+    }
+  })
+  .catch(e => {
+    if (e.code !== 'auth/no-auth-event') {
+      showToast('Login error: ' + e.message, 'error');
+    }
+  });
 
 // ─── ADMIN EMAIL/PASS LOGIN ────────────────────────────────────────────────
 function doAdminLogin(email, password) {
@@ -104,22 +117,40 @@ async function createMeetLink(title, dateTimeISO, mins) {
 
 // ─── BOOK SESSION ──────────────────────────────────────────────────────────
 async function bookSession(data) {
-  const uid  = window._ika?.uid;
-  const now  = new Date();
-  const at   = new Date(data.dateTimeISO);
-  const hrs  = (at - now) / 3600000;
+  const uid    = window._ika?.uid;
+  const now    = new Date();
+  const at     = new Date(data.dateTimeISO);
+  const hrs    = (at - now) / 3600000;
   if (hrs < 0) { showToast('Cannot book in the past.','error'); return null; }
+
+  // Get student profile to find assigned teacher
+  const studentSnap = await db.doc('users/'+uid).get();
+  const studentProfile = studentSnap.exists ? studentSnap.data() : {};
+  const teacherId   = studentProfile.assignedTeacherId || '';
+  const teacherName = studentProfile.assignedTeacherName || '';
+
+  const sessionPayload = {
+    ...data,
+    studentId: uid,
+    studentName: window._ika?.name || window._ika?.email || '',
+    teacherId,
+    teacherName,
+  };
+
   if (hrs < 12 && window._ika?.role === 'student') {
     await db.collection('session_requests').add({
-      ...data, studentId: uid, studentName: window._ika.name||window._ika.email,
-      status:'pending_approval', requestedAt: firebase.firestore.FieldValue.serverTimestamp()
+      ...sessionPayload,
+      status:'pending_approval',
+      requestedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast('Request raised! Admin will confirm soon.','success');
+    showToast('Request raised! Your teacher and admin will confirm soon.','success');
     return { status:'pending_approval' };
   }
-  const meet = await createMeetLink(`${data.subject} – ${data.studentName||'Student'} | Intellikids`, data.dateTimeISO, 60);
+  const meet = await createMeetLink(
+    `${data.subject} – ${sessionPayload.studentName} | Intellikids`, data.dateTimeISO, 60
+  );
   await db.collection('sessions').add({
-    ...data, studentId: uid, studentName: window._ika?.name||window._ika?.email||'',
+    ...sessionPayload,
     status:'confirmed', meetLink: meet||'',
     scheduledAt: firebase.firestore.Timestamp.fromDate(at),
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -143,7 +174,7 @@ async function loadTeacherData() {
   const uid = window._ika?.uid; if (!uid) return {sessions:[],students:[]};
   const [a,b] = await Promise.all([
     db.collection('sessions').where('teacherId','==',uid).orderBy('scheduledAt','asc').get(),
-    db.collection('users').where('teacherId','==',uid).where('role','==','student').get()
+    db.collection('users').where('assignedTeacherId','==',uid).where('role','==','student').get()
   ]);
   return { sessions:a.docs.map(d=>({id:d.id,...d.data()})), students:b.docs.map(d=>({id:d.id,...d.data()})) };
 }
@@ -178,6 +209,19 @@ async function approveUser(reqId, role, name) {
 async function rejectUser(reqId) {
   await db.doc('access_requests/'+reqId).update({status:'rejected'});
   showToast('User rejected.','error'); _adminData=null; initAdminDash();
+}
+
+async function assignTeacher(studentId) {
+  const sel = document.getElementById('assign-t-'+studentId);
+  if (!sel) return;
+  const teacherId   = sel.value;
+  const teacherName = sel.options[sel.selectedIndex]?.dataset?.name || '';
+  try {
+    await db.doc('users/'+studentId).update({ assignedTeacherId: teacherId, assignedTeacherName: teacherName });
+    if (teacherId) showToast('✅ Teacher assigned to student!','success');
+    else showToast('Teacher unassigned.','success');
+    _adminData=null; initAdminDash();
+  } catch(e) { showToast('Failed to assign teacher. Try again.','error'); }
 }
 
 async function approveSessionRequest(reqId) {
@@ -748,6 +792,53 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
 
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- PAGE: PRICING                                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-pricing">
+  <div style="background:#FFFDF8;min-height:80vh;">
+    <div style="background:linear-gradient(135deg,#1a1a2e,#2d1b69);padding:60px 24px;text-align:center;position:relative;overflow:hidden;">
+      <div style="position:absolute;inset:0;background:radial-gradient(circle at 30% 50%,rgba(255,107,107,.15),transparent 55%),radial-gradient(circle at 70% 50%,rgba(108,99,255,.15),transparent 55%);"></div>
+      <div style="position:relative;z-index:1;">
+        <div style="display:inline-block;background:linear-gradient(135deg,#FF6B6B,#FF9F43);border-radius:50px;padding:8px 24px;font-size:13px;font-weight:800;color:#fff;margin-bottom:16px;">SIMPLE, TRANSPARENT PRICING</div>
+        <h2 style="color:#fff;margin-bottom:12px;">Buy the classes <span style="background:linear-gradient(135deg,#FF9F43,#FDCB6E);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">you need.</span> Nothing more. 🎯</h2>
+        <p style="color:#9090B0;font-size:16px;font-weight:600;max-width:560px;margin:0 auto;">No subscriptions. No lock-ins. Buy a pack and learn at your pace. Free demo always included.</p>
+      </div>
+    </div>
+    <div style="padding:32px 24px 0;text-align:center;">
+      <div style="display:inline-flex;background:#fff;border-radius:50px;border:2px solid #FFE8E8;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.07);">
+        <button onclick="setCurrency('INR')" id="cur-INR" class="cur-btn" style="padding:10px 22px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;border-radius:50px;background:linear-gradient(135deg,#FF6B6B,#FF9F43);color:#fff;">🇮🇳 INR</button>
+        <button onclick="setCurrency('USD')" id="cur-USD" class="cur-btn" style="padding:10px 22px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;background:transparent;color:#888;">🇺🇸 USD</button>
+        <button onclick="setCurrency('GBP')" id="cur-GBP" class="cur-btn" style="padding:10px 22px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;background:transparent;color:#888;">🇬🇧 GBP</button>
+        <button onclick="setCurrency('AED')" id="cur-AED" class="cur-btn" style="padding:10px 22px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;background:transparent;color:#888;">🇦🇪 AED</button>
+        <button onclick="setCurrency('CAD')" id="cur-CAD" class="cur-btn" style="padding:10px 22px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;background:transparent;color:#888;">🇨🇦 CAD</button>
+      </div>
+    </div>
+    <div style="padding:20px 24px 0;text-align:center;">
+      <div style="display:inline-flex;background:#F0EEFF;border-radius:50px;padding:4px;">
+        <button onclick="setSessionType('1on1')" id="type-1on1" style="padding:10px 24px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;border-radius:50px;background:linear-gradient(135deg,#6C63FF,#A29BFE);color:#fff;">🎯 1-on-1 Sessions</button>
+        <button onclick="setSessionType('group')" id="type-group" style="padding:10px 24px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;border-radius:50px;background:transparent;color:#6C63FF;">👥 Group Sessions (max 4)</button>
+      </div>
+    </div>
+    <div style="max-width:1100px;margin:28px auto 0;padding:0 24px;">
+      <div style="background:linear-gradient(135deg,#E8FFF8,#F0EEFF);border:2px solid #A8F0DC;border-radius:20px;padding:20px 28px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div style="font-size:36px;">🎁</div>
+        <div style="flex:1;min-width:200px;">
+          <div style="font-weight:900;font-size:16px;color:#00B894;margin-bottom:4px;">First Demo Class is Always FREE!</div>
+          <p style="font-size:14px;color:#555;font-weight:600;margin:0;">You pick the topic — no generic intro. See the Intellikids difference before spending a rupee.</p>
+        </div>
+        <button class="btn btn-green" onclick="nav('contact')">Book Free Demo 🎯</button>
+      </div>
+    </div>
+    <div style="max-width:1100px;margin:40px auto;padding:0 24px;" id="pricing-cards"></div>
+    <div style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);padding:60px 24px;text-align:center;">
+      <h2 style="color:#fff;margin-bottom:12px;">Not sure where to start? 🤔</h2>
+      <p style="color:rgba(255,255,255,.85);font-size:16px;font-weight:600;margin-bottom:28px;">Start with a FREE demo. You pick the topic, we show you the magic.</p>
+      <button class="btn" onclick="nav('contact')" style="background:#fff;color:#FF6B6B;padding:16px 40px;font-size:17px;font-weight:900;box-shadow:0 8px 28px rgba(0,0,0,.2);">Book Your Free Demo 🎯</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
 <!-- PAGE: CONTACT                                                          -->
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page" id="page-contact">
@@ -934,12 +1025,16 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
     <div class="login-box fade-up">
       <div class="login-icon" style="background:linear-gradient(135deg,#1a1a2e,#6C63FF);">🛡️</div>
       <h2 class="login-title" style="font-size:26px;">Admin Portal</h2>
-      <p class="login-sub">Sign in with your owner Google account to access the command centre.</p>
-      <button onclick="doGoogleLogin()" style="width:100%;background:#fff;border:2px solid #e0e0e0;color:#333;padding:14px 20px;font-size:15px;font-weight:800;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:20px;cursor:pointer;font-family:'Nunito',sans-serif;">
-        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-        Continue with Google (Admin)
-      </button>
-      <div style="background:#F0EEFF;border-radius:14px;padding:14px 16px;font-size:13px;color:#6C63FF;font-weight:700;line-height:1.6;">🛡️ Sign in with admin@intellikidsacademy.in only. Any other Google account will be treated as a new user request.</div>
+      <p class="login-sub" style="color:#888;">Owner/Admin access only. Teachers & students use Google login.</p>
+      <div class="form-group">
+        <label>Admin Email</label>
+        <input type="email" id="al-email" placeholder="admin@intellikidsacademy.in"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="al-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')adminLoginBtn()"/>
+      </div>
+      <button class="btn btn-purple btn-full" onclick="adminLoginBtn()">Admin Login 🛡️</button>
       <div style="text-align:center;margin-top:16px;">
         <button onclick="nav('student-login')" style="background:none;border:none;cursor:pointer;color:#999;font-size:13px;font-weight:600;">← Back to portal</button>
       </div>
@@ -1270,8 +1365,8 @@ async function initStudentDash() {
   document.getElementById('sd-stats').innerHTML=`
     <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">📈</div><div class="stat-val" style="color:#6C63FF;">${p.progress||0}%</div><div class="stat-lbl">Progress</div></div>
     <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">🔥</div><div class="stat-val" style="color:#FF9F43;">${p.streak||0}</div><div class="stat-lbl">Day Streak</div></div>
-    <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF6B6B;" id="sd-up-cnt">—</div><div class="stat-lbl">Upcoming</div></div>
-    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;" id="sd-done-cnt">—</div><div class="stat-lbl">Done</div></div>`;
+    <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF6B6B;" id="sd-up-cnt">0</div><div class="stat-lbl">Upcoming</div></div>
+    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;" id="sd-done-cnt">0</div><div class="stat-lbl">Completed</div></div>`;
   try {
     studentData=await loadStudentData();
     document.getElementById('sd-up-cnt').textContent=studentData.sessions.filter(s=>!s.completed).length;
@@ -1291,18 +1386,29 @@ function renderStudentTab(tab){
 
   if(tab==='upcoming'){
     const sess=studentData.sessions.filter(s=>!s.completed);
-    el.innerHTML=sess.length?sess.map(s=>sessionRowHtml(s)).join(''):`
-      <div style="background:#FFF6E8;border-radius:16px;padding:16px 20px;margin-bottom:20px;font-size:14px;color:#FF9F43;font-weight:700;">ℹ️ No upcoming sessions. Book one using the "Book a Class" tab!</div>
-      ${DEMO_SESSIONS.slice(0,2).map(s=>sessionRowHtml(s)).join('')}`;
+    if(!sess.length){
+      el.innerHTML=`<div style="text-align:center;padding:48px 20px;">
+        <div style="font-size:56px;margin-bottom:16px;">📅</div>
+        <h3 style="font-family:'Nunito',sans-serif;font-size:18px;margin-bottom:8px;">No upcoming classes yet</h3>
+        <p style="color:#888;font-size:14px;font-weight:600;margin-bottom:24px;">Use the Book a Class tab to schedule your first session with your teacher.</p>
+        <button class="btn btn-main" onclick="document.querySelectorAll('#page-student-dashboard .tab-btn')[1].click()">➕ Book a Class Now</button>
+      </div>`;
+    } else {
+      el.innerHTML=sess.map(s=>sessionRowHtml(s)).join('');
+    }
   }
 
   else if(tab==='book'){
     const today=new Date().toISOString().split('T')[0];
+    const p=window._ika||{};
+    const tName=p.assignedTeacherName||'';
+    const teacherInfo=tName?`<div style="background:#E8FFF8;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#00B894;font-weight:700;">👩‍🏫 Your teacher: <strong>${tName}</strong> — all your classes go to them automatically.</div>`:`<div style="background:#FFF6E8;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#FF9F43;font-weight:700;">⚠️ No teacher assigned yet. Contact admin to get a teacher assigned first.</div>`;
     el.innerHTML=`
       <div style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:24px;margin-bottom:24px;border:2px dashed #C0B8FF;">
         <div style="font-weight:800;font-size:17px;color:#6C63FF;margin-bottom:6px;">📅 Schedule a Class</div>
         <p style="font-size:13px;color:#888;font-weight:600;margin:0;">Book ≥12 hours ahead → instant confirmation + Google Meet link.<br/>Under 12 hours → request sent to admin for approval.</p>
       </div>
+      ${teacherInfo}
       <div class="card" style="padding:28px;max-width:520px;">
         <div class="form-group"><label>Subject</label>
           <select id="bk-subject"><option value="">Choose subject…</option>
@@ -1366,21 +1472,27 @@ function renderStudentTab(tab){
   }
 
   else if(tab==='performance'){
+    const hw=studentData.homework||[];
+    const doneHw=hw.filter(h=>h.status==='done');
+    const totalSess=studentData.sessions.length;
+    const doneSess=studentData.sessions.filter(s=>s.completed).length;
     el.innerHTML=`
       <div style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:20px;margin-bottom:24px;border:2px dashed #C0B8FF;display:flex;align-items:center;gap:14px;">
         <div style="font-size:36px;">🧬</div>
         <div><div style="font-weight:800;font-size:16px;color:#6C63FF;">Your Personalised Learning Plan</div>
-        <div style="font-size:13px;color:#888;font-weight:600;margin-top:4px;">Built 100% for you — updated weekly based on your performance.</div></div>
+        <div style="font-size:13px;color:#888;font-weight:600;margin-top:4px;">Built 100% for you by your Intel-certified teacher.</div></div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
-        ${Object.entries(SUBJECT_COLORS).slice(0,4).map(([n,sc],i)=>{const s=[84,91,78,88][i];return`
-          <div class="card" style="padding:20px;border-top:4px solid ${sc.color};">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><span style="font-size:20px;">${sc.emoji}</span><span style="font-weight:800;font-size:13px;">${n}</span></div>
-            <div style="font-size:28px;font-weight:900;color:${s>=85?'#1DD1A1':s>=70?'#6C63FF':'#FF9F43'};margin-bottom:8px;">${s}%</div>
-            <div class="progress-bar"><div class="progress-fill" style="width:${s}%;background:${sc.color};"></div></div>
-            <div style="font-size:12px;color:#999;margin-top:8px;font-weight:700;">${s>=85?'🔥 Crushing it':s>=70?'💪 On track':'📈 Keep going'}</div>
-          </div>`;}).join('')}
-      </div>`;
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
+        <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#6C63FF;">${totalSess}</div><div class="stat-lbl">Total Sessions</div></div>
+        <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;">${doneSess}</div><div class="stat-lbl">Completed</div></div>
+        <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">📝</div><div class="stat-val" style="color:#FF9F43;">${doneHw.length}/${hw.length}</div><div class="stat-lbl">Homework Done</div></div>
+        <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">🔥</div><div class="stat-val" style="color:#FF6B6B;">${window._ika?.streak||0}</div><div class="stat-lbl">Day Streak</div></div>
+      </div>
+      ${totalSess===0?`<div style="text-align:center;padding:40px;">
+        <div style="font-size:52px;margin-bottom:12px;">📈</div>
+        <h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:8px;">Your progress chart will appear here</h3>
+        <p style="color:#888;font-size:14px;font-weight:600;">Complete your first session to start tracking your progress.</p>
+      </div>`:''}`;
   }
 }
 
@@ -1425,10 +1537,10 @@ async function initTeacherDash(){
   if(p.photo){av.innerHTML=`<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;"/>`;}
   else{av.textContent=(name[0]||'T').toUpperCase();}
   document.getElementById('td-stats').innerHTML=`
-    <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">👥</div><div class="stat-val" style="color:#6C63FF;" id="td-s-cnt">—</div><div class="stat-lbl">My Students</div></div>
-    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF9F43;" id="td-sess-cnt">—</div><div class="stat-lbl">Upcoming</div></div>
-    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#1DD1A1;" id="td-today-cnt">—</div><div class="stat-lbl">Today</div></div>
-    <div class="stat-card" style="border-top:4px solid #0071C5;background:#EBF4FF;"><div style="font-size:22px;">🏅</div><div class="stat-val" style="color:#0071C5;font-size:18px;">Intel</div><div class="stat-lbl">Certified</div></div>`;
+    <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">👥</div><div class="stat-val" style="color:#6C63FF;" id="td-s-cnt">0</div><div class="stat-lbl">My Students</div></div>
+    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF9F43;" id="td-sess-cnt">0</div><div class="stat-lbl">Upcoming Sessions</div></div>
+    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">🗓️</div><div class="stat-val" style="color:#1DD1A1;" id="td-today-cnt">0</div><div class="stat-lbl">Today's Classes</div></div>
+    <div class="stat-card" style="border-top:4px solid #0071C5;background:#EBF4FF;"><div style="font-size:22px;">🏅</div><div class="stat-val" style="color:#0071C5;font-size:16px;">Certified</div><div class="stat-lbl">Intel Labs</div></div>`;
   try {
     teacherData=await loadTeacherData();
     const tod=new Date().toDateString();
@@ -1448,13 +1560,25 @@ function renderTeacherTab(tab){
   const el=document.getElementById('td-content');
   if(!teacherData){el.innerHTML='<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>';return;}
   if(tab==='sessions'){
-    const sess=teacherData.sessions.length?teacherData.sessions:DEMO_SESSIONS;
-    const isDemo=!teacherData.sessions.length;
-    el.innerHTML=(isDemo?`<div style="background:#FFF6E8;border-radius:16px;padding:16px 20px;margin-bottom:20px;font-size:14px;color:#FF9F43;font-weight:700;">ℹ️ Your sessions appear here. Sample shown below.</div>`:'')
-      +sess.map(s=>sessionRowHtml(s)).join('');
+    if(!teacherData.sessions.length){
+      el.innerHTML=`<div style="text-align:center;padding:48px 20px;">
+        <div style="font-size:56px;margin-bottom:16px;">📅</div>
+        <h3 style="font-family:'Nunito',sans-serif;font-size:18px;margin-bottom:8px;">No sessions scheduled yet</h3>
+        <p style="color:#888;font-size:14px;font-weight:600;">Your assigned students will appear here once admin links them to you and they book classes.</p>
+      </div>`;
+    } else {
+      el.innerHTML=teacherData.sessions.map(s=>sessionRowHtml(s)).join('');
+    }
   }
   else if(tab==='students'){
-    if(!teacherData.students.length){el.innerHTML=emptyState('👥','No students assigned','Admin will assign students to your account.');return;}
+    if(!teacherData.students.length){
+      el.innerHTML=`<div style="text-align:center;padding:48px 20px;">
+        <div style="font-size:56px;margin-bottom:16px;">👥</div>
+        <h3 style="font-family:'Nunito',sans-serif;font-size:18px;margin-bottom:8px;">No students assigned yet</h3>
+        <p style="color:#888;font-size:14px;font-weight:600;">Admin will assign students to you. Once assigned, their bookings and sessions will appear here automatically.</p>
+      </div>`;
+      return;
+    }
     el.innerHTML=teacherData.students.map((s,i)=>`
       <div class="session-row">
         <div style="display:flex;align-items:center;gap:14px;">
@@ -1594,15 +1718,23 @@ function renderAdminTab(tab){
 
   else if(tab==='students'){
     const students=_adminData.users.filter(u=>u.role==='student');
+    const teachers=_adminData.users.filter(u=>u.role==='teacher');
     if(!students.length){el.innerHTML=emptyState('🎒','No students yet','Approve student access requests first.');return;}
-    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">🎒 All Students (${students.length})</h3>
+    const teacherOptions=teachers.map(t=>`<option value="${t.id}" data-name="${t.name||t.email}">${t.name||t.email}</option>`).join('');
+    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">🎒 All Students (${students.length}) — Assign Teachers Below</h3>
       <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead><tr style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);">${['Name','Email','Grade','Subject','Teacher','Progress','Streak'].map(h=>`<th style="padding:12px 14px;text-align:left;color:#fff;font-weight:800;">${h}</th>`).join('')}</tr></thead>
-        <tbody>${students.map((s,i)=>TR(i,[`<span style="font-weight:800;">${s.name||'—'}</span>`,
+        <thead><tr style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);">${['Name','Email','Grade','Subject','Assigned Teacher','Action'].map(h=>`<th style="padding:12px 14px;text-align:left;color:#fff;font-weight:800;">${h}</th>`).join('')}</tr></thead>
+        <tbody>${students.map((s,i)=>TR(i,[
+          `<span style="font-weight:800;">${s.name||'—'}</span>`,
           `<span style="color:#6C63FF;font-weight:600;">${s.email}</span>`,
-          s.grade?'Gr. '+s.grade:'—', s.subject||'—', s.teacherName||'—',
-          `<div style="display:flex;align-items:center;gap:6px;"><div class="progress-bar" style="width:70px;"><div class="progress-fill" style="width:${s.progress||0}%;background:#6C63FF;"></div></div><span style="font-size:11px;color:#999;font-weight:700;">${s.progress||0}%</span></div>`,
-          `<span style="font-weight:800;color:#FF9F43;">🔥${s.streak||0}</span>`])).join('')}
+          s.grade?'Gr. '+s.grade:'—',
+          s.subject||'—',
+          `<select id="assign-t-${s.id}" style="padding:6px 10px;border-radius:8px;border:2px solid #E8E8FF;font-weight:700;font-size:12px;max-width:160px;">
+            <option value="">— No teacher —</option>
+            ${teachers.map(t=>`<option value="${t.id}" data-name="${t.name||t.email}" ${s.assignedTeacherId===t.id?'selected':''}>${t.name||t.email}</option>`).join('')}
+          </select>`,
+          `<button onclick="assignTeacher('${s.id}')" class="btn btn-green btn-sm">💾 Save</button>`
+        ])).join('')}
         </tbody></table></div>`;
   }
 
