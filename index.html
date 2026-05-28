@@ -22,13 +22,12 @@
 const ADMIN_EMAIL = "admin@intellikidsacademy.in";
 
 const firebaseConfig = {
-   apiKey: "AIzaSyCFWK0iuWALDpn1AfxZNE_Q1Bk60i7yP3U",
-  authDomain: "intellikids-academy.firebaseapp.com",
-  projectId: "intellikids-academy",
-  storageBucket: "intellikids-academy.firebasestorage.app",
-  messagingSenderId: "861404961917",
-  appId: "1:861404961917:web:74d453b1a4862fa0096514",
-  measurementId: "G-3PG53KJ2T8"
+  apiKey: "AIzaSyBR5rtf3CFSL7CPDFSrtwe3Ynb5PdiGBIE",
+  authDomain: "intellikids-cf406.firebaseapp.com",
+  projectId: "intellikids-cf406",
+  storageBucket: "intellikids-cf406.firebasestorage.app",
+  messagingSenderId: "843995385791",
+  appId: "1:843995385791:web:46ac4cd17ba06732451b0a"
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
@@ -68,23 +67,23 @@ auth.onAuthStateChanged(async (user) => {
 // ─── GOOGLE LOGIN ──────────────────────────────────────────────────────────
 function doGoogleLogin() {
   showLoader(true);
-  // Use redirect instead of popup — avoids security warning on all browsers
-  auth.signInWithRedirect(googleProvider)
-    .catch(e => { showLoader(false); showToast('Google login failed. Please try again.','error'); });
+  auth.signInWithPopup(googleProvider)
+    .then(result => {
+      window._googleToken = result.credential?.accessToken || null;
+    })
+    .catch(e => {
+      showLoader(false);
+      if (e.code === 'auth/popup-closed-by-user') {
+        showToast('Login cancelled. Please try again.', 'error');
+      } else if (e.code === 'auth/popup-blocked') {
+        showToast('Popup blocked! Please allow popups for this site in your browser settings.', 'error');
+      } else if (e.code === 'auth/unauthorized-domain') {
+        showToast('Domain not authorised. Contact admin.', 'error');
+      } else {
+        showToast('Google login failed: ' + (e.message||e.code), 'error');
+      }
+    });
 }
-
-// Handle redirect result on page load
-auth.getRedirectResult()
-  .then(result => {
-    if (result && result.credential) {
-      window._googleToken = result.credential.accessToken || null;
-    }
-  })
-  .catch(e => {
-    if (e.code !== 'auth/no-auth-event') {
-      showToast('Login error: ' + e.message, 'error');
-    }
-  });
 
 // ─── ADMIN EMAIL/PASS LOGIN ────────────────────────────────────────────────
 function doAdminLogin(email, password) {
@@ -678,7 +677,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
           </div>
           <p style="font-size:13px;line-height:1.8;color:#888;font-weight:600;">Personalised live learning for curious minds, grades 3–12. Building tomorrow's thinkers today.</p>
           <div style="margin-top:16px;display:flex;gap:12px;">
-            <a href="https://wa.me/7838540593" target="_blank" style="text-decoration:none;font-size:22px;" title="WhatsApp">💬</a>
+            <a href="https://wa.me/8796502497" target="_blank" style="text-decoration:none;font-size:22px;" title="WhatsApp">💬</a>
             <a href="mailto:hello@intellikidsacademy.in" style="text-decoration:none;font-size:22px;" title="Email">📧</a>
           </div>
         </div>
@@ -704,7 +703,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
           <div style="font-weight:800;font-size:15px;color:#fff;margin-bottom:16px;">Contact</div>
           <div style="font-size:13px;color:#888;margin-bottom:10px;font-weight:600;">📧 hello@intellikidsacademy.in</div>
           <div style="font-size:13px;color:#888;margin-bottom:10px;font-weight:600;">📧 support@intellikidsacademy.com</div>
-          <div style="font-size:13px;color:#888;margin-bottom:10px;font-weight:600;">📞 +91 7838540593</div>
+          <div style="font-size:13px;color:#888;margin-bottom:10px;font-weight:600;">📞 +91 8796502497</div>
           <div style="font-size:13px;color:#888;margin-bottom:10px;font-weight:600;">📞 +91 8882905957</div>
           <div style="font-size:13px;color:#888;font-weight:600;margin-top:16px;">🌐 intellikidsacademy.com<br/>🌐 intellikidsacademy.in</div>
         </div>
@@ -856,7 +855,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
             <div class="contact-icon" style="background:#FFF0F0;">📞</div>
             <div>
               <div style="font-weight:800;font-size:15px;margin-bottom:4px;">Call / WhatsApp</div>
-              <div style="font-size:14px;color:#777;font-weight:600;">+91 7838540593</div>
+              <div style="font-size:14px;color:#777;font-weight:600;">+91 8796502497</div>
               <div style="font-size:14px;color:#777;font-weight:600;">+91 8882905957</div>
             </div>
           </div>
@@ -907,7 +906,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
             </div>
             <div class="form-group">
               <label>Phone / WhatsApp *</label>
-              <input type="tel" id="cf-phone" placeholder="+91 7838540593"/>
+              <input type="tel" id="cf-phone" placeholder="+91 8796502497"/>
               <div class="form-error" id="cf-phone-err">Please enter your phone number</div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
@@ -964,7 +963,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
         <div style="font-size:13px;color:#777;font-weight:600;line-height:1.8;">1. Admin reviews your request<br/>2. Your role (Student/Teacher) is assigned<br/>3. You'll be notified via email<br/>4. Log back in with Google → you're in!</div>
       </div>
       <button class="btn btn-main" onclick="nav('home')">← Back to Home</button>
-      <div style="margin-top:16px;"><a href="https://wa.me/917838540593" target="_blank" style="font-size:13px;color:#1DD1A1;font-weight:700;">Need faster access? WhatsApp us 💬</a></div>
+      <div style="margin-top:16px;"><a href="https://wa.me/918796502497" target="_blank" style="font-size:13px;color:#1DD1A1;font-weight:700;">Need faster access? WhatsApp us 💬</a></div>
     </div>
   </div>
 </div>
@@ -1025,18 +1024,16 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
     <div class="login-box fade-up">
       <div class="login-icon" style="background:linear-gradient(135deg,#1a1a2e,#6C63FF);">🛡️</div>
       <h2 class="login-title" style="font-size:26px;">Admin Portal</h2>
-      <p class="login-sub" style="color:#888;">Owner/Admin access only. Teachers & students use Google login.</p>
-      <div class="form-group">
-        <label>Admin Email</label>
-        <input type="email" id="al-email" placeholder="admin@intellikidsacademy.in"/>
+      <p class="login-sub" style="color:#888;">Sign in with your admin Google account to access the command centre.</p>
+      <button onclick="doGoogleLogin()" style="width:100%;background:#fff;border:2px solid #e0e0e0;color:#333;padding:14px 20px;font-size:15px;font-weight:800;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:20px;cursor:pointer;font-family:'Nunito',sans-serif;">
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Continue with Google (Admin)
+      </button>
+      <div style="background:#F3F0FF;border-radius:14px;padding:14px 16px;font-size:13px;color:#6C63FF;font-weight:700;line-height:1.7;">
+        🛡️ Only <strong>admin@intellikidsacademy.in</strong> can access this portal.<br/>Any other Google account will be treated as a new user request.
       </div>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="al-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')adminLoginBtn()"/>
-      </div>
-      <button class="btn btn-purple btn-full" onclick="adminLoginBtn()">Admin Login 🛡️</button>
       <div style="text-align:center;margin-top:16px;">
-        <button onclick="nav('student-login')" style="background:none;border:none;cursor:pointer;color:#999;font-size:13px;font-weight:600;">← Back to portal</button>
+        <button onclick="nav('student-login')" style="background:none;border:none;cursor:pointer;color:#999;font-size:13px;font-weight:600;">← Back to student/teacher portal</button>
       </div>
     </div>
   </div>
@@ -1133,7 +1130,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
 </div>
 
 <!-- ─── FLOATING BUTTONS ──────────────────────────────────────────────── -->
-<a class="wa-float" href="https://wa.me/917838540593?text=Hi%20Intellikids%20Academy!%20I%27d%20like%20to%20book%20a%20free%20demo." target="_blank" title="Chat on WhatsApp">💬</a>
+<a class="wa-float" href="https://wa.me/918796502497?text=Hi%20Intellikids%20Academy!%20I%27d%20like%20to%20book%20a%20free%20demo." target="_blank" title="Chat on WhatsApp">💬</a>
 <button id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">↑</button>
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
