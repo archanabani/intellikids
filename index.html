@@ -162,29 +162,50 @@ async function bookSession(data) {
 // ─── LOAD DATA HELPERS ─────────────────────────────────────────────────────
 async function loadStudentData() {
   const uid = window._ika?.uid; if (!uid) return {sessions:[],homework:[],requests:[]};
+  // No orderBy — avoids Firestore composite index requirement. Sort in JS.
   const [a,b,c] = await Promise.all([
-    db.collection('sessions').where('studentId','==',uid).orderBy('scheduledAt','asc').get(),
+    db.collection('sessions').where('studentId','==',uid).get(),
     db.collection('homework').where('studentId','==',uid).get(),
     db.collection('session_requests').where('studentId','==',uid).get()
   ]);
-  return { sessions:a.docs.map(d=>({id:d.id,...d.data()})), homework:b.docs.map(d=>({id:d.id,...d.data()})), requests:c.docs.map(d=>({id:d.id,...d.data()})) };
+  const sessions = a.docs.map(d=>({id:d.id,...d.data()}))
+    .sort((x,y)=>{
+      const dx = x.scheduledAt?.toDate?x.scheduledAt.toDate():new Date(x.scheduledAt?.seconds*1000||0);
+      const dy = y.scheduledAt?.toDate?y.scheduledAt.toDate():new Date(y.scheduledAt?.seconds*1000||0);
+      return dx-dy;
+    });
+  return {
+    sessions,
+    homework:  b.docs.map(d=>({id:d.id,...d.data()})),
+    requests:  c.docs.map(d=>({id:d.id,...d.data()}))
+  };
 }
 
 async function loadTeacherData() {
   const uid = window._ika?.uid; if (!uid) return {sessions:[],students:[]};
+  // No orderBy — avoids Firestore composite index requirement. Sort in JS.
   const [a,b] = await Promise.all([
-    db.collection('sessions').where('teacherId','==',uid).orderBy('scheduledAt','asc').get(),
-    db.collection('users').where('assignedTeacherId','==',uid).where('role','==','student').get()
+    db.collection('sessions').where('teacherId','==',uid).get(),
+    db.collection('users').where('assignedTeacherId','==',uid).get()
   ]);
-  return { sessions:a.docs.map(d=>({id:d.id,...d.data()})), students:b.docs.map(d=>({id:d.id,...d.data()})) };
+  const sessions = a.docs.map(d=>({id:d.id,...d.data()}))
+    .sort((x,y)=>{
+      const dx = x.scheduledAt?.toDate?x.scheduledAt.toDate():new Date(x.scheduledAt?.seconds*1000||0);
+      const dy = y.scheduledAt?.toDate?y.scheduledAt.toDate():new Date(y.scheduledAt?.seconds*1000||0);
+      return dx-dy;
+    });
+  return {
+    sessions,
+    students: b.docs.map(d=>({id:d.id,...d.data()}))
+  };
 }
 
 async function loadAdminData() {
   const [a,b,c,d,e] = await Promise.all([
     db.collection('users').get(),
-    db.collection('sessions').orderBy('scheduledAt','asc').get(),
+    db.collection('sessions').get(),
     db.collection('session_requests').get(),
-    db.collection('enquiries').orderBy('createdAt','asc').get(),
+    db.collection('enquiries').get(),
     db.collection('access_requests').where('status','==','pending').get()
   ]);
   return {
@@ -228,12 +249,35 @@ async function approveSessionRequest(reqId) {
   const snap = await db.doc('session_requests/'+reqId).get();
   if (!snap.exists) return;
   const data = snap.data();
-  const meet = await createMeetLink(`${data.subject} – ${data.studentName}|Intellikids`, data.dateTimeISO, 60);
-  await db.collection('sessions').add({...data,status:'confirmed',meetLink:meet||'',
-    scheduledAt:firebase.firestore.Timestamp.fromDate(new Date(data.dateTimeISO)),
-    createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+
+  // Always re-fetch student profile to get latest assigned teacher
+  let teacherId   = data.teacherId   || '';
+  let teacherName = data.teacherName || '';
+  if (data.studentId) {
+    try {
+      const sSnap = await db.doc('users/'+data.studentId).get();
+      if (sSnap.exists) {
+        teacherId   = sSnap.data().assignedTeacherId   || teacherId;
+        teacherName = sSnap.data().assignedTeacherName || teacherName;
+      }
+    } catch(e) {}
+  }
+
+  const meet = await createMeetLink(
+    `${data.subject} – ${data.studentName||'Student'} | Intellikids`, data.dateTimeISO, 60
+  );
+  await db.collection('sessions').add({
+    ...data,
+    teacherId,
+    teacherName,
+    status:'confirmed',
+    meetLink: meet||'',
+    scheduledAt: firebase.firestore.Timestamp.fromDate(new Date(data.dateTimeISO)),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
   await db.doc('session_requests/'+reqId).update({status:'approved'});
-  showToast('Session approved! Meet link created.','success'); _adminData=null; initAdminDash();
+  showToast('Session approved! Meet link created. ✅','success');
+  _adminData=null; initAdminDash();
 }
 
 async function submitContact(data) {
@@ -571,7 +615,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
     <div class="section">
       <div class="sec-header">
         <div class="sec-pill" style="background:#EBF4FF;color:#54A0FF;">HOW IT WORKS</div>
-        <h2>Learning made <span style="color:#FF6B6B;">ridiculously</span> simple 🙌</h2>
+        <h2>Learning made <span style="color:#FF6B6B;">super duper</span> simple 🙌</h2>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;">
         <div class="card card-hover" style="padding:32px;text-align:center;border-top:4px solid #FF6B6B;">
@@ -777,6 +821,16 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
           <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Atoms, bonds, reactions & organic chem. Science but make it cool. Concept-first approach with real-world examples.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-purple" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-purple" style="font-size:11px;">Group (max 4)</span><span class="chip chip-purple" style="font-size:11px;">Custom Curriculum</span></div>
           <div style="margin-top:16px;background:#FFF6E8;border-radius:12px;padding:10px 14px;font-size:13px;color:#FF9F43;font-weight:700;">⚠️ Available for Grade 9, 10, 11 & 12 only</div>
+
+
+        <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #00CEC9;">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+            <div style="width:60px;height:60px;border-radius:18px;background:#E0FAFA;display:flex;align-items:center;justify-content:center;font-size:32px;">🔭</div>
+            <div><div style="font-weight:800;font-size:18px;">Science</div><span class="chip" style="background:#E0FAFA;color:#00CEC9;">Gr. 3–8</span></div>
+          </div>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">From living cells to outer space — general science made visual, hands-on and genuinely exciting for young explorers.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip" style="background:#E0FAFA;color:#00CEC9;font-size:11px;">1-on-1 Sessions</span><span class="chip" style="background:#E0FAFA;color:#00CEC9;font-size:11px;">Group (max 4)</span><span class="chip" style="background:#E0FAFA;color:#00CEC9;font-size:11px;">Custom Curriculum</span></div>
+        </div>
         </div>
       </div>
       <div style="text-align:center;margin-top:48px;">
@@ -1055,6 +1109,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
         </div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-sec btn-sm" onclick="studentData=null;initStudentDash()">🔄 Refresh</button>
         <button class="btn btn-sec btn-sm" onclick="nav('home')">← Home</button>
         <button class="btn" onclick="doLogout()" style="background:#FFF0F0;color:#FF6B6B;padding:9px 20px;font-size:13px;font-weight:800;border-radius:50px;">Logout</button>
       </div>
@@ -1086,6 +1141,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
         </div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-sec btn-sm" onclick="teacherData=null;initTeacherDash()">🔄 Refresh</button>
         <button class="btn btn-sec btn-sm" onclick="nav('home')">← Home</button>
         <button class="btn" onclick="doLogout()" style="background:#FFF0F0;color:#FF6B6B;padding:9px 20px;font-size:13px;font-weight:800;border-radius:50px;">Logout</button>
       </div>
@@ -1148,6 +1204,7 @@ const SUBJECT_COLORS = {
   "Coding":          {"color":"#6C63FF","bg":"#F0EEFF","emoji":"🤖"},
   "Maths":           {"color":"#FF9F43","bg":"#FFF6E8","emoji":"🔢"},
   "English":         {"color":"#1DD1A1","bg":"#E8FFF8","emoji":"✍️"},
+  "Science":         {"color":"#00CEC9","bg":"#E0FAFA","emoji":"🔭"},
   "Physics":         {"color":"#54A0FF","bg":"#EBF4FF","emoji":"🚀"},
   "Chemistry":       {"color":"#A29BFE","bg":"#F3F0FF","emoji":"🔬"},
 };
@@ -1240,17 +1297,29 @@ function meetBtn(link) {
 }
 
 function sessionRowHtml(s) {
-  const sc = SUBJECT_COLORS[s.subject]||{color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
+  const sc   = SUBJECT_COLORS[s.subject]||{color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
   const when = s.scheduledAt ? fmtDate(s.scheduledAt) : ((s.date||'') + (s.time?' · '+s.time:''));
-  return `<div class="session-row" style="border-left:4px solid ${sc.color};">
-    <div style="display:flex;align-items:center;gap:14px;">
-      <div style="width:46px;height:46px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:24px;">${sc.emoji}</div>
-      <div>
-        <div style="font-weight:800;font-size:15px;">${s.topic||s.subject}</div>
-        <div style="font-size:13px;color:#999;font-weight:600;">${s.subject}${s.teacher||s.teacherName?' · with '+(s.teacher||s.teacherName):''} · ${when}</div>
+  const teacher = s.teacherName || s.teacher || '';
+  const now = new Date();
+  const sessDate = s.scheduledAt?.toDate ? s.scheduledAt.toDate() : new Date(s.scheduledAt?.seconds*1000||0);
+  const isToday  = sessDate.toDateString() === now.toDateString();
+  const isPast   = sessDate < now;
+  const statusBadge = isPast
+    ? '<span class="chip" style="background:#F0EEFF;color:#6C63FF;">✅ Completed</span>'
+    : isToday
+      ? '<span class="chip" style="background:#FFF6E8;color:#FF9F43;animation:pulse 1.5s infinite;">🔔 Today!</span>'
+      : '<span class="chip" style="background:#E8FFF8;color:#1DD1A1;">📅 Upcoming</span>';
+  return `<div class="session-row" style="border-left:4px solid ${sc.color};${isToday?'background:linear-gradient(135deg,#FFFDF8,#FFF6E8);box-shadow:0 4px 20px rgba(255,159,67,.15);':''}">
+    <div style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;">
+      <div style="width:48px;height:48px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">${sc.emoji}</div>
+      <div style="min-width:0;">
+        <div style="font-weight:800;font-size:15px;margin-bottom:3px;">${s.topic||s.subject}</div>
+        <div style="font-size:13px;color:#777;font-weight:600;">${s.subject}${teacher?' · 👩‍🏫 '+teacher:''}</div>
+        <div style="font-size:12px;color:#aaa;font-weight:600;margin-top:2px;">🗓️ ${when}</div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;">
+      ${statusBadge}
       <span class="chip ${s.type==='1-on-1'?'chip-1on1':'chip-group'}">${s.type==='1-on-1'?'🎯 1-on-1':'👥 Group'}</span>
       ${meetBtn(s.meetLink)}
     </div>
@@ -1360,11 +1429,21 @@ async function initStudentDash() {
   const av=document.getElementById('sd-avatar');
   if(p.photo){av.innerHTML=`<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;"/>`;}
   else{av.textContent=(name[0]||'S').toUpperCase();}
+  const assignedTeacher = p.assignedTeacherName || '';
   document.getElementById('sd-stats').innerHTML=`
-    <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">📈</div><div class="stat-val" style="color:#6C63FF;">${p.progress||0}%</div><div class="stat-lbl">Progress</div></div>
-    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">🔥</div><div class="stat-val" style="color:#FF9F43;">${p.streak||0}</div><div class="stat-lbl">Day Streak</div></div>
+    ${assignedTeacher ? `<div class="stat-card" style="border-top:4px solid #00B894;background:#E8FFF8;grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:16px 20px;">
+      <div style="font-size:32px;">👩‍🏫</div>
+      <div><div style="font-size:12px;color:#00B894;font-weight:800;letter-spacing:.5px;margin-bottom:2px;">YOUR TEACHER</div>
+      <div style="font-weight:900;font-size:18px;color:#1a1a2e;">${assignedTeacher}</div>
+      <div style="font-size:12px;color:#888;font-weight:600;">🏅 Intel Certified · All your sessions are with ${assignedTeacher}</div></div>
+    </div>` : `<div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;grid-column:1/-1;padding:14px 20px;display:flex;align-items:center;gap:12px;">
+      <div style="font-size:24px;">⏳</div>
+      <div style="font-size:13px;color:#FF9F43;font-weight:700;">No teacher assigned yet — admin will assign your teacher soon. You can still book sessions!</div>
+    </div>`}
     <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF6B6B;" id="sd-up-cnt">0</div><div class="stat-lbl">Upcoming</div></div>
-    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;" id="sd-done-cnt">0</div><div class="stat-lbl">Completed</div></div>`;
+    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;" id="sd-done-cnt">0</div><div class="stat-lbl">Completed</div></div>
+    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">🔥</div><div class="stat-val" style="color:#FF9F43;">${p.streak||0}</div><div class="stat-lbl">Day Streak</div></div>
+    <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">📈</div><div class="stat-val" style="color:#6C63FF;">${p.progress||0}%</div><div class="stat-lbl">Progress</div></div>`;
   try {
     studentData=await loadStudentData();
     document.getElementById('sd-up-cnt').textContent=studentData.sessions.filter(s=>!s.completed).length;
@@ -1785,16 +1864,16 @@ function renderAdminTab(tab){
 let pricingCurrency='INR', pricingType='1on1';
 const PRICING_DATA={
   '1on1':{packs:[
-    {classes:4, label:'Starter', tag:'',             popular:false,perClass:{INR:799,USD:10, GBP:8,  AED:36,CAD:14},color:'#FF6B6B',emoji:'🌱'},
-    {classes:8, label:'Builder', tag:'Save 8%',      popular:false,perClass:{INR:749,USD:9,  GBP:7,  AED:34,CAD:13},color:'#FF9F43',emoji:'🚀'},
-    {classes:16,label:'Achiever',tag:'Most Popular',  popular:true, perClass:{INR:699,USD:8,  GBP:7,  AED:31,CAD:11},color:'#6C63FF',emoji:'⭐'},
-    {classes:32,label:'Champion',tag:'Best Value',    popular:false,perClass:{INR:649,USD:7.5,GBP:6,  AED:28,CAD:10},color:'#1DD1A1',emoji:'🏆'},
+    {classes:4, label:'Starter', tag:'',            popular:false,perClass:{INR:799,USD:22,GBP:17,AED:81, CAD:30},color:'#FF6B6B',emoji:'🌱'},
+    {classes:8, label:'Builder', tag:'Save 5%',     popular:false,perClass:{INR:749,USD:21,GBP:16,AED:77, CAD:28},color:'#FF9F43',emoji:'🚀'},
+    {classes:16,label:'Achiever',tag:'Most Popular', popular:true, perClass:{INR:699,USD:20,GBP:15,AED:73, CAD:27},color:'#6C63FF',emoji:'⭐'},
+    {classes:32,label:'Champion',tag:'Best Value',   popular:false,perClass:{INR:649,USD:18,GBP:14,AED:66, CAD:25},color:'#1DD1A1',emoji:'🏆'},
   ]},
   'group':{packs:[
-    {classes:4, label:'Starter', tag:'',             popular:false,perClass:{INR:449,USD:5.5,GBP:4.5,AED:20,CAD:7.5},color:'#FF6B6B',emoji:'🌱'},
-    {classes:8, label:'Builder', tag:'Save 8%',      popular:false,perClass:{INR:399,USD:5,  GBP:4,  AED:18,CAD:7  },color:'#FF9F43',emoji:'🚀'},
-    {classes:16,label:'Achiever',tag:'Most Popular',  popular:true, perClass:{INR:369,USD:4.5,GBP:3.5,AED:17,CAD:6.5},color:'#6C63FF',emoji:'⭐'},
-    {classes:32,label:'Champion',tag:'Best Value',    popular:false,perClass:{INR:329,USD:4,  GBP:3,  AED:15,CAD:5.5},color:'#1DD1A1',emoji:'🏆'},
+    {classes:4, label:'Starter', tag:'',            popular:false,perClass:{INR:449,USD:13,GBP:10,AED:48, CAD:18},color:'#FF6B6B',emoji:'🌱'},
+    {classes:8, label:'Builder', tag:'Save 5%',     popular:false,perClass:{INR:399,USD:12,GBP:9, AED:44, CAD:16},color:'#FF9F43',emoji:'🚀'},
+    {classes:16,label:'Achiever',tag:'Most Popular', popular:true, perClass:{INR:369,USD:11,GBP:8, AED:40, CAD:15},color:'#6C63FF',emoji:'⭐'},
+    {classes:32,label:'Champion',tag:'Best Value',   popular:false,perClass:{INR:329,USD:10,GBP:7, AED:37, CAD:14},color:'#1DD1A1',emoji:'🏆'},
   ]}
 };
 const CURRENCY_SYMBOL={INR:'₹',USD:'$',GBP:'£',AED:'AED ',CAD:'CA$'};
