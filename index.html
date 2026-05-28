@@ -18,23 +18,21 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-// ─── ADMIN EMAIL — set this to your own login email ───────────────────────
+// ─── ADMIN EMAIL ──────────────────────────────────────────────────────────
 const ADMIN_EMAIL = "admin@intellikidsacademy.in";
 
 const firebaseConfig = {
- apiKey: "AIzaSyCFWK0iuWALDpn1AfxZNE_Q1Bk60i7yP3U",
-  authDomain: "intellikids-academy.firebaseapp.com",
-  projectId: "intellikids-academy",
-  storageBucket: "intellikids-academy.firebasestorage.app",
-  messagingSenderId: "861404961917",
-  appId: "1:861404961917:web:74d453b1a4862fa0096514",
-  measurementId: "G-3PG53KJ2T8"
+  apiKey: "AIzaSyBR5rtf3CFSL7CPDFSrtwe3Ynb5PdiGBIE",
+  authDomain: "intellikids-cf406.firebaseapp.com",
+  projectId: "intellikids-cf406",
+  storageBucket: "intellikids-cf406.firebasestorage.app",
+  messagingSenderId: "843995385791",
+  appId: "1:843995385791:web:46ac4cd17ba06732451b0a"
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.firestore();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
-googleProvider.addScope('https://www.googleapis.com/auth/calendar');
 
 // ─── AUTH STATE ────────────────────────────────────────────────────────────
 auth.onAuthStateChanged(async (user) => {
@@ -48,8 +46,8 @@ auth.onAuthStateChanged(async (user) => {
     const snap = await db.doc('users/' + user.uid).get();
     if (snap.exists) {
       const p = snap.data();
-      if (p.status === 'pending')  { await auth.signOut(); showToast('Your account is pending admin approval. Check your email soon.','error'); return; }
-      if (p.status === 'rejected') { await auth.signOut(); showToast('Access denied. Contact us on WhatsApp.','error'); return; }
+      if (p.status === 'pending')  { await auth.signOut(); showToast('Account pending admin approval.','error'); return; }
+      if (p.status === 'rejected') { await auth.signOut(); showToast('Access denied. Contact us.','error'); return; }
       window._ika = { uid: user.uid, email: user.email, ...p };
       showDashboard(p.role);
     } else {
@@ -62,35 +60,27 @@ auth.onAuthStateChanged(async (user) => {
       window._ika = null;
       nav('pending-approval');
     }
-  } catch(e) { showToast('Login error. Try again.','error'); }
+  } catch(e) { console.error('Auth error:', e); showToast('Login error. Try again.','error'); }
 });
 
 // ─── GOOGLE LOGIN ──────────────────────────────────────────────────────────
 function doGoogleLogin() {
   showLoader(true);
   auth.signInWithPopup(googleProvider)
-    .then(result => {
-      window._googleToken = result.credential?.accessToken || null;
-    })
+    .then(() => {})
     .catch(e => {
       showLoader(false);
-      if (e.code === 'auth/popup-closed-by-user') {
-        showToast('Login cancelled. Please try again.', 'error');
-      } else if (e.code === 'auth/popup-blocked') {
-        showToast('Popup blocked! Please allow popups for this site in your browser settings.', 'error');
-      } else if (e.code === 'auth/unauthorized-domain') {
-        showToast('Domain not authorised. Contact admin.', 'error');
-      } else {
-        showToast('Google login failed: ' + (e.message||e.code), 'error');
-      }
+      if (e.code==='auth/popup-closed-by-user') showToast('Login cancelled.','error');
+      else if (e.code==='auth/popup-blocked') showToast('Popup blocked! Allow popups for this site.','error');
+      else showToast('Google login failed: '+(e.message||e.code),'error');
     });
 }
 
-// ─── ADMIN EMAIL/PASS LOGIN ────────────────────────────────────────────────
+// ─── ADMIN LOGIN ───────────────────────────────────────────────────────────
 function doAdminLogin(email, password) {
   showLoader(true);
   auth.signInWithEmailAndPassword(email, password)
-    .catch(e => { showLoader(false); showToast('Wrong admin credentials.','error'); });
+    .catch(e => { showLoader(false); showToast('Wrong credentials.','error'); });
 }
 
 // ─── LOGOUT ────────────────────────────────────────────────────────────────
@@ -98,67 +88,58 @@ function doLogout() {
   auth.signOut().then(() => { window._ika = null; nav('home'); showToast('Logged out.'); });
 }
 
-// ─── CREATE GOOGLE MEET LINK ───────────────────────────────────────────────
-async function createMeetLink(title, dateTimeISO, mins) {
-  // Jitsi Meet — completely free, no OAuth, no API key needed
-  // Generates a unique private room for every session
-  const subject  = (title||'class').replace(/[^a-zA-Z0-9]/g,'').toLowerCase().slice(0,12);
-  const dateStr  = dateTimeISO ? dateTimeISO.replace(/[^0-9]/g,'').slice(0,12) : Date.now().toString().slice(-8);
-  const random   = Math.random().toString(36).slice(2,7);
-  const roomName = `ika-${subject}-${dateStr}-${random}`;
-  return `https://meet.jit.si/${roomName}`;
+// ─── JITSI MEET LINK (free, no OAuth needed) ──────────────────────────────
+function createMeetLink(subject, dateTimeISO) {
+  const subj = (subject||'class').replace(/[^a-zA-Z0-9]/g,'').toLowerCase().slice(0,10);
+  const dt   = dateTimeISO ? dateTimeISO.replace(/[^0-9]/g,'').slice(0,10) : Date.now().toString().slice(-8);
+  const rand  = Math.random().toString(36).slice(2,6);
+  return 'https://meet.jit.si/ika-' + subj + '-' + dt + '-' + rand;
 }
 
 // ─── BOOK SESSION ──────────────────────────────────────────────────────────
 async function bookSession(data) {
-  const uid    = window._ika?.uid;
-  const now    = new Date();
-  const at     = new Date(data.dateTimeISO);
-  const hrs    = (at - now) / 3600000;
+  const uid = window._ika?.uid;
+  if (!uid) return null;
+  const now = new Date(), at = new Date(data.dateTimeISO);
+  const hrs = (at - now) / 3600000;
   if (hrs < 0) { showToast('Cannot book in the past.','error'); return null; }
 
-  // Get student profile to find assigned teacher
-  const studentSnap = await db.doc('users/'+uid).get();
-  const studentProfile = studentSnap.exists ? studentSnap.data() : {};
-  const teacherId   = studentProfile.assignedTeacherId || '';
-  const teacherName = studentProfile.assignedTeacherName || '';
+  // Get student assigned teacher
+  let teacherId = '', teacherName = '';
+  try {
+    const sSnap = await db.doc('users/'+uid).get();
+    if (sSnap.exists) {
+      teacherId   = sSnap.data().assignedTeacherId   || '';
+      teacherName = sSnap.data().assignedTeacherName || '';
+    }
+  } catch(e) {}
 
-  const sessionPayload = {
-    ...data,
-    studentId: uid,
+  const meetLink = createMeetLink(data.subject, data.dateTimeISO);
+  const payload = {
+    ...data, studentId: uid,
     studentName: window._ika?.name || window._ika?.email || '',
-    teacherId,
-    teacherName,
+    teacherId, teacherName, meetLink
   };
 
-  if (hrs < 12 && window._ika?.role === 'student') {
-    // Still generate a Jitsi link so it's ready when approved
-    const tentativeMeet = await createMeetLink(
-      `${data.subject} – ${sessionPayload.studentName} | Intellikids`, data.dateTimeISO, 60
-    );
+  if (hrs < 12) {
     await db.collection('session_requests').add({
-      ...sessionPayload,
-      meetLink: tentativeMeet || '',
-      status:'pending_approval',
+      ...payload, status:'pending_approval',
       requestedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast('Request raised! Your teacher and admin will confirm soon.','success');
-    return { status:'pending_approval', meet: tentativeMeet };
+    showToast('Request raised! Admin will confirm soon.','success');
+    return { status:'pending_approval', meetLink };
   }
-  const meet = await createMeetLink(
-    `${data.subject} – ${sessionPayload.studentName} | Intellikids`, data.dateTimeISO, 60
-  );
+
   await db.collection('sessions').add({
-    ...sessionPayload,
-    status:'confirmed', meetLink: meet||'',
+    ...payload, status:'confirmed',
     scheduledAt: firebase.firestore.Timestamp.fromDate(at),
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
-  showToast('Session booked! Google Meet link created. 🚀','success');
-  return { meet };
+  showToast('Session booked! Jitsi Meet link ready. 🚀','success');
+  return { meetLink };
 }
 
-// ─── LOAD DATA HELPERS ─────────────────────────────────────────────────────
+// ─── LOAD STUDENT DATA ─────────────────────────────────────────────────────
 async function loadStudentData() {
   const uid = window._ika?.uid; if (!uid) return {sessions:[],homework:[],requests:[]};
   const [a,b,c] = await Promise.all([
@@ -166,32 +147,38 @@ async function loadStudentData() {
     db.collection('homework').where('studentId','==',uid).get(),
     db.collection('session_requests').where('studentId','==',uid).get()
   ]);
-  return { sessions:a.docs.map(d=>({id:d.id,...d.data()})), homework:b.docs.map(d=>({id:d.id,...d.data()})), requests:c.docs.map(d=>({id:d.id,...d.data()})) };
+  const sort = arr => arr.sort((x,y) => {
+    const dx = x.scheduledAt?.toDate?x.scheduledAt.toDate():new Date((x.scheduledAt?.seconds||0)*1000);
+    const dy = y.scheduledAt?.toDate?y.scheduledAt.toDate():new Date((y.scheduledAt?.seconds||0)*1000);
+    return dx-dy;
+  });
+  return {
+    sessions: sort(a.docs.map(d=>({id:d.id,...d.data()}))),
+    homework:      b.docs.map(d=>({id:d.id,...d.data()})),
+    requests:      c.docs.map(d=>({id:d.id,...d.data()}))
+  };
 }
 
+// ─── LOAD TEACHER DATA ─────────────────────────────────────────────────────
+// SINGLE .where() conditions only — no composite indexes needed
 async function loadTeacherData() {
-  const uid = window._ika?.uid;
-  if (!uid) return {sessions:[],students:[]};
-  // Single-condition queries only — no composite indexes needed
-  // Filter and sort in JS
+  const uid = window._ika?.uid; if (!uid) return {sessions:[],students:[]};
   const [a,b] = await Promise.all([
     db.collection('sessions').where('teacherId','==',uid).get(),
     db.collection('users').where('assignedTeacherId','==',uid).get()
   ]);
-  const sessions = a.docs
-    .map(d=>({id:d.id,...d.data()}))
-    .sort((x,y)=>{
-      const dx = x.scheduledAt?.toDate?x.scheduledAt.toDate():new Date((x.scheduledAt?.seconds||0)*1000);
-      const dy = y.scheduledAt?.toDate?y.scheduledAt.toDate():new Date((y.scheduledAt?.seconds||0)*1000);
-      return dx-dy;
-    });
-  // Filter students only (role check in JS, not Firestore)
-  const students = b.docs
-    .map(d=>({id:d.id,...d.data()}))
-    .filter(u=>u.role==='student');
-  return { sessions, students };
+  const sort = arr => arr.sort((x,y) => {
+    const dx = x.scheduledAt?.toDate?x.scheduledAt.toDate():new Date((x.scheduledAt?.seconds||0)*1000);
+    const dy = y.scheduledAt?.toDate?y.scheduledAt.toDate():new Date((y.scheduledAt?.seconds||0)*1000);
+    return dx-dy;
+  });
+  return {
+    sessions: sort(a.docs.map(d=>({id:d.id,...d.data()}))),
+    students:      b.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.role==='student')
+  };
 }
 
+// ─── LOAD ADMIN DATA ───────────────────────────────────────────────────────
 async function loadAdminData() {
   const [a,b,c,d,e] = await Promise.all([
     db.collection('users').get(),
@@ -200,20 +187,30 @@ async function loadAdminData() {
     db.collection('enquiries').get(),
     db.collection('access_requests').where('status','==','pending').get()
   ]);
+  const sort = arr => arr.sort((x,y) => {
+    const dx = x.scheduledAt?.toDate?x.scheduledAt.toDate():new Date((x.scheduledAt?.seconds||0)*1000);
+    const dy = y.scheduledAt?.toDate?y.scheduledAt.toDate():new Date((y.scheduledAt?.seconds||0)*1000);
+    return dx-dy;
+  });
   return {
     users:    a.docs.map(d=>({id:d.id,...d.data()})),
-    sessions: b.docs.map(d=>({id:d.id,...d.data()})),
+    sessions: sort(b.docs.map(d=>({id:d.id,...d.data()}))),
     requests: c.docs.map(d=>({id:d.id,...d.data()})),
     enquiries:d.docs.map(d=>({id:d.id,...d.data()})),
     pending:  e.docs.map(d=>({id:d.id,...d.data()}))
   };
 }
 
+// ─── ADMIN APPROVE USER ────────────────────────────────────────────────────
 async function approveUser(reqId, role, name) {
   const snap = await db.doc('access_requests/'+reqId).get();
   if (!snap.exists) return;
   const {uid,email,photo} = snap.data();
-  await db.doc('users/'+uid).set({ uid,email,name:name||snap.data().name||email,role,photo:photo||'',status:'approved',createdAt:firebase.firestore.FieldValue.serverTimestamp() });
+  await db.doc('users/'+uid).set({
+    uid, email, name: name||snap.data().name||email,
+    role, photo: photo||'', status:'approved',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
   await db.doc('access_requests/'+reqId).update({status:'approved'});
   showToast('✅ '+email+' approved as '+role+'!','success');
   _adminData=null; initAdminDash();
@@ -228,31 +225,118 @@ async function assignTeacher(studentId) {
   const sel = document.getElementById('assign-t-'+studentId);
   if (!sel) return;
   const teacherId   = sel.value;
-  const teacherName = sel.options[sel.selectedIndex]?.dataset?.name || '';
+  const opt         = sel.options[sel.selectedIndex];
+  const teacherName = opt?.dataset?.name || opt?.text || '';
   try {
     await db.doc('users/'+studentId).update({ assignedTeacherId: teacherId, assignedTeacherName: teacherName });
-    if (teacherId) showToast('✅ Teacher assigned to student!','success');
-    else showToast('Teacher unassigned.','success');
+    showToast(teacherId ? '✅ Teacher assigned!' : 'Teacher removed.','success');
     _adminData=null; initAdminDash();
-  } catch(e) { showToast('Failed to assign teacher. Try again.','error'); }
+  } catch(e) { showToast('Failed. Try again.','error'); }
 }
 
 async function approveSessionRequest(reqId) {
   const snap = await db.doc('session_requests/'+reqId).get();
   if (!snap.exists) return;
   const data = snap.data();
-  const meet = await createMeetLink(`${data.subject} – ${data.studentName}|Intellikids`, data.dateTimeISO, 60);
-  await db.collection('sessions').add({...data,status:'confirmed',meetLink:meet||'',
-    scheduledAt:firebase.firestore.Timestamp.fromDate(new Date(data.dateTimeISO)),
-    createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  let teacherId = data.teacherId||'', teacherName = data.teacherName||'';
+  if (data.studentId) {
+    try {
+      const s = await db.doc('users/'+data.studentId).get();
+      if (s.exists) { teacherId=s.data().assignedTeacherId||teacherId; teacherName=s.data().assignedTeacherName||teacherName; }
+    } catch(e) {}
+  }
+  const meetLink = data.meetLink || createMeetLink(data.subject, data.dateTimeISO);
+  await db.collection('sessions').add({
+    ...data, teacherId, teacherName, status:'confirmed', meetLink,
+    scheduledAt: firebase.firestore.Timestamp.fromDate(new Date(data.dateTimeISO)),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
   await db.doc('session_requests/'+reqId).update({status:'approved'});
-  showToast('Session approved! Meet link created.','success'); _adminData=null; initAdminDash();
+  showToast('Session approved! ✅','success'); _adminData=null; initAdminDash();
 }
 
 async function submitContact(data) {
-  await db.collection('enquiries').add({...data, createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  await db.collection('enquiries').add({...data, createdAt: firebase.firestore.FieldValue.serverTimestamp()});
 }
+
+// ─── TEACHER TOOLS ─────────────────────────────────────────────────────────
+async function submitHomework() {
+  const title=document.getElementById('hw-title')?.value.trim();
+  const subj =document.getElementById('hw-subject')?.value;
+  const due  =document.getElementById('hw-due')?.value;
+  const notes=document.getElementById('hw-notes')?.value.trim();
+  const stuId=document.getElementById('hw-student')?.value;
+  if (!title||!subj||!due) { showToast('Fill title, subject and due date.','error'); return; }
+  const t = window._ika||{};
+  const stuName = stuId ? (teacherData?.students.find(s=>(s.uid||s.id)===stuId)?.name||'Student') : 'All students';
+  try {
+    const base = { title, subject:subj, due, notes:notes||'', teacherId:t.uid, teacherName:t.name||t.email||'', status:'assigned', createdAt:firebase.firestore.FieldValue.serverTimestamp() };
+    if (stuId) {
+      await db.collection('homework').add({...base, studentId:stuId, studentName:stuName});
+    } else {
+      const batch = db.batch();
+      (teacherData?.students||[]).forEach(s=>{ const r=db.collection('homework').doc(); batch.set(r,{...base,studentId:s.uid||s.id,studentName:s.name||s.email}); });
+      await batch.commit();
+    }
+    showToast('Homework assigned to '+stuName+'! 📝','success');
+    document.getElementById('hw-form-wrap').style.display='none';
+    ['hw-title','hw-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    loadTeacherHomework();
+  } catch(e) { showToast('Failed. Try again.','error'); console.error(e); }
+}
+
+async function loadTeacherHomework() {
+  const uid=window._ika?.uid; if(!uid) return;
+  try {
+    const snap=await db.collection('homework').where('teacherId','==',uid).get();
+    const hw=snap.docs.map(d=>({id:d.id,...d.data()}));
+    const el=document.getElementById('hw-list-teacher');
+    if(!el) return;
+    if(!hw.length){el.innerHTML='<div style="text-align:center;padding:32px;color:#888;font-weight:700;">No homework assigned yet. Click "+ New Homework" above.</div>';return;}
+    el.innerHTML=hw.map(h=>{
+      const sc=SUBJECT_COLORS[h.subject]||{color:'#6C63FF',emoji:'📘'};
+      return `<div class="session-row" style="border-left:4px solid ${sc.color};">
+        <div style="display:flex;align-items:center;gap:14px;flex:1;">
+          <div style="font-size:26px;">${sc.emoji}</div>
+          <div><div style="font-weight:800;font-size:15px;">${h.title}</div>
+          <div style="font-size:13px;color:#999;font-weight:600;">${h.subject} · Due: ${h.due||'—'} · ${h.studentName||'All'}</div></div>
+        </div>
+        <span class="chip" style="background:${h.status==='done'?'#E8FFF8':'#FFF6E8'};color:${h.status==='done'?'#1DD1A1':'#FF9F43'};">${h.status==='done'?'✅ Done':'📬 Assigned'}</span>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error('HW load error:',e); }
+}
+
+async function sendAnnouncement() {
+  const msg=document.getElementById('ann-msg')?.value.trim();
+  const toId=document.getElementById('ann-to')?.value;
+  if(!msg){showToast('Write a message first.','error');return;}
+  const t=window._ika||{};
+  try {
+    await db.collection('announcements').add({ message:msg, teacherId:t.uid, teacherName:t.name||t.email||'', toStudentId:toId||'all', createdAt:firebase.firestore.FieldValue.serverTimestamp() });
+    showToast('Announcement sent! 📢','success');
+    const el=document.getElementById('ann-msg'); if(el) el.value='';
+  } catch(e) { showToast('Failed. Try again.','error'); }
+}
+
+async function submitResource() {
+  const title=document.getElementById('res-title')?.value.trim();
+  const url  =document.getElementById('res-url')?.value.trim();
+  const stuId=document.getElementById('res-student')?.value;
+  if(!title||!url){showToast('Enter title and link.','error');return;}
+  const t=window._ika||{};
+  try {
+    await db.collection('resources').add({ title, url, toStudentId:stuId||'all', teacherId:t.uid, teacherName:t.name||t.email||'', createdAt:firebase.firestore.FieldValue.serverTimestamp() });
+    showToast('Resource shared! 📤','success');
+    ['res-title','res-url'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    document.getElementById('resource-upload-wrap').style.display='none';
+  } catch(e) { showToast('Failed. Try again.','error'); }
+}
+
+function showHomeworkForm() { const el=document.getElementById('hw-form-wrap'); if(el) el.style.display='block'; }
+function showResourceUpload() { const el=document.getElementById('resource-upload-wrap'); if(el) el.style.display=el.style.display==='none'?'block':'none'; }
 </script>
+
 
 
 <style>
@@ -703,8 +787,6 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
           <a class="footer-link">✍️ English (Gr. 3–10)</a>
           <a class="footer-link">🚀 Physics (Gr. 9–12)</a>
           <a class="footer-link">🔬 Chemistry (Gr. 9–12)</a>
-          <a class="footer-link">🔬 Biology (Gr. 9–12)</a>
-          <a class="footer-link">🔬 Science (Gr. 3-10)</a>
         </div>
         <div>
           <div style="font-weight:800;font-size:15px;color:#fff;margin-bottom:16px;">Quick Links</div>
@@ -1070,7 +1152,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
         </div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-        <button class="btn btn-sec btn-sm" onclick="studentData=null;initStudentDash();showToast('Refreshing…')">🔄 Refresh</button>
+        <button class="btn btn-sec btn-sm" onclick="studentData=null;initStudentDash();showToast('Refreshing…')">🔄</button>
         <button class="btn btn-sec btn-sm" onclick="nav('home')">← Home</button>
         <button class="btn" onclick="doLogout()" style="background:#FFF0F0;color:#FF6B6B;padding:9px 20px;font-size:13px;font-weight:800;border-radius:50px;">Logout</button>
       </div>
@@ -1107,9 +1189,11 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
       </div>
     </div>
     <div class="stat-grid" id="td-stats"></div>
-    <div class="tabs">
-      <button class="tab-btn active" onclick="tdTab(this,'sessions')">📅 My Schedule</button>
+    <div class="tabs" style="flex-wrap:wrap;">
+      <button class="tab-btn active" onclick="tdTab(this,'sessions')">📅 Schedule</button>
       <button class="tab-btn" onclick="tdTab(this,'students')">👥 My Students</button>
+      <button class="tab-btn" onclick="tdTab(this,'homework')">📝 Homework</button>
+      <button class="tab-btn" onclick="tdTab(this,'announce')">📢 Announce</button>
       <button class="tab-btn" onclick="tdTab(this,'curriculum')">🧬 Curriculum</button>
       <button class="tab-btn" onclick="tdTab(this,'lms')">🛠️ LMS Tools</button>
     </div>
@@ -1129,7 +1213,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
         <p style="color:#aaa;font-size:13px;font-weight:600;" id="admin-date"></p>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-        <button class="btn btn-sec btn-sm" onclick="_adminData=null;initAdminDash();showToast('Refreshing…')">🔄 Refresh</button>
+        <button class="btn btn-sec btn-sm" onclick="_adminData=null;initAdminDash();showToast('Refreshing…')">🔄</button>
         <button class="btn btn-sec btn-sm" onclick="nav('home')">← Home</button>
         <button class="btn" onclick="doLogout()" style="background:#FFF0F0;color:#FF6B6B;padding:9px 20px;font-size:13px;font-weight:800;border-radius:50px;">Logout</button>
       </div>
@@ -1156,171 +1240,157 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 <script>
 // ══════════════════════════════════════════════════════════════════════
-// ALL NON-FIREBASE JAVASCRIPT — global scope, accessible from onclick
+// MAIN JS — all global, accessible from onclick attributes
 // ══════════════════════════════════════════════════════════════════════
 
-// ─── CONSTANTS ────────────────────────────────────────────────────────
 const SUBJECT_COLORS = {
   "Computer Basics":{"color":"#FF6B6B","bg":"#FFF0F0","emoji":"🖥️"},
   "Coding":          {"color":"#6C63FF","bg":"#F0EEFF","emoji":"🤖"},
   "Maths":           {"color":"#FF9F43","bg":"#FFF6E8","emoji":"🔢"},
   "English":         {"color":"#1DD1A1","bg":"#E8FFF8","emoji":"✍️"},
+  "Science":         {"color":"#00CEC9","bg":"#E0FAFA","emoji":"🔭"},
+  "Biology":         {"color":"#00B894","bg":"#E8FFF8","emoji":"🧬"},
   "Physics":         {"color":"#54A0FF","bg":"#EBF4FF","emoji":"🚀"},
   "Chemistry":       {"color":"#A29BFE","bg":"#F3F0FF","emoji":"🔬"},
-  "Biology":         {"color":"#00B894","bg":"#E8FFF8","emoji":"🧬"},
-  "Science":         {"color":"#00CEC9","bg":"#E0FAFA","emoji":"🔭"},
 };
 const SUBJECTS = Object.keys(SUBJECT_COLORS);
 const TIMES = ["8:00 AM","8:30 AM","9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","12:30 PM","1:00 PM","1:30 PM","2:00 PM","2:30 PM","3:00 PM","3:30 PM","4:00 PM","4:30 PM","5:00 PM","5:30 PM","6:00 PM","6:30 PM","7:00 PM","7:30 PM","8:00 PM"];
 const DEMO_SESSIONS = [
-  {id:1,subject:"Coding",topic:"Variables & Loops in Python",date:"Mon, May 26",time:"4:00 PM",grade:6,teacher:"Ms. Archana",type:"1-on-1"},
-  {id:2,subject:"Maths",topic:"Linear Equations",date:"Tue, May 27",time:"5:00 PM",grade:7,teacher:"Ms. Priya",type:"Group"},
-  {id:3,subject:"Computer Basics",topic:"How the Internet Works",date:"Wed, May 28",time:"4:30 PM",grade:5,teacher:"Mr. Leandre",type:"1-on-1"},
-  {id:4,subject:"English",topic:"Creative Writing Workshop",date:"Thu, May 29",time:"3:30 PM",grade:8,teacher:"Mr. Leandre",type:"Group"},
-  {id:5,subject:"Physics",topic:"Newton's Laws of Motion",date:"Fri, May 30",time:"5:30 PM",grade:9,teacher:"Ms. Anju",type:"1-on-1"},
+  {id:1,subject:"Coding",topic:"Variables & Loops in Python",date:"Mon, Jun 2",time:"4:00 PM",grade:6,teacher:"Ms. Archana",type:"1-on-1",meetLink:"https://meet.jit.si/ika-demo-coding-001"},
+  {id:2,subject:"Maths",topic:"Linear Equations",date:"Tue, Jun 3",time:"5:00 PM",grade:7,teacher:"Ms. Priya",type:"Group",meetLink:"https://meet.jit.si/ika-demo-maths-002"},
+  {id:3,subject:"Science",topic:"How Plants Make Food",date:"Wed, Jun 4",time:"4:30 PM",grade:5,teacher:"Mr. Leandre",type:"1-on-1",meetLink:"https://meet.jit.si/ika-demo-science-003"},
+  {id:4,subject:"English",topic:"Creative Writing Workshop",date:"Thu, Jun 5",time:"3:30 PM",grade:8,teacher:"Mr. Leandre",type:"Group",meetLink:"https://meet.jit.si/ika-demo-english-004"},
+  {id:5,subject:"Biology",topic:"The Human Digestive System",date:"Fri, Jun 6",time:"5:30 PM",grade:9,teacher:"Ms. Anju",type:"1-on-1",meetLink:"https://meet.jit.si/ika-demo-biology-005"},
 ];
 const FAQS_DATA = [
-  {q:"What grades does Intellikids support?",c:"#FF6B6B",a:"Grades 3–10 for Computer Basics, Coding, Maths & English. Physics and Chemistry for Grades 9–12."},
+  {q:"What grades does Intellikids support?",c:"#FF6B6B",a:"Grades 3–10 for Computer Basics, Coding, Maths, English & Science. Biology, Physics and Chemistry for Grades 8–12."},
   {q:"Difference between 1-on-1 and Group sessions?",c:"#6C63FF",a:"1-on-1 is just you and your teacher. Group sessions have maximum 4 students — everyone still gets personal attention."},
-  {q:"How personalised is the curriculum?",c:"#FF9F43",a:"100% personalised. Every student gets a plan built from scratch based on their level, goals, and pace. No templates."},
-  {q:"How do live classes work?",c:"#1DD1A1",a:"All sessions are live over Google Meet. A link is automatically generated when you book. Ask questions in real time, share screens, work together."},
+  {q:"How personalised is the curriculum?",c:"#FF9F43",a:"100% personalised. Every student gets a plan built from scratch based on their level, goals, and pace."},
+  {q:"How do live classes work?",c:"#1DD1A1",a:"All sessions are live over Jitsi Meet — a free video call tool. A unique link is automatically generated when you book. No app download needed, works in your browser."},
   {q:"Can students self-schedule classes?",c:"#54A0FF",a:"Yes! Students can book any class 12+ hours ahead — confirmed instantly with a Meet link. Under 12 hours goes to admin as a request."},
-  {q:"Are teachers Intel Lab certified?",c:"#A29BFE",a:"Yes! Every Intellikids teacher is certified by Intel Labs, ensuring the highest standard of teaching quality."},
+  {q:"Are teachers Intel Lab certified?",c:"#A29BFE",a:"Yes! Every Intellikids teacher is certified by Intel Labs, ensuring the highest teaching quality."},
   {q:"Is there a free trial?",c:"#FD79A8",a:"Absolutely! Book a free demo — you choose the topic. See the Intellikids experience before committing to anything."},
 ];
-const MARQUEE_ITEMS = ["🎯 1-on-1 Sessions","👥 Small Group (Max 4)","📚 Grades 3–12","🤖 Coding","🔢 Maths","✍️ English","🚀 Physics","🔬 Chemistry","💻 Computer Basics","🧬 100% Personalised","📅 Self-Schedule Classes","🏅 Intel-Certified Teachers","🇮🇳 Trusted by 5,000+ Families"];
+const MARQUEE_ITEMS = ["🎯 1-on-1 Sessions","👥 Small Group (Max 4)","📚 Grades 3–12","🤖 Coding","🔢 Maths","✍️ English","🚀 Physics","🔬 Chemistry","🔭 Science","🧬 Biology","💻 Computer Basics","🧬 100% Personalised","📅 Self-Schedule Classes","🏅 Intel-Certified Teachers"];
 const AC = ["#FF6B6B","#FF9F43","#1DD1A1","#6C63FF","#54A0FF","#A29BFE","#FD79A8","#FDCB6E"];
 
-// ─── STATE ────────────────────────────────────────────────────────────
-let currentPage    = 'home';
-let gradeFilter    = 'All';
-let studentData    = null;
-let teacherData    = null;
-let _adminData     = null;
-let _toastTimer;
+let currentPage='home', gradeFilter='All';
+let studentData=null, teacherData=null, _adminData=null, _toastTimer;
 
 // ─── NAV ─────────────────────────────────────────────────────────────
 function nav(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-  const el = document.getElementById('page-' + page);
-  if (el) el.classList.add('active');
-  const nl = document.getElementById('nl-' + page);
-  if (nl) nl.classList.add('active');
-  currentPage = page;
-  window.scrollTo({top:0, behavior:'smooth'});
-  if (page === 'sessions')          renderSessionsPage();
-  if (page === 'student-dashboard') initStudentDash();
-  if (page === 'teacher-dashboard') initTeacherDash();
-  if (page === 'admin-dashboard')   initAdminDash();
-  if (page === 'pricing')           renderPricingCards();
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+  const el=document.getElementById('page-'+page);
+  if(el) el.classList.add('active');
+  const nl=document.getElementById('nl-'+page);
+  if(nl) nl.classList.add('active');
+  currentPage=page;
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(page==='sessions')          renderSessionsPage();
+  if(page==='student-dashboard') initStudentDash();
+  if(page==='teacher-dashboard') initTeacherDash();
+  if(page==='admin-dashboard')   initAdminDash();
+  if(page==='pricing')           renderPricingCards();
 }
-
 function showDashboard(role) {
   showLoader(false);
-  if (role === 'student') nav('student-dashboard');
-  else if (role === 'teacher') nav('teacher-dashboard');
-  else if (role === 'admin')   nav('admin-dashboard');
+  if(role==='student')      nav('student-dashboard');
+  else if(role==='teacher') nav('teacher-dashboard');
+  else if(role==='admin')   nav('admin-dashboard');
   else showToast('Unknown role. Contact admin.','error');
 }
-
-// ─── UTILS ────────────────────────────────────────────────────────────
 function toggleMobile() { document.getElementById('mobile-menu').classList.toggle('open'); }
-
-function showLoader(show) {
-  document.getElementById('global-loader').classList.toggle('show', show);
+function adminLoginBtn() {
+  const e=document.getElementById('al-email')?.value.trim();
+  const p=document.getElementById('al-pass')?.value;
+  if(!e||!p){showToast('Enter email and password.','error');return;}
+  showLoader(true); doAdminLogin(e,p);
 }
-
-function showToast(msg, type) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'show' + (type==='error'?' error':type==='success'?' success':'');
+function showLoader(show) { document.getElementById('global-loader')?.classList.toggle('show',show); }
+function showToast(msg,type) {
+  const t=document.getElementById('toast'); if(!t) return;
+  t.textContent=msg;
+  t.className='show'+(type==='error'?' error':type==='success'?' success':'');
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => t.classList.remove('show','error','success'), 3500);
+  _toastTimer=setTimeout(()=>t.classList.remove('show','error','success'),3500);
 }
-
-function emptyState(icon, title, desc) {
+function emptyState(icon,title,desc,btn='') {
   return `<div style="text-align:center;padding:60px 20px;">
     <div style="font-size:52px;margin-bottom:12px;">${icon}</div>
     <h3 style="font-family:'Nunito',sans-serif;font-size:18px;margin-bottom:8px;">${title}</h3>
-    <p style="color:#888;font-size:14px;font-weight:600;">${desc}</p>
+    <p style="color:#888;font-size:14px;font-weight:600;margin-bottom:${btn?'20px':'0'};">${desc}</p>
+    ${btn}
   </div>`;
 }
-
 function fmtDate(ts) {
-  if (!ts) return '—';
-  const d = ts.toDate ? ts.toDate() : (ts.seconds ? new Date(ts.seconds*1000) : new Date(ts));
-  return d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}) + ' · ' + d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  if(!ts) return '—';
+  const d=ts.toDate?ts.toDate():ts.seconds?new Date(ts.seconds*1000):new Date(ts);
+  return d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' · '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
 }
-
 function meetBtn(link) {
-  if (!link) return '<span style="font-size:12px;color:#aaa;font-weight:700;">Link pending</span>';
-  const isJitsi = link.includes('jit.si');
-  const label = isJitsi ? '📹 Join Jitsi Meet' : '📹 Join Google Meet';
-  return `<a href="${link}" target="_blank" rel="noopener" class="btn btn-green btn-sm" style="text-decoration:none;">${label}</a>`;
+  if(!link) return '<span style="font-size:12px;color:#aaa;font-weight:700;">Link pending</span>';
+  return `<a href="${link}" target="_blank" rel="noopener" class="btn btn-green btn-sm" style="text-decoration:none;">📹 Join Meet</a>`;
 }
-
 function sessionRowHtml(s) {
-  const sc = SUBJECT_COLORS[s.subject]||{color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
-  const when = s.scheduledAt ? fmtDate(s.scheduledAt) : ((s.date||'') + (s.time?' · '+s.time:''));
-  return `<div class="session-row" style="border-left:4px solid ${sc.color};">
-    <div style="display:flex;align-items:center;gap:14px;">
-      <div style="width:46px;height:46px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:24px;">${sc.emoji}</div>
-      <div>
-        <div style="font-weight:800;font-size:15px;">${s.topic||s.subject}</div>
-        <div style="font-size:13px;color:#999;font-weight:600;">${s.subject}${s.teacher||s.teacherName?' · with '+(s.teacher||s.teacherName):''} · ${when}</div>
+  const sc=SUBJECT_COLORS[s.subject]||{color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
+  const when=s.scheduledAt?fmtDate(s.scheduledAt):((s.date||'')+(s.time?' · '+s.time:''));
+  const teacher=s.teacherName||s.teacher||'';
+  const now=new Date();
+  const sd=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);
+  const isToday=sd.toDateString()===now.toDateString();
+  const isPast=sd<now&&s.scheduledAt;
+  const badge=isPast?'<span class="chip" style="background:#F0EEFF;color:#6C63FF;">✅ Done</span>':
+               isToday?'<span class="chip" style="background:#FFF6E8;color:#FF9F43;">🔔 Today!</span>':
+               '<span class="chip" style="background:#E8FFF8;color:#1DD1A1;">📅 Upcoming</span>';
+  return `<div class="session-row" style="border-left:4px solid ${sc.color};${isToday?'background:linear-gradient(135deg,#FFFDF8,#FFF6E8);':''}">
+    <div style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;">
+      <div style="width:48px;height:48px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">${sc.emoji}</div>
+      <div style="min-width:0;">
+        <div style="font-weight:800;font-size:15px;margin-bottom:2px;">${s.topic||s.subject}</div>
+        <div style="font-size:13px;color:#777;font-weight:600;">${s.subject}${teacher?' · 👩‍🏫 '+teacher:''}</div>
+        <div style="font-size:12px;color:#aaa;font-weight:600;margin-top:2px;">🗓️ ${when}</div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;">
+      ${badge}
       <span class="chip ${s.type==='1-on-1'?'chip-1on1':'chip-group'}">${s.type==='1-on-1'?'🎯 1-on-1':'👥 Group'}</span>
       ${meetBtn(s.meetLink)}
     </div>
   </div>`;
 }
 
-// ─── ADMIN LOGIN BUTTON ───────────────────────────────────────────────
-function adminLoginBtn() {
-  const email = document.getElementById('al-email').value.trim();
-  const pass  = document.getElementById('al-pass').value;
-  if (!email||!pass) { showToast('Enter email and password.','error'); return; }
-  showLoader(true);
-  doAdminLogin(email, pass);
-}
-
-// ─── MARQUEE ─────────────────────────────────────────────────────────
+// ─── MARQUEE & FAQ ────────────────────────────────────────────────────
 function initMarquee() {
-  const track = document.getElementById('marquee-track');
-  const items = [...MARQUEE_ITEMS,...MARQUEE_ITEMS];
-  track.innerHTML = items.map(i=>`<span class="marquee-item">${i} <span style="color:#FFE8E8;margin-left:8px;">•</span></span>`).join('');
+  const t=document.getElementById('marquee-track'); if(!t) return;
+  const items=[...MARQUEE_ITEMS,...MARQUEE_ITEMS];
+  t.innerHTML=items.map(i=>`<span class="marquee-item">${i} <span style="color:#FFE8E8;margin-left:8px;">•</span></span>`).join('');
 }
-
-// ─── FAQ ─────────────────────────────────────────────────────────────
 function initFaq() {
-  const list = document.getElementById('faq-list');
-  list.innerHTML = FAQS_DATA.map((f,i)=>`
+  const l=document.getElementById('faq-list'); if(!l) return;
+  l.innerHTML=FAQS_DATA.map((f,i)=>`
     <div class="faq-item" onclick="toggleFaq(${i})" id="faq-${i}" style="border-left:4px solid ${f.c};">
       <div class="faq-q"><span>${f.q}</span><span class="faq-icon" style="color:${f.c};">+</span></div>
       <div class="faq-a">${f.a}</div>
     </div>`).join('');
 }
 function toggleFaq(i) {
-  const el = document.getElementById('faq-'+i);
-  const was = el.classList.contains('open');
+  const el=document.getElementById('faq-'+i);
+  const was=el.classList.contains('open');
   document.querySelectorAll('.faq-item').forEach(f=>f.classList.remove('open'));
-  if (!was) el.classList.add('open');
+  if(!was) el.classList.add('open');
 }
 
 // ─── SESSIONS PAGE ────────────────────────────────────────────────────
 function renderSessionsPage() {
-  const fe = document.getElementById('grade-filters');
-  if (!fe) return;
-  const grades = ['All',...Array.from({length:10},(_,i)=>String(i+3))];
-  fe.innerHTML = `<span style="font-size:14px;color:#888;font-weight:700;">Grade:</span>` +
+  const fe=document.getElementById('grade-filters'); if(!fe) return;
+  const grades=['All',...Array.from({length:10},(_,i)=>String(i+3))];
+  fe.innerHTML=`<span style="font-size:14px;color:#888;font-weight:700;">Grade:</span>`+
     grades.map(g=>`<button onclick="setGradeFilter('${g}')" style="padding:7px 16px;border-radius:50px;font-size:13px;font-weight:800;cursor:pointer;border:none;transition:all .2s;${gradeFilter===g?'background:linear-gradient(135deg,#FF6B6B,#FF9F43);color:#fff;':'background:#f0f0f0;color:#888;'}">${g==='All'?'All':'Gr. '+g}</button>`).join('');
-  const list = document.getElementById('sessions-list');
-  const filtered = gradeFilter==='All' ? DEMO_SESSIONS : DEMO_SESSIONS.filter(s=>String(s.grade)===gradeFilter);
-  if (!filtered.length) { list.innerHTML=`<div style="text-align:center;padding:48px;color:#888;font-weight:700;">No sessions for Grade ${gradeFilter}.</div>`; return; }
-  list.innerHTML = filtered.map(s=>{
+  const list=document.getElementById('sessions-list'); if(!list) return;
+  const filtered=gradeFilter==='All'?DEMO_SESSIONS:DEMO_SESSIONS.filter(s=>String(s.grade)===gradeFilter);
+  if(!filtered.length){list.innerHTML=`<div style="text-align:center;padding:48px;color:#888;font-weight:700;">No sessions for Grade ${gradeFilter}.</div>`;return;}
+  list.innerHTML=filtered.map(s=>{
     const sc=SUBJECT_COLORS[s.subject]||{color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
     return `<div class="session-row" style="border-left:4px solid ${sc.color};">
       <div style="display:flex;align-items:center;gap:16px;">
@@ -1347,9 +1417,9 @@ async function submitContactForm() {
     const el=document.getElementById(id),err=document.getElementById(eid);
     if(!fn(el.value)){err.classList.add('show');valid=false;}else err.classList.remove('show');
   });
-  if (!valid) return;
+  if(!valid) return;
   const btn=document.querySelector('#contact-form-wrap .btn-main');
-  btn.textContent='Sending…'; btn.disabled=true;
+  if(btn){btn.textContent='Sending…';btn.disabled=true;}
   const data={
     name:document.getElementById('cf-name').value.trim(),
     email:document.getElementById('cf-email').value.trim(),
@@ -1365,7 +1435,7 @@ async function submitContactForm() {
     document.getElementById('contact-success').style.display='block';
     showToast('Demo booked! We\'ll reach out soon. 🎉','success');
   } catch(e) {
-    btn.textContent='Send & Book Demo 🚀'; btn.disabled=false;
+    if(btn){btn.textContent='Send & Book Demo 🚀';btn.disabled=false;}
     showToast('Something went wrong. Try WhatsApp.','error');
   }
 }
@@ -1376,65 +1446,72 @@ async function submitContactForm() {
 async function initStudentDash() {
   const p=window._ika||{};
   const name=p.name||p.displayName||'there';
-  document.getElementById('sd-greeting').textContent=`Hey ${name}! 🙌`;
-  document.getElementById('sd-email').textContent=p.email||'';
+  const el_g=document.getElementById('sd-greeting');
+  const el_e=document.getElementById('sd-email');
   const av=document.getElementById('sd-avatar');
-  if(p.photo){av.innerHTML=`<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;"/>`;}
-  else{av.textContent=(name[0]||'S').toUpperCase();}
-  document.getElementById('sd-stats').innerHTML=`
-    <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">📈</div><div class="stat-val" style="color:#6C63FF;">${p.progress||0}%</div><div class="stat-lbl">Progress</div></div>
-    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">🔥</div><div class="stat-val" style="color:#FF9F43;">${p.streak||0}</div><div class="stat-lbl">Day Streak</div></div>
+  if(el_g) el_g.textContent=`Hey ${name}! 🙌`;
+  if(el_e) el_e.textContent=p.email||'';
+  if(av){ if(p.photo) av.innerHTML=`<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;"/>`; else av.textContent=(name[0]||'S').toUpperCase(); }
+  const teacher=p.assignedTeacherName||'';
+  const el_s=document.getElementById('sd-stats');
+  if(el_s) el_s.innerHTML=`
+    ${teacher?`<div class="stat-card" style="border-top:4px solid #00B894;background:#E8FFF8;grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:16px 20px;">
+      <div style="font-size:32px;">👩‍🏫</div>
+      <div><div style="font-size:12px;color:#00B894;font-weight:800;letter-spacing:.5px;">YOUR TEACHER</div>
+      <div style="font-weight:900;font-size:18px;color:#1a1a2e;">${teacher}</div>
+      <div style="font-size:12px;color:#888;font-weight:600;">🏅 Intel Certified · All your sessions are with ${teacher}</div></div>
+    </div>`:
+    `<div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;grid-column:1/-1;padding:14px 20px;display:flex;align-items:center;gap:12px;">
+      <div style="font-size:24px;">⏳</div>
+      <div style="font-size:13px;color:#FF9F43;font-weight:700;">No teacher assigned yet — admin will assign your teacher soon.</div>
+    </div>`}
     <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF6B6B;" id="sd-up-cnt">0</div><div class="stat-lbl">Upcoming</div></div>
-    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;" id="sd-done-cnt">0</div><div class="stat-lbl">Completed</div></div>`;
+    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;" id="sd-done-cnt">0</div><div class="stat-lbl">Completed</div></div>
+    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">🔥</div><div class="stat-val" style="color:#FF9F43;">${p.streak||0}</div><div class="stat-lbl">Day Streak</div></div>`;
+  const cont=document.getElementById('sd-content');
+  if(cont) cont.innerHTML='<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>';
   try {
     studentData=await loadStudentData();
-    document.getElementById('sd-up-cnt').textContent=studentData.sessions.filter(s=>!s.completed).length;
-    document.getElementById('sd-done-cnt').textContent=studentData.sessions.filter(s=>s.completed).length;
-  } catch(e){studentData={sessions:[],homework:[],requests:[]};}
+    const upEl=document.getElementById('sd-up-cnt');
+    const dEl=document.getElementById('sd-done-cnt');
+    if(upEl)   upEl.textContent  =studentData.sessions.filter(s=>!s.completed).length;
+    if(dEl)    dEl.textContent   =studentData.sessions.filter(s=>s.completed).length;
+  } catch(e) { console.error('Student data error:',e); studentData={sessions:[],homework:[],requests:[]}; }
   renderStudentTab('upcoming');
 }
-
-function sdTab(btn,tab){
+function sdTab(btn,tab) {
   document.querySelectorAll('#page-student-dashboard .tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active'); renderStudentTab(tab);
 }
-
-function renderStudentTab(tab){
+function renderStudentTab(tab) {
   const el=document.getElementById('sd-content');
-  if(!studentData){el.innerHTML='<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>';return;}
-
-  if(tab==='upcoming'){
+  if(!el||!studentData) return;
+  if(tab==='upcoming') {
     const sess=studentData.sessions.filter(s=>!s.completed);
-    if(!sess.length){
-      el.innerHTML=`<div style="text-align:center;padding:48px 20px;">
-        <div style="font-size:56px;margin-bottom:16px;">📅</div>
-        <h3 style="font-family:'Nunito',sans-serif;font-size:18px;margin-bottom:8px;">No upcoming classes yet</h3>
-        <p style="color:#888;font-size:14px;font-weight:600;margin-bottom:24px;">Use the Book a Class tab to schedule your first session with your teacher.</p>
-        <button class="btn btn-main" onclick="document.querySelectorAll('#page-student-dashboard .tab-btn')[1].click()">➕ Book a Class Now</button>
-      </div>`;
-    } else {
-      el.innerHTML=sess.map(s=>sessionRowHtml(s)).join('');
-    }
+    el.innerHTML=sess.length?sess.map(s=>sessionRowHtml(s)).join(''):
+      emptyState('📅','No upcoming classes yet','Use the "Book a Class" tab to schedule your first session.',
+        '<button class="btn btn-main" onclick="document.querySelectorAll(\'#page-student-dashboard .tab-btn\')[1].click()">➕ Book a Class Now</button>');
   }
-
-  else if(tab==='book'){
+  else if(tab==='book') {
     const today=new Date().toISOString().split('T')[0];
     const p=window._ika||{};
     const tName=p.assignedTeacherName||'';
-    const teacherInfo=tName?`<div style="background:#E8FFF8;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#00B894;font-weight:700;">👩‍🏫 Your teacher: <strong>${tName}</strong> — all your classes go to them automatically.</div>`:`<div style="background:#FFF6E8;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#FF9F43;font-weight:700;">⚠️ No teacher assigned yet. Contact admin to get a teacher assigned first.</div>`;
+    const tInfo=tName?
+      `<div style="background:#E8FFF8;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#00B894;font-weight:700;">👩‍🏫 Your teacher: <strong>${tName}</strong></div>`:
+      `<div style="background:#FFF6E8;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#FF9F43;font-weight:700;">⚠️ No teacher assigned yet. Contact admin first.</div>`;
     el.innerHTML=`
-      <div style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:24px;margin-bottom:24px;border:2px dashed #C0B8FF;">
-        <div style="font-weight:800;font-size:17px;color:#6C63FF;margin-bottom:6px;">📅 Schedule a Class</div>
-        <p style="font-size:13px;color:#888;font-weight:600;margin:0;">Book ≥12 hours ahead → instant confirmation + Google Meet link.<br/>Under 12 hours → request sent to admin for approval.</p>
+      <div style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:20px;margin-bottom:20px;border:2px dashed #C0B8FF;">
+        <div style="font-weight:800;font-size:16px;color:#6C63FF;margin-bottom:4px;">📅 Schedule a Class</div>
+        <p style="font-size:13px;color:#888;font-weight:600;margin:0;">≥12 hours ahead: instant confirmation + Jitsi Meet link. Under 12 hours: request sent to admin.</p>
       </div>
-      ${teacherInfo}
+      ${tInfo}
       <div class="card" style="padding:28px;max-width:520px;">
         <div class="form-group"><label>Subject</label>
           <select id="bk-subject"><option value="">Choose subject…</option>
             ${SUBJECTS.map(s=>`<option value="${s}">${SUBJECT_COLORS[s].emoji} ${s}</option>`).join('')}
           </select></div>
         <div class="form-group"><label>Topic (optional)</label>
-          <input type="text" id="bk-topic" placeholder="e.g. Quadratic Equations, Python loops…"/></div>
+          <input type="text" id="bk-topic" placeholder="e.g. Quadratic Equations, DNA replication…"/></div>
         <div class="form-group"><label>Session Type</label>
           <select id="bk-type">
             <option value="1-on-1">🎯 1-on-1 Session</option>
@@ -1442,23 +1519,21 @@ function renderStudentTab(tab){
           </select></div>
         <div class="form-group"><label>Date</label>
           <input type="date" id="bk-date" min="${today}" onchange="checkBookingTime()"/></div>
-        <div class="form-group"><label>Preferred Time</label>
-          <select id="bk-time" onchange="checkBookingTime()">
-            <option value="">Choose time…</option>
+        <div class="form-group"><label>Time</label>
+          <select id="bk-time" onchange="checkBookingTime()"><option value="">Choose time…</option>
             ${TIMES.map(t=>`<option value="${t}">${t}</option>`).join('')}
           </select></div>
         <div id="bk-notice" style="display:none;background:#FFF6E8;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#FF9F43;font-weight:700;"></div>
         <button class="btn btn-main btn-full" id="bk-btn" onclick="submitBooking()">Book Class 🚀</button>
       </div>`;
   }
-
-  else if(tab==='requests'){
+  else if(tab==='requests') {
     const reqs=studentData.requests||[];
     if(!reqs.length){el.innerHTML=emptyState('⏳','No pending requests','Urgent session requests (< 12 hrs) appear here.');return;}
     el.innerHTML=reqs.map(r=>{
       const sc=SUBJECT_COLORS[r.subject]||{color:"#6C63FF",bg:"#F0EEFF",emoji:"📘"};
       const bc=r.status==='approved'?'#1DD1A1':r.status==='rejected'?'#FF6B6B':'#FF9F43';
-      const bl=r.status==='approved'?'✅ Approved':r.status==='rejected'?'❌ Rejected':'⏳ Pending Admin';
+      const bl=r.status==='approved'?'✅ Approved':r.status==='rejected'?'❌ Rejected':'⏳ Pending';
       return `<div class="session-row" style="border-left:4px solid ${sc.color};">
         <div style="display:flex;align-items:center;gap:14px;">
           <div style="width:46px;height:46px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:24px;">${sc.emoji}</div>
@@ -1467,12 +1542,12 @@ function renderStudentTab(tab){
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <span class="chip" style="background:${bc}22;color:${bc};">${bl}</span>
-          ${r.meetLink?`<a href="${r.meetLink}" target="_blank" class="btn btn-green btn-sm" style="text-decoration:none;">📹 Join Meet</a>`:''}
+          ${r.meetLink?meetBtn(r.meetLink):''}
         </div>
-      </div>`;}).join('');
+      </div>`;
+    }).join('');
   }
-
-  else if(tab==='homework'){
+  else if(tab==='homework') {
     const hw=studentData.homework;
     if(!hw.length){el.innerHTML=emptyState('📝','No homework yet','Your teacher will assign homework here.');return;}
     el.innerHTML=hw.map(h=>{
@@ -1483,65 +1558,51 @@ function renderStudentTab(tab){
           <div><div style="font-weight:800;font-size:15px;">${h.title}</div>
           <div style="font-size:13px;color:#999;font-weight:600;">${h.subject||''} · Due: ${h.due||'—'}</div></div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;">
-          ${done?`<span style="font-size:22px;font-weight:900;color:#1DD1A1;">${h.score}%</span><span class="chip chip-green">Done ✓</span>`:
-                 `<span class="chip chip-orange">Pending</span><button class="btn btn-main btn-sm">Start ✏️</button>`}
-        </div>
-      </div>`;}).join('');
+        <span class="chip" style="background:${done?'#E8FFF8':'#FFF6E8'};color:${done?'#1DD1A1':'#FF9F43'};">${done?'✅ Done':'📬 Pending'}</span>
+      </div>`;
+    }).join('');
   }
-
-  else if(tab==='performance'){
+  else if(tab==='performance') {
     const hw=studentData.homework||[];
     const doneHw=hw.filter(h=>h.status==='done');
-    const totalSess=studentData.sessions.length;
-    const doneSess=studentData.sessions.filter(s=>s.completed).length;
+    const totalS=studentData.sessions.length, doneS=studentData.sessions.filter(s=>s.completed).length;
     el.innerHTML=`
-      <div style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:20px;margin-bottom:24px;border:2px dashed #C0B8FF;display:flex;align-items:center;gap:14px;">
-        <div style="font-size:36px;">🧬</div>
-        <div><div style="font-weight:800;font-size:16px;color:#6C63FF;">Your Personalised Learning Plan</div>
-        <div style="font-size:13px;color:#888;font-weight:600;margin-top:4px;">Built 100% for you by your Intel-certified teacher.</div></div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
-        <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#6C63FF;">${totalSess}</div><div class="stat-lbl">Total Sessions</div></div>
-        <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;">${doneSess}</div><div class="stat-lbl">Completed</div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;">
+        <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#6C63FF;">${totalS}</div><div class="stat-lbl">Total Sessions</div></div>
+        <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;">${doneS}</div><div class="stat-lbl">Completed</div></div>
         <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">📝</div><div class="stat-val" style="color:#FF9F43;">${doneHw.length}/${hw.length}</div><div class="stat-lbl">Homework Done</div></div>
-        <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">🔥</div><div class="stat-val" style="color:#FF6B6B;">${window._ika?.streak||0}</div><div class="stat-lbl">Day Streak</div></div>
+        <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">🔥</div><div class="stat-val" style="color:#FF6B6B;">${window._ika?.streak||0}</div><div class="stat-lbl">Streak</div></div>
       </div>
-      ${totalSess===0?`<div style="text-align:center;padding:40px;">
-        <div style="font-size:52px;margin-bottom:12px;">📈</div>
-        <h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:8px;">Your progress chart will appear here</h3>
-        <p style="color:#888;font-size:14px;font-weight:600;">Complete your first session to start tracking your progress.</p>
-      </div>`:''}`;
+      ${totalS===0?emptyState('📈','Your progress chart will appear here','Complete your first session to start tracking.'):''}`;
   }
 }
-
 function checkBookingTime(){
   const dv=document.getElementById('bk-date')?.value, tv=document.getElementById('bk-time')?.value;
-  const notice=document.getElementById('bk-notice'); if(!dv||!tv||!notice)return;
-  const [h12,ap]=tv.split(' ');let[h,m]=h12.split(':').map(Number);
+  const n=document.getElementById('bk-notice'); if(!dv||!tv||!n) return;
+  const[h12,ap]=tv.split(' ');let[h,m]=h12.split(':').map(Number);
   if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;
   const dt=new Date(`${dv}T${String(h).padStart(2,'0')}:${String(m||0).padStart(2,'0')}:00`);
   const diff=(dt-new Date())/3600000;
-  if(diff<0){notice.style.display='block';notice.textContent='⚠️ This time is in the past. Choose a future slot.';return;}
-  if(diff<12){notice.style.display='block';notice.textContent='⚠️ Less than 12 hours ahead — this will be sent as an admin request. You\'ll be notified on approval.';}
-  else notice.style.display='none';
+  if(diff<0){n.style.display='block';n.textContent='⚠️ This time is in the past.';return;}
+  if(diff<12){n.style.display='block';n.textContent='⚠️ Less than 12 hours ahead — this goes as an admin request.';}
+  else n.style.display='none';
 }
-
 async function submitBooking(){
-  const subject=document.getElementById('bk-subject').value;
+  const subj=document.getElementById('bk-subject').value;
   const topic=document.getElementById('bk-topic').value.trim();
   const type=document.getElementById('bk-type').value;
   const dv=document.getElementById('bk-date').value;
   const tv=document.getElementById('bk-time').value;
-  if(!subject||!dv||!tv){showToast('Fill in subject, date and time.','error');return;}
+  if(!subj||!dv||!tv){showToast('Fill in subject, date and time.','error');return;}
   const[h12,ap]=tv.split(' ');let[h,m]=h12.split(':').map(Number);
   if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;
   const dateTimeISO=`${dv}T${String(h).padStart(2,'0')}:${String(m||0).padStart(2,'0')}:00`;
-  const btn=document.getElementById('bk-btn');btn.textContent='Booking…';btn.disabled=true;
-  try {
-    await bookSession({subject,topic,type,dateTimeISO,studentName:window._ika?.name||window._ika?.email||''});
-    studentData=null; initStudentDash();
-  } catch(e){showToast('Booking failed. Try WhatsApp.','error');}
+  const btn=document.getElementById('bk-btn');
+  btn.textContent='Booking…';btn.disabled=true;
+  try{
+    await bookSession({subject:subj,topic,type,dateTimeISO,studentName:window._ika?.name||window._ika?.email||''});
+    studentData=null;initStudentDash();
+  }catch(e){showToast('Booking failed. Try WhatsApp.','error');console.error(e);}
   btn.textContent='Book Class 🚀';btn.disabled=false;
 }
 
@@ -1549,468 +1610,258 @@ async function submitBooking(){
 // TEACHER DASHBOARD
 // ══════════════════════════════════════════════════════════════════════
 async function initTeacherDash(){
-  const p = window._ika || {};
-  const name = p.name || p.displayName || 'Teacher';
-  const el_g = document.getElementById('td-greeting');
-  const el_e = document.getElementById('td-email');
-  const el_s = document.getElementById('td-stats');
-  const av   = document.getElementById('td-avatar');
-  if (el_g) el_g.textContent = `Welcome, ${name}! 🏆`;
-  if (el_e) el_e.textContent = p.email || '';
-  if (av) {
-    if (p.photo) av.innerHTML = `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;"/>`;
-    else av.textContent = (name[0]||'T').toUpperCase();
-  }
-  if (el_s) el_s.innerHTML = `
+  const p=window._ika||{};const name=p.name||p.displayName||'Teacher';
+  const el_g=document.getElementById('td-greeting');
+  const el_e=document.getElementById('td-email');
+  const av=document.getElementById('td-avatar');
+  if(el_g) el_g.textContent=`Welcome, ${name}! 🏆`;
+  if(el_e) el_e.textContent=p.email||'';
+  if(av){ if(p.photo) av.innerHTML=`<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;"/>`; else av.textContent=(name[0]||'T').toUpperCase(); }
+  const el_s=document.getElementById('td-stats');
+  if(el_s) el_s.innerHTML=`
     <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">👥</div><div class="stat-val" style="color:#6C63FF;" id="td-s-cnt">…</div><div class="stat-lbl">My Students</div></div>
     <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF9F43;" id="td-sess-cnt">…</div><div class="stat-lbl">Upcoming</div></div>
     <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">🗓️</div><div class="stat-val" style="color:#1DD1A1;" id="td-today-cnt">…</div><div class="stat-lbl">Today</div></div>
-    <div class="stat-card" style="border-top:4px solid #0071C5;background:#EBF4FF;"><div style="font-size:22px;">🏅</div><div class="stat-val" style="color:#0071C5;font-size:14px;">Intel</div><div class="stat-lbl">Certified</div></div>`;
-
-  const content = document.getElementById('td-content');
-  if (content) content.innerHTML = '<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading your data…</div>';
-
-  try {
-    teacherData = await loadTeacherData();
-    const tod = new Date().toDateString();
-    const upcoming = teacherData.sessions.filter(s => {
-      const d = s.scheduledAt?.toDate ? s.scheduledAt.toDate() : new Date((s.scheduledAt?.seconds||0)*1000);
-      return d >= new Date();
-    });
-    const todaySess = teacherData.sessions.filter(s => {
-      const d = s.scheduledAt?.toDate ? s.scheduledAt.toDate() : new Date((s.scheduledAt?.seconds||0)*1000);
-      return d.toDateString() === tod;
-    });
-    const sCnt = document.getElementById('td-s-cnt');
-    const sesCnt = document.getElementById('td-sess-cnt');
-    const todCnt = document.getElementById('td-today-cnt');
-    if (sCnt)   sCnt.textContent   = teacherData.students.length;
-    if (sesCnt) sesCnt.textContent = upcoming.length;
-    if (todCnt) todCnt.textContent = todaySess.length;
-  } catch(e) {
-    console.error('Teacher data error:', e);
-    teacherData = {sessions:[], students:[]};
-    showToast('Could not load data. Try refreshing.','error');
+    <div class="stat-card" style="border-top:4px solid #0071C5;background:#EBF4FF;"><div style="font-size:22px;">🏅</div><div class="stat-val" style="color:#0071C5;font-size:13px;">Intel</div><div class="stat-lbl">Certified</div></div>`;
+  const cont=document.getElementById('td-content');
+  if(cont) cont.innerHTML='<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading your data…</div>';
+  try{
+    teacherData=await loadTeacherData();
+    const tod=new Date().toDateString();
+    const up=teacherData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);return d>=new Date();});
+    const td=teacherData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);return d.toDateString()===tod;});
+    const sCnt=document.getElementById('td-s-cnt');
+    const sesCnt=document.getElementById('td-sess-cnt');
+    const todCnt=document.getElementById('td-today-cnt');
+    if(sCnt)   sCnt.textContent   =teacherData.students.length;
+    if(sesCnt) sesCnt.textContent =up.length;
+    if(todCnt) todCnt.textContent =td.length;
+  }catch(e){
+    console.error('Teacher data error:',e);
+    teacherData={sessions:[],students:[]};
+    const cont=document.getElementById('td-content');
+    if(cont) cont.innerHTML=emptyState('⚠️','Could not load data',e.message||'Check Firestore rules.',
+      '<button class="btn btn-main" onclick="teacherData=null;initTeacherDash()">🔄 Retry</button>');
+    return;
   }
   renderTeacherTab('sessions');
 }
-
 function tdTab(btn,tab){
   document.querySelectorAll('#page-teacher-dashboard .tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');renderTeacherTab(tab);
 }
-
 function renderTeacherTab(tab){
-  const el = document.getElementById('td-content');
-  if (!el) return;
-  if (!teacherData) {
-    el.innerHTML='<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading… <button onclick="teacherData=null;initTeacherDash()" class="btn btn-main btn-sm" style="margin-top:12px;">Retry</button></div>';
-    return;
+  const el=document.getElementById('td-content');
+  if(!el||!teacherData) return;
+  const now=new Date(); const tod=now.toDateString();
+
+  if(tab==='sessions'){
+    const todSess =teacherData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);return d.toDateString()===tod;});
+    const futSess =teacherData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);return d>now&&d.toDateString()!==tod;});
+    const pastSess=teacherData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);return d<now;});
+    if(!teacherData.sessions.length){
+      el.innerHTML=emptyState('📅','No sessions yet','Once students assigned to you book classes, they appear here automatically.',
+        '<button class="btn btn-sec" onclick="teacherData=null;initTeacherDash();showToast(\'Refreshing…\')">🔄 Refresh</button>');return;
+    }
+    let html='';
+    if(todSess.length) html+=`<div style="background:#FFF9F0;border-radius:16px;padding:16px 20px;margin-bottom:20px;border:2px solid #FDCB6E;"><div style="font-weight:800;font-size:14px;color:#FF9F43;margin-bottom:12px;">🔔 TODAY (${todSess.length})</div>${todSess.map(s=>sessionRowHtml(s)).join('')}</div>`;
+    if(futSess.length) html+=`<div style="font-weight:800;font-size:14px;color:#6C63FF;margin-bottom:12px;">📅 UPCOMING (${futSess.length})</div>${futSess.map(s=>sessionRowHtml(s)).join('')}`;
+    if(pastSess.length) html+=`<div style="margin-top:24px;"><div style="font-weight:800;font-size:14px;color:#aaa;margin-bottom:12px;">✅ PAST (${pastSess.length})</div>${pastSess.slice(-5).reverse().map(s=>sessionRowHtml(s)).join('')}</div>`;
+    el.innerHTML=html;
   }
-
-  // ── SESSIONS TAB ────────────────────────────────────────
-  if (tab==='sessions') {
-    const now = new Date();
-    const today = now.toDateString();
-    const upcoming = teacherData.sessions.filter(s=>{
-      const d = s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);
-      return d >= now;
-    });
-    const todaySess = teacherData.sessions.filter(s=>{
-      const d = s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);
-      return d.toDateString()===today;
-    });
-    const past = teacherData.sessions.filter(s=>{
-      const d = s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);
-      return d < now;
-    });
-
-    if (!teacherData.sessions.length) {
-      el.innerHTML=`<div style="text-align:center;padding:52px 20px;">
-        <div style="font-size:56px;margin-bottom:16px;">📅</div>
-        <h3 style="font-family:'Nunito',sans-serif;font-size:18px;margin-bottom:8px;">No sessions yet</h3>
-        <p style="color:#888;font-size:14px;font-weight:600;max-width:400px;margin:0 auto;">Once students are assigned to you and book classes, their sessions will show up here automatically.</p>
-      </div>`;
-      return;
+  else if(tab==='students'){
+    if(!teacherData.students.length){
+      el.innerHTML=emptyState('👥','No students assigned yet','Admin assigns students to you from the Admin → Students tab.',
+        '<button class="btn btn-sec" onclick="teacherData=null;initTeacherDash();showToast(\'Refreshing…\')">🔄 Check Again</button>');return;
     }
-
-    let html = '';
-
-    if (todaySess.length) {
-      html += `<div style="background:linear-gradient(135deg,#FFF9F0,#FFF6E8);border-radius:18px;padding:16px 20px;margin-bottom:20px;border:2px solid #FDCB6E;">
-        <div style="font-weight:800;font-size:14px;color:#FF9F43;margin-bottom:12px;">🔔 TODAY'S CLASSES (${todaySess.length})</div>
-        ${todaySess.map(s=>sessionRowHtml(s)).join('')}
-      </div>`;
-    }
-
-    if (upcoming.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);return d.toDateString()!==today;}).length) {
-      const futSess = upcoming.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);return d.toDateString()!==today;});
-      html += `<div style="font-weight:800;font-size:14px;color:#6C63FF;margin-bottom:12px;margin-top:4px;">📅 UPCOMING (${futSess.length})</div>`;
-      html += futSess.map(s=>sessionRowHtml(s)).join('');
-    }
-
-    if (past.length) {
-      html += `<div style="margin-top:24px;"><div style="font-weight:800;font-size:14px;color:#aaa;margin-bottom:12px;">✅ PAST SESSIONS (${past.length})</div>`;
-      html += past.slice(-5).reverse().map(s=>sessionRowHtml(s)).join('') + '</div>';
-    }
-
-    el.innerHTML = html;
-  }
-
-  // ── STUDENTS TAB ─────────────────────────────────────────
-  else if (tab==='students') {
-    if (!teacherData.students.length) {
-      el.innerHTML=`<div style="text-align:center;padding:52px 20px;">
-        <div style="font-size:56px;margin-bottom:16px;">👥</div>
-        <h3 style="font-family:'Nunito',sans-serif;font-size:18px;margin-bottom:8px;">No students assigned yet</h3>
-        <p style="color:#888;font-size:14px;font-weight:600;max-width:420px;margin:0 auto;">Admin assigns students to you. Once assigned, you'll see them here with all their session history and progress.</p>
-        <button onclick="teacherData=null;initTeacherDash();showToast('Refreshing…')" class="btn btn-main" style="margin-top:20px;">🔄 Check Again</button>
-      </div>`;
-      return;
-    }
-    el.innerHTML = `
-      <div style="margin-bottom:20px;background:#F0EEFF;border-radius:14px;padding:14px 18px;font-size:13px;color:#6C63FF;font-weight:700;">
-        👥 You have <strong>${teacherData.students.length}</strong> student${teacherData.students.length>1?'s':''} assigned to you.
-      </div>
-      ${teacherData.students.map((s,i)=>{
-        const stuSessions = teacherData.sessions.filter(ss=>ss.studentId===s.uid||ss.studentId===s.id);
-        const upcoming = stuSessions.filter(ss=>{const d=ss.scheduledAt?.toDate?ss.scheduledAt.toDate():new Date((ss.scheduledAt?.seconds||0)*1000);return d>=new Date();});
-        return `<div class="session-row" style="flex-direction:column;align-items:stretch;gap:16px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-            <div style="display:flex;align-items:center;gap:14px;">
-              <div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,${AC[i%AC.length]},${AC[(i+2)%AC.length]});display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;flex-shrink:0;">
-                ${(s.name||s.email||'?')[0].toUpperCase()}
-              </div>
-              <div>
-                <div style="font-weight:800;font-size:16px;">${s.name||'Student'}</div>
-                <div style="font-size:13px;color:#999;font-weight:600;">${s.email||''}</div>
-                <div style="font-size:12px;color:#aaa;font-weight:600;">Grade ${s.grade||'—'} · ${s.subject||s.assignedSubject||'—'}</div>
-              </div>
-            </div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-              <span class="chip" style="background:#E8FFF8;color:#1DD1A1;">Active ✓</span>
-              <span class="chip" style="background:#F0EEFF;color:#6C63FF;">${upcoming.length} upcoming</span>
-              <span class="chip" style="background:#FFF6E8;color:#FF9F43;">${stuSessions.length} total sessions</span>
+    el.innerHTML=`<div style="margin-bottom:20px;background:#F0EEFF;border-radius:14px;padding:14px 18px;font-size:13px;color:#6C63FF;font-weight:700;">
+      👥 You have <strong>${teacherData.students.length}</strong> student${teacherData.students.length>1?'s':''} assigned to you.
+    </div>`+teacherData.students.map((s,i)=>{
+      const stuSess=teacherData.sessions.filter(ss=>ss.studentId===s.uid||ss.studentId===s.id);
+      const upSess=stuSess.filter(ss=>{const d=ss.scheduledAt?.toDate?ss.scheduledAt.toDate():new Date((ss.scheduledAt?.seconds||0)*1000);return d>=now;});
+      return `<div class="session-row" style="flex-direction:column;align-items:stretch;gap:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,${AC[i%AC.length]},${AC[(i+2)%AC.length]});display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;flex-shrink:0;">${(s.name||s.email||'?')[0].toUpperCase()}</div>
+            <div>
+              <div style="font-weight:800;font-size:16px;">${s.name||'Student'}</div>
+              <div style="font-size:13px;color:#999;font-weight:600;">${s.email||''}</div>
+              <div style="font-size:12px;color:#aaa;font-weight:600;">Grade ${s.grade||'—'} · ${s.subject||s.assignedSubject||'—'}</div>
             </div>
           </div>
-          ${upcoming.length?`<div style="background:#F8F8FF;border-radius:12px;padding:12px 16px;">
-            <div style="font-size:12px;font-weight:800;color:#6C63FF;margin-bottom:8px;">NEXT CLASS</div>
-            ${sessionRowHtml(upcoming[0])}
-          </div>`:''}
-        </div>`;
-      }).join('')}`;
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="chip" style="background:#E8FFF8;color:#1DD1A1;">Active ✓</span>
+            <span class="chip" style="background:#F0EEFF;color:#6C63FF;">${upSess.length} upcoming</span>
+            <span class="chip" style="background:#FFF6E8;color:#FF9F43;">${stuSess.length} total</span>
+          </div>
+        </div>
+        ${upSess.length?`<div style="background:#F8F8FF;border-radius:12px;padding:12px 14px;"><div style="font-size:11px;font-weight:800;color:#6C63FF;margin-bottom:8px;">NEXT CLASS</div>${sessionRowHtml(upSess[0])}</div>`:''}
+      </div>`;
+    }).join('');
   }
-
-  // ── HOMEWORK TAB ─────────────────────────────────────────
-  else if (tab==='homework') {
-    el.innerHTML = `
+  else if(tab==='homework'){
+    el.innerHTML=`
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
-        <h3 style="font-family:'Nunito',sans-serif;font-size:17px;">📝 Assign Homework</h3>
+        <h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin:0;">📝 Assign Homework</h3>
         <button onclick="showHomeworkForm()" class="btn btn-main btn-sm">+ New Homework</button>
       </div>
       <div id="hw-form-wrap" style="display:none;background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:24px;margin-bottom:24px;border:2px dashed #C0B8FF;">
         <h4 style="font-family:'Nunito',sans-serif;margin-bottom:16px;">New Homework Assignment</h4>
-        <div class="form-group"><label>Student</label>
-          <select id="hw-student">
-            <option value="">All my students</option>
+        <div class="form-group"><label>For Student</label>
+          <select id="hw-student"><option value="">All my students</option>
             ${teacherData.students.map(s=>`<option value="${s.uid||s.id}">${s.name||s.email}</option>`).join('')}
-          </select>
-        </div>
+          </select></div>
         <div class="form-group"><label>Title</label>
-          <input type="text" id="hw-title" placeholder="e.g. Practice quadratic equations — Chapter 4"/>
-        </div>
+          <input type="text" id="hw-title" placeholder="e.g. Practise Chapter 4 — Linear Equations"/></div>
         <div class="form-group"><label>Subject</label>
-          <select id="hw-subject">
-            <option value="">Choose subject…</option>
-            ${Object.keys(SUBJECT_COLORS).map(s=>`<option value="${s}">${SUBJECT_COLORS[s].emoji} ${s}</option>`).join('')}
-          </select>
-        </div>
+          <select id="hw-subject"><option value="">Choose subject…</option>
+            ${SUBJECTS.map(s=>`<option value="${s}">${SUBJECT_COLORS[s].emoji} ${s}</option>`).join('')}
+          </select></div>
         <div class="form-group"><label>Due Date</label>
-          <input type="date" id="hw-due" min="${new Date().toISOString().split('T')[0]}"/>
-        </div>
+          <input type="date" id="hw-due" min="${new Date().toISOString().split('T')[0]}"/></div>
         <div class="form-group"><label>Instructions</label>
-          <textarea id="hw-notes" rows="3" placeholder="Write detailed instructions here…" style="width:100%;padding:12px;border-radius:12px;border:2px solid #E8E8FF;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;resize:vertical;"></textarea>
-        </div>
+          <textarea id="hw-notes" rows="3" placeholder="Detailed instructions…" style="width:100%;padding:12px;border-radius:12px;border:2px solid #E8E8FF;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;resize:vertical;box-sizing:border-box;"></textarea></div>
         <div style="display:flex;gap:10px;">
-          <button class="btn btn-main" onclick="submitHomework()">Assign Homework 📝</button>
+          <button class="btn btn-main" onclick="submitHomework()">Assign 📝</button>
           <button class="btn btn-sec" onclick="document.getElementById('hw-form-wrap').style.display='none'">Cancel</button>
         </div>
       </div>
-      <div id="hw-list-teacher"><div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading homework…</div></div>`;
+      <div id="hw-list-teacher"><div style="text-align:center;padding:32px;color:#888;font-weight:700;">Loading…</div></div>`;
     loadTeacherHomework();
   }
-
-  // ── ANNOUNCE TAB ─────────────────────────────────────────
-  else if (tab==='announce') {
-    el.innerHTML = `
-      <div style="max-width:580px;">
-        <h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:20px;">📢 Send Announcement to Students</h3>
-        <div class="card" style="padding:28px;">
-          <div class="form-group"><label>Send To</label>
-            <select id="ann-to">
-              <option value="all">All my students</option>
-              ${teacherData.students.map(s=>`<option value="${s.uid||s.id}">${s.name||s.email}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group"><label>Message</label>
-            <textarea id="ann-msg" rows="4" placeholder="Write your message here…" style="width:100%;padding:12px;border-radius:12px;border:2px solid #E8E8FF;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;resize:vertical;"></textarea>
-          </div>
-          <button class="btn btn-main btn-full" onclick="sendAnnouncement()">Send Announcement 📢</button>
-        </div>
-        <div style="margin-top:20px;background:#FFF6E8;border-radius:14px;padding:14px 18px;font-size:13px;color:#FF9F43;font-weight:700;">
-          💡 Announcements are saved in Firestore under the 'announcements' collection. Students will see them on their dashboard.
-        </div>
-      </div>`;
+  else if(tab==='announce'){
+    el.innerHTML=`<div style="max-width:560px;">
+      <h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:20px;">📢 Send Announcement</h3>
+      <div class="card" style="padding:28px;">
+        <div class="form-group"><label>Send To</label>
+          <select id="ann-to"><option value="all">All my students</option>
+            ${teacherData.students.map(s=>`<option value="${s.uid||s.id}">${s.name||s.email}</option>`).join('')}
+          </select></div>
+        <div class="form-group"><label>Message</label>
+          <textarea id="ann-msg" rows="4" placeholder="Write your message…" style="width:100%;padding:12px;border-radius:12px;border:2px solid #E8E8FF;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;resize:vertical;box-sizing:border-box;"></textarea></div>
+        <button class="btn btn-main btn-full" onclick="sendAnnouncement()">Send 📢</button>
+      </div></div>`;
   }
-
-  // ── CURRICULUM TAB ───────────────────────────────────────
-  else if (tab==='curriculum') {
-    el.innerHTML=`
-      <div style="background:linear-gradient(135deg,#FFF9F0,#F0EEFF);border-radius:20px;padding:24px;margin-bottom:24px;border:2px dashed #C0B8FF;">
-        <div style="font-size:28px;margin-bottom:8px;">🧬</div>
-        <div style="font-weight:800;font-size:17px;color:#6C63FF;margin-bottom:8px;">100% Personalised Curriculum</div>
-        <p style="font-size:14px;color:#666;line-height:1.7;font-weight:600;margin:0;">Every student gets a plan built from scratch based on their level, pace and goals.</p>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;">
-        ${Object.entries(SUBJECT_COLORS).map(([n,sc])=>`
-          <div class="card" style="padding:24px;border-top:4px solid ${sc.color};">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-              <span style="font-size:26px;">${sc.emoji}</span>
-              <span style="font-weight:800;font-size:16px;">${n}</span>
-            </div>
-            ${["Diagnostic & Baseline","Core Concepts","Applied Practice","Projects & Assessment"].map((u,i)=>`
-              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<3?'border-bottom:1px dashed #f0f0f0':''}">
-                <div style="width:7px;height:7px;border-radius:50%;background:${sc.color};flex-shrink:0;"></div>
-                <span style="font-size:13px;color:#777;font-weight:700;">Unit ${i+1}: ${u}</span>
-              </div>`).join('')}
-          </div>`).join('')}
-      </div>`;
+  else if(tab==='curriculum'){
+    el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;">
+      ${Object.entries(SUBJECT_COLORS).map(([n,sc])=>`
+        <div class="card" style="padding:24px;border-top:4px solid ${sc.color};">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;"><span style="font-size:26px;">${sc.emoji}</span><span style="font-weight:800;font-size:16px;">${n}</span></div>
+          ${["Diagnostic & Baseline","Core Concepts","Applied Practice","Projects & Assessment"].map((u,i)=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<3?'border-bottom:1px dashed #f0f0f0':''}">
+              <div style="width:7px;height:7px;border-radius:50%;background:${sc.color};flex-shrink:0;"></div>
+              <span style="font-size:13px;color:#777;font-weight:700;">Unit ${i+1}: ${u}</span>
+            </div>`).join('')}
+        </div>`).join('')}
+    </div>`;
   }
-
-  // ── LMS TOOLS TAB ────────────────────────────────────────
-  else if (tab==='lms') {
-    el.innerHTML=`
-      <div style="margin-bottom:20px;font-size:14px;color:#888;font-weight:600;">Click any tool below to open it.</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;">
-        <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #FF6B6B;" onclick="tdTab(document.querySelectorAll('#page-teacher-dashboard .tab-btn')[2],'homework')">
-          <div style="font-size:36px;margin-bottom:14px;">📝</div>
-          <div style="font-weight:800;font-size:16px;margin-bottom:8px;">Assign Homework</div>
-          <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">Create assignments for individual students or the whole group.</div>
-          <div style="margin-top:14px;font-size:13px;font-weight:800;color:#FF6B6B;">Open →</div>
-        </div>
-        <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #6C63FF;" onclick="tdTab(document.querySelectorAll('#page-teacher-dashboard .tab-btn')[3],'announce')">
-          <div style="font-size:36px;margin-bottom:14px;">📢</div>
-          <div style="font-weight:800;font-size:16px;margin-bottom:8px;">Announcements</div>
-          <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">Send messages and updates to your assigned students.</div>
-          <div style="margin-top:14px;font-size:13px;font-weight:800;color:#6C63FF;">Open →</div>
-        </div>
-        <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #FF9F43;" onclick="showResourceUpload()">
-          <div style="font-size:36px;margin-bottom:14px;">📤</div>
-          <div style="font-weight:800;font-size:16px;margin-bottom:8px;">Share Resources</div>
-          <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">Share Google Drive links, YouTube videos or document URLs with students.</div>
-          <div style="margin-top:14px;font-size:13px;font-weight:800;color:#FF9F43;">Open →</div>
-        </div>
-        <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #1DD1A1;" onclick="tdTab(document.querySelectorAll('#page-teacher-dashboard .tab-btn')[0],'sessions')">
-          <div style="font-size:36px;margin-bottom:14px;">📅</div>
-          <div style="font-weight:800;font-size:16px;margin-bottom:8px;">View Schedule</div>
-          <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">See all upcoming sessions and today's classes with Meet links.</div>
-          <div style="margin-top:14px;font-size:13px;font-weight:800;color:#1DD1A1;">Open →</div>
-        </div>
-        <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #54A0FF;" onclick="tdTab(document.querySelectorAll('#page-teacher-dashboard .tab-btn')[1],'students')">
-          <div style="font-size:36px;margin-bottom:14px;">👥</div>
-          <div style="font-weight:800;font-size:16px;margin-bottom:8px;">My Students</div>
-          <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">View all assigned students, their progress and upcoming sessions.</div>
-          <div style="margin-top:14px;font-size:13px;font-weight:800;color:#54A0FF;">Open →</div>
-        </div>
-        <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #A29BFE;" onclick="tdTab(document.querySelectorAll('#page-teacher-dashboard .tab-btn')[4],'curriculum')">
-          <div style="font-size:36px;margin-bottom:14px;">🧬</div>
-          <div style="font-weight:800;font-size:16px;margin-bottom:8px;">Curriculum</div>
-          <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">View the personalised curriculum structure for each subject.</div>
-          <div style="margin-top:14px;font-size:13px;font-weight:800;color:#A29BFE;">Open →</div>
+  else if(tab==='lms'){
+    el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:20px;">
+      <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #FF6B6B;" onclick="tdTab(document.querySelectorAll('#page-teacher-dashboard .tab-btn')[2],'homework')">
+        <div style="font-size:36px;margin-bottom:12px;">📝</div><div style="font-weight:800;font-size:15px;margin-bottom:6px;">Assign Homework</div>
+        <div style="font-size:13px;color:#999;font-weight:600;">Create assignments for your students.</div>
+        <div style="margin-top:14px;font-size:13px;font-weight:800;color:#FF6B6B;">Open →</div></div>
+      <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #6C63FF;" onclick="tdTab(document.querySelectorAll('#page-teacher-dashboard .tab-btn')[3],'announce')">
+        <div style="font-size:36px;margin-bottom:12px;">📢</div><div style="font-weight:800;font-size:15px;margin-bottom:6px;">Announcements</div>
+        <div style="font-size:13px;color:#999;font-weight:600;">Send updates to your students.</div>
+        <div style="margin-top:14px;font-size:13px;font-weight:800;color:#6C63FF;">Open →</div></div>
+      <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #FF9F43;" onclick="showResourceUpload()">
+        <div style="font-size:36px;margin-bottom:12px;">📤</div><div style="font-weight:800;font-size:15px;margin-bottom:6px;">Share Resources</div>
+        <div style="font-size:13px;color:#999;font-weight:600;">Share Drive links or YouTube videos.</div>
+        <div style="margin-top:14px;font-size:13px;font-weight:800;color:#FF9F43;">Open →</div></div>
+      <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #1DD1A1;" onclick="tdTab(document.querySelectorAll('#page-teacher-dashboard .tab-btn')[0],'sessions')">
+        <div style="font-size:36px;margin-bottom:12px;">📅</div><div style="font-weight:800;font-size:15px;margin-bottom:6px;">View Schedule</div>
+        <div style="font-size:13px;color:#999;font-weight:600;">All sessions with Meet links.</div>
+        <div style="margin-top:14px;font-size:13px;font-weight:800;color:#1DD1A1;">Open →</div></div>
+      <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #54A0FF;" onclick="tdTab(document.querySelectorAll('#page-teacher-dashboard .tab-btn')[1],'students')">
+        <div style="font-size:36px;margin-bottom:12px;">👥</div><div style="font-weight:800;font-size:15px;margin-bottom:6px;">My Students</div>
+        <div style="font-size:13px;color:#999;font-weight:600;">Assigned students and their progress.</div>
+        <div style="margin-top:14px;font-size:13px;font-weight:800;color:#54A0FF;">Open →</div></div>
+      <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #A29BFE;" onclick="tdTab(document.querySelectorAll('#page-teacher-dashboard .tab-btn')[4],'curriculum')">
+        <div style="font-size:36px;margin-bottom:12px;">🧬</div><div style="font-weight:800;font-size:15px;margin-bottom:6px;">Curriculum</div>
+        <div style="font-size:13px;color:#999;font-weight:600;">Personalised curriculum structure.</div>
+        <div style="margin-top:14px;font-size:13px;font-weight:800;color:#A29BFE;">Open →</div></div>
+    </div>
+    <div id="resource-upload-wrap" style="display:none;margin-top:24px;">
+      <div class="card" style="padding:28px;border-top:4px solid #FF9F43;max-width:540px;">
+        <h4 style="font-family:'Nunito',sans-serif;margin-bottom:16px;">📤 Share a Resource</h4>
+        <div class="form-group"><label>Title</label><input type="text" id="res-title" placeholder="e.g. Chapter 3 Notes"/></div>
+        <div class="form-group"><label>Link (Drive / YouTube / any URL)</label><input type="url" id="res-url" placeholder="https://drive.google.com/…"/></div>
+        <div class="form-group"><label>Send To</label>
+          <select id="res-student"><option value="all">All my students</option>
+            ${teacherData.students.map(s=>`<option value="${s.uid||s.id}">${s.name||s.email}</option>`).join('')}
+          </select></div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-main" onclick="submitResource()">Share 📤</button>
+          <button class="btn btn-sec" onclick="document.getElementById('resource-upload-wrap').style.display='none'">Cancel</button>
         </div>
       </div>
-      <div id="resource-upload-wrap" style="display:none;margin-top:24px;">
-        <div class="card" style="padding:28px;border-top:4px solid #FF9F43;max-width:540px;">
-          <h4 style="font-family:'Nunito',sans-serif;margin-bottom:16px;">📤 Share a Resource</h4>
-          <div class="form-group"><label>Resource Title</label>
-            <input type="text" id="res-title" placeholder="e.g. Chapter 3 Notes — Quadratic Equations"/>
-          </div>
-          <div class="form-group"><label>Link (Google Drive / YouTube / any URL)</label>
-            <input type="url" id="res-url" placeholder="https://drive.google.com/…"/>
-          </div>
-          <div class="form-group"><label>Send To</label>
-            <select id="res-student">
-              <option value="all">All my students</option>
-              ${teacherData.students.map(s=>`<option value="${s.uid||s.id}">${s.name||s.email}</option>`).join('')}
-            </select>
-          </div>
-          <div style="display:flex;gap:10px;">
-            <button class="btn btn-main" onclick="submitResource()">Share Resource 📤</button>
-            <button class="btn btn-sec" onclick="document.getElementById('resource-upload-wrap').style.display='none'">Cancel</button>
-          </div>
-        </div>
-      </div>`;
+    </div>`;
   }
 }
 
-// ── HOMEWORK HELPERS ─────────────────────────────────────
-function showHomeworkForm() {
-  document.getElementById('hw-form-wrap').style.display='block';
+// ══════════════════════════════════════════════════════════════════════
+// ADMIN DASHBOARD
+// ══════════════════════════════════════════════════════════════════════
+async function initAdminDash(){
+  const dateEl=document.getElementById('admin-date');
+  if(dateEl) dateEl.textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  try{ _adminData=await loadAdminData(); }
+  catch(e){ _adminData={users:[],sessions:[],requests:[],enquiries:[],pending:[]}; showToast('Admin data error: '+e.message,'error'); }
+  const students=_adminData.users.filter(u=>u.role==='student');
+  const teachers=_adminData.users.filter(u=>u.role==='teacher');
+  const tod=new Date().toDateString();
+  const todSess=_adminData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);return d.toDateString()===tod;});
+  const el_s=document.getElementById('admin-stats');
+  if(el_s) el_s.innerHTML=`
+    <div class="stat-card" style="border-top:4px solid #FF6B6B;background:#FFF0F0;"><div style="font-size:22px;">🎒</div><div class="stat-val" style="color:#FF6B6B;">${students.length}</div><div class="stat-lbl">Students</div></div>
+    <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">👩‍🏫</div><div class="stat-val" style="color:#6C63FF;">${teachers.length}</div><div class="stat-lbl">Teachers</div></div>
+    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF9F43;">${todSess.length}</div><div class="stat-lbl">Today's Classes</div></div>
+    <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">📩</div><div class="stat-val" style="color:#1DD1A1;">${_adminData.enquiries.length}</div><div class="stat-lbl">Enquiries</div></div>
+    <div class="stat-card" style="border-top:4px solid #A29BFE;background:#F3F0FF;"><div style="font-size:22px;">🔔</div><div class="stat-val" style="color:#A29BFE;">${_adminData.pending.length}</div><div class="stat-lbl">Pending Access</div></div>
+    <div class="stat-card" style="border-top:4px solid #54A0FF;background:#EBF4FF;"><div style="font-size:22px;">⏳</div><div class="stat-val" style="color:#54A0FF;">${_adminData.requests.filter(r=>r.status==='pending_approval').length}</div><div class="stat-lbl">Urgent Req.</div></div>`;
+  renderAdminTab('today');
 }
-
-async function loadTeacherHomework() {
-  const uid = window._ika?.uid; if (!uid) return;
-  try {
-    const snap = await db.collection('homework').where('teacherId','==',uid).get();
-    const hw = snap.docs.map(d=>({id:d.id,...d.data()}));
-    const el = document.getElementById('hw-list-teacher');
-    if (!el) return;
-    if (!hw.length) { el.innerHTML = '<div style="text-align:center;padding:32px;color:#888;font-weight:700;">No homework assigned yet. Click "+ New Homework" to create one.</div>'; return; }
-    el.innerHTML = hw.map(h=>{
-      const sc = SUBJECT_COLORS[h.subject]||{color:'#6C63FF',emoji:'📘'};
-      return `<div class="session-row" style="border-left:4px solid ${sc.color};">
-        <div style="display:flex;align-items:center;gap:14px;flex:1;">
-          <div style="font-size:28px;">${sc.emoji}</div>
-          <div>
-            <div style="font-weight:800;font-size:15px;">${h.title}</div>
-            <div style="font-size:13px;color:#999;font-weight:600;">${h.subject} · Due: ${h.due||'—'} · For: ${h.studentName||'All students'}</div>
-          </div>
-        </div>
-        <span class="chip" style="background:#E8FFF8;color:#1DD1A1;">${h.status==='done'?'✅ Done':'📬 Assigned'}</span>
-      </div>`;
-    }).join('');
-  } catch(e) { console.error('Homework load error:', e); }
-}
-
-async function submitHomework() {
-  const title   = document.getElementById('hw-title')?.value.trim();
-  const subject = document.getElementById('hw-subject')?.value;
-  const due     = document.getElementById('hw-due')?.value;
-  const notes   = document.getElementById('hw-notes')?.value.trim();
-  const stuId   = document.getElementById('hw-student')?.value;
-  if (!title||!subject||!due) { showToast('Fill in title, subject and due date.','error'); return; }
-  const teacher = window._ika || {};
-  const stuName = stuId ? (teacherData.students.find(s=>(s.uid||s.id)===stuId)?.name||'Student') : 'All students';
-  try {
-    const payload = {
-      title, subject, due, notes,
-      teacherId:   teacher.uid,
-      teacherName: teacher.name||teacher.email||'',
-      status: 'assigned',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    if (stuId) {
-      payload.studentId = stuId;
-      payload.studentName = stuName;
-      await db.collection('homework').add(payload);
-    } else {
-      // Assign to all students
-      const batch = db.batch();
-      teacherData.students.forEach(s=>{
-        const ref = db.collection('homework').doc();
-        batch.set(ref, {...payload, studentId: s.uid||s.id, studentName: s.name||s.email});
-      });
-      await batch.commit();
-    }
-    showToast(`Homework assigned to ${stuName}! 📝`,'success');
-    document.getElementById('hw-form-wrap').style.display='none';
-    document.getElementById('hw-title').value='';
-    document.getElementById('hw-notes').value='';
-    loadTeacherHomework();
-  } catch(e) { showToast('Failed to assign homework. Try again.','error'); console.error(e); }
-}
-
-async function sendAnnouncement() {
-  const msg   = document.getElementById('ann-msg')?.value.trim();
-  const toId  = document.getElementById('ann-to')?.value;
-  if (!msg) { showToast('Write a message first.','error'); return; }
-  const teacher = window._ika||{};
-  try {
-    await db.collection('announcements').add({
-      message: msg,
-      teacherId:   teacher.uid,
-      teacherName: teacher.name||teacher.email||'',
-      toStudentId: toId||'all',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showToast('Announcement sent! 📢','success');
-    document.getElementById('ann-msg').value='';
-  } catch(e) { showToast('Failed to send. Try again.','error'); }
-}
-
-function showResourceUpload() {
-  const el = document.getElementById('resource-upload-wrap');
-  if (el) el.style.display = el.style.display==='none'?'block':'none';
-}
-
-async function submitResource() {
-  const title  = document.getElementById('res-title')?.value.trim();
-  const url    = document.getElementById('res-url')?.value.trim();
-  const stuId  = document.getElementById('res-student')?.value;
-  if (!title||!url) { showToast('Enter a title and link.','error'); return; }
-  const teacher = window._ika||{};
-  try {
-    await db.collection('resources').add({
-      title, url, toStudentId: stuId||'all',
-      teacherId: teacher.uid, teacherName: teacher.name||teacher.email||'',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showToast('Resource shared! 📤','success');
-    document.getElementById('resource-upload-wrap').style.display='none';
-    document.getElementById('res-title').value='';
-    document.getElementById('res-url').value='';
-  } catch(e) { showToast('Failed to share. Try again.','error'); }
-}
-
-
 function adminTab(btn,tab){
   document.querySelectorAll('#page-admin-dashboard .tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');renderAdminTab(tab);
 }
-
 function renderAdminTab(tab){
-  const el=document.getElementById('admin-content');
-  if(!_adminData){el.innerHTML='<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>';return;}
+  const el=document.getElementById('admin-content'); if(!el||!_adminData) return;
   const TH=cols=>`<thead><tr style="background:linear-gradient(135deg,#1a1a2e,#2d1b69);">${cols.map(c=>`<th style="padding:12px 14px;text-align:left;color:#fff;font-weight:800;white-space:nowrap;">${c}</th>`).join('')}</tr></thead>`;
   const TR=(i,cells)=>`<tr style="border-bottom:1px solid #f0f0f0;background:${i%2?'#FAFAFA':'#fff'};">${cells.map(c=>`<td style="padding:11px 14px;">${c}</td>`).join('')}</tr>`;
 
   if(tab==='today'){
     const tod=new Date().toDateString();
-    const todSess=_adminData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);return d.toDateString()===tod;});
+    const todSess=_adminData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);return d.toDateString()===tod;});
     const urgReqs=_adminData.requests.filter(r=>r.status==='pending_approval');
-    el.innerHTML=`
-      <h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">📊 Today's Master Sheet — ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long'})}</h3>
+    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">📊 Today — ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long'})}</h3>
       ${urgReqs.length?`<div style="background:#FFF6E8;border-radius:16px;padding:16px 20px;margin-bottom:20px;border:2px solid #FDCB6E;">
-        <div style="font-weight:800;font-size:14px;color:#FF9F43;margin-bottom:12px;">⚡ ${urgReqs.length} Urgent Session Request(s) Need Approval</div>
+        <div style="font-weight:800;font-size:14px;color:#FF9F43;margin-bottom:12px;">⚡ ${urgReqs.length} Urgent Request(s)</div>
         ${urgReqs.map(r=>`<div style="background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.06);">
           <div><div style="font-weight:800;font-size:14px;">${r.studentName||'Student'} — ${r.subject}</div>
-          <div style="font-size:12px;color:#999;font-weight:600;">${r.dateTimeISO?new Date(r.dateTimeISO).toLocaleString('en-IN'):''} · ${r.type||'1-on-1'}</div></div>
+          <div style="font-size:12px;color:#999;font-weight:600;">${r.dateTimeISO?new Date(r.dateTimeISO).toLocaleString('en-IN'):''}</div></div>
           <div style="display:flex;gap:8px;">
             <button onclick="approveSessionRequest('${r.id}')" class="btn btn-green btn-sm">✅ Approve</button>
-            <button onclick="showToast('Declined.','error')" class="btn btn-sm" style="background:#FFF0F0;color:#FF6B6B;">❌ Decline</button>
-          </div>
-        </div>`).join('')}
+          </div></div>`).join('')}
       </div>`:''}
       <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
-        ${TH(['#','Student','Subject','Topic','Teacher','Time','Type','Status','Meet Link'])}
+        ${TH(['#','Student','Subject','Teacher','Time','Type','Status','Meet'])}
         <tbody>${todSess.length?todSess.map((s,i)=>{
           const sc=SUBJECT_COLORS[s.subject]||{color:"#6C63FF",emoji:"📘"};
-          const dt=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);
-          return TR(i,[i+1,`<span style="font-weight:800;">${s.studentName||'—'}</span>`,
-            `<span style="color:${sc.color};font-weight:800;">${sc.emoji} ${s.subject}</span>`,
-            s.topic||'—', s.teacherName||'—',
-            dt.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}),
+          const dt=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date((s.scheduledAt?.seconds||0)*1000);
+          return TR(i,[i+1,`<b>${s.studentName||'—'}</b>`,`<span style="color:${sc.color};font-weight:800;">${sc.emoji} ${s.subject}</span>`,
+            s.teacherName||'—',dt.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}),
             `<span class="chip ${s.type==='1-on-1'?'chip-1on1':'chip-group'}">${s.type||'1-on-1'}</span>`,
             `<span class="chip" style="background:${s.status==='confirmed'?'#E8FFF8':'#FFF6E8'};color:${s.status==='confirmed'?'#1DD1A1':'#FF9F43'};">${s.status||'pending'}</span>`,
             s.meetLink?`<a href="${s.meetLink}" target="_blank" style="color:#6C63FF;font-weight:800;font-size:12px;">Join →</a>`:'—']);
-        }).join(''):`<tr><td colspan="9" style="text-align:center;padding:32px;color:#aaa;font-weight:700;">No sessions today.</td></tr>`}
+        }).join(''):`<tr><td colspan="8" style="text-align:center;padding:32px;color:#aaa;font-weight:700;">No sessions today.</td></tr>`}
         </tbody></table></div>`;
   }
-
   else if(tab==='pending'){
     const pend=_adminData.pending;
-    if(!pend.length){el.innerHTML=emptyState('🎉','No pending approvals!','All done.');return;}
-    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:20px;">🔔 Pending Access Requests (${pend.length})</h3>`+
+    if(!pend.length){el.innerHTML=emptyState('🎉','No pending approvals!','All access requests processed.');return;}
+    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:20px;">🔔 Pending (${pend.length})</h3>`+
       pend.map(r=>`<div class="card" style="padding:20px;margin-bottom:14px;border-left:4px solid #FF9F43;">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
           <div style="display:flex;align-items:center;gap:12px;">
@@ -2022,49 +1873,42 @@ function renderAdminTab(tab){
             <select id="role-sel-${r.id}" style="padding:8px 12px;border-radius:10px;border:2px solid #E8E8FF;font-weight:700;font-size:13px;">
               <option value="student">🎒 Student</option><option value="teacher">👩‍🏫 Teacher</option>
             </select>
-            <button onclick="approveUser('${r.id}',document.getElementById('role-sel-${r.id}').value,'${(r.name||'').replace(/'/g,"")}')" class="btn btn-green btn-sm">✅ Approve</button>
+            <button onclick="approveUser('${r.id}',document.getElementById('role-sel-${r.id}').value,'${(r.name||'').replace(/'/g,'')}')" class="btn btn-green btn-sm">✅ Approve</button>
             <button onclick="rejectUser('${r.id}')" class="btn btn-sm" style="background:#FFF0F0;color:#FF6B6B;">❌ Reject</button>
           </div>
-        </div>
-      </div>`).join('');
+        </div></div>`).join('');
   }
-
   else if(tab==='students'){
     const students=_adminData.users.filter(u=>u.role==='student');
     const teachers=_adminData.users.filter(u=>u.role==='teacher');
     if(!students.length){el.innerHTML=emptyState('🎒','No students yet','Approve student access requests first.');return;}
-    const teacherOptions=teachers.map(t=>`<option value="${t.id}" data-name="${t.name||t.email}">${t.name||t.email}</option>`).join('');
-    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">🎒 All Students (${students.length}) — Assign Teachers Below</h3>
+    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">🎒 Students (${students.length}) — Assign Teachers</h3>
       <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead><tr style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);">${['Name','Email','Grade','Subject','Assigned Teacher','Action'].map(h=>`<th style="padding:12px 14px;text-align:left;color:#fff;font-weight:800;">${h}</th>`).join('')}</tr></thead>
+        <thead><tr style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);">${['Name','Email','Grade','Subject','Assign Teacher',''].map(h=>`<th style="padding:12px 14px;text-align:left;color:#fff;font-weight:800;">${h}</th>`).join('')}</tr></thead>
         <tbody>${students.map((s,i)=>TR(i,[
-          `<span style="font-weight:800;">${s.name||'—'}</span>`,
-          `<span style="color:#6C63FF;font-weight:600;">${s.email}</span>`,
-          s.grade?'Gr. '+s.grade:'—',
-          s.subject||'—',
-          `<select id="assign-t-${s.id}" style="padding:6px 10px;border-radius:8px;border:2px solid #E8E8FF;font-weight:700;font-size:12px;max-width:160px;">
+          `<b>${s.name||'—'}</b>`,`<span style="color:#6C63FF;font-weight:600;">${s.email}</span>`,
+          s.grade?'Gr. '+s.grade:'—', s.subject||'—',
+          `<select id="assign-t-${s.id}" style="padding:6px 10px;border-radius:8px;border:2px solid #E8E8FF;font-weight:700;font-size:12px;max-width:180px;">
             <option value="">— No teacher —</option>
             ${teachers.map(t=>`<option value="${t.id}" data-name="${t.name||t.email}" ${s.assignedTeacherId===t.id?'selected':''}>${t.name||t.email}</option>`).join('')}
           </select>`,
           `<button onclick="assignTeacher('${s.id}')" class="btn btn-green btn-sm">💾 Save</button>`
-        ])).join('')}
-        </tbody></table></div>`;
+        ])).join('')}</tbody></table></div>`;
   }
-
   else if(tab==='teachers'){
     const teachers=_adminData.users.filter(u=>u.role==='teacher');
     if(!teachers.length){el.innerHTML=emptyState('👩‍🏫','No teachers yet','Approve teacher access requests first.');return;}
-    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">👩‍🏫 All Teachers (${teachers.length})</h3>
+    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">👩‍🏫 Teachers (${teachers.length})</h3>
       <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead><tr style="background:linear-gradient(135deg,#6C63FF,#A29BFE);">${['Name','Email','Subject','Sessions','Certification'].map(h=>`<th style="padding:12px 14px;text-align:left;color:#fff;font-weight:800;">${h}</th>`).join('')}</tr></thead>
-        <tbody>${teachers.map((t,i)=>{const ms=_adminData.sessions.filter(s=>s.teacherId===t.id).length;
-          return TR(i,[`<span style="font-weight:800;">${t.name||'—'}</span>`,
-            `<span style="color:#6C63FF;font-weight:600;">${t.email}</span>`,
-            t.subject||'—', `<span style="font-weight:800;color:#FF9F43;">${ms}</span>`,
+        <thead><tr style="background:linear-gradient(135deg,#6C63FF,#A29BFE);">${['Name','Email','Subject','Students','Sessions','Certification'].map(h=>`<th style="padding:12px 14px;text-align:left;color:#fff;font-weight:800;">${h}</th>`).join('')}</tr></thead>
+        <tbody>${teachers.map((t,i)=>{
+          const ms=_adminData.sessions.filter(s=>s.teacherId===t.id).length;
+          const mstu=_adminData.users.filter(u=>u.assignedTeacherId===t.id).length;
+          return TR(i,[`<b>${t.name||'—'}</b>`,`<span style="color:#6C63FF;font-weight:600;">${t.email}</span>`,
+            t.subject||'—',`<b style="color:#6C63FF;">${mstu}</b>`,`<b style="color:#FF9F43;">${ms}</b>`,
             `<span class="chip" style="background:#EBF4FF;color:#0071C5;font-size:11px;">🏅 Intel Certified</span>`]);
         }).join('')}</tbody></table></div>`;
   }
-
   else if(tab==='sessions'){
     if(!_adminData.sessions.length){el.innerHTML=emptyState('📅','No sessions yet','Sessions booked by students appear here.');return;}
     el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">📅 All Sessions (${_adminData.sessions.length})</h3>
@@ -2072,48 +1916,44 @@ function renderAdminTab(tab){
         ${TH(['#','Student','Subject','Teacher','Date & Time','Type','Status','Meet'])}
         <tbody>${_adminData.sessions.map((s,i)=>{
           const sc=SUBJECT_COLORS[s.subject]||{color:"#6C63FF",emoji:"📘"};
-          return TR(i,[i+1,`<span style="font-weight:800;">${s.studentName||'—'}</span>`,
-            `<span style="color:${sc.color};font-weight:800;">${sc.emoji} ${s.subject}</span>`,
-            s.teacherName||'—', s.scheduledAt?fmtDate(s.scheduledAt):'—',
+          return TR(i,[i+1,`<b>${s.studentName||'—'}</b>`,`<span style="color:${sc.color};font-weight:800;">${sc.emoji} ${s.subject}</span>`,
+            s.teacherName||'—',s.scheduledAt?fmtDate(s.scheduledAt):'—',
             `<span class="chip ${s.type==='1-on-1'?'chip-1on1':'chip-group'}">${s.type||'1-on-1'}</span>`,
             `<span class="chip" style="background:${s.status==='confirmed'?'#E8FFF8':'#FFF6E8'};color:${s.status==='confirmed'?'#1DD1A1':'#FF9F43'};">${s.status||'pending'}</span>`,
             s.meetLink?`<a href="${s.meetLink}" target="_blank" style="color:#6C63FF;font-weight:800;font-size:12px;">Join →</a>`:'—']);
         }).join('')}</tbody></table></div>`;
   }
-
   else if(tab==='enquiries'){
-    if(!_adminData.enquiries.length){el.innerHTML=emptyState('📩','No enquiries yet','Demo booking forms appear here.');return;}
-    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">📩 Demo Enquiries (${_adminData.enquiries.length})</h3>
+    if(!_adminData.enquiries.length){el.innerHTML=emptyState('📩','No enquiries yet','Contact form submissions appear here.');return;}
+    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">📩 Enquiries (${_adminData.enquiries.length})</h3>
       <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead><tr style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);">${['Name','Email','Phone','Grade','Subject','Type','Message','Date'].map(h=>`<th style="padding:12px 14px;text-align:left;color:#fff;font-weight:800;">${h}</th>`).join('')}</tr></thead>
+        <thead><tr style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);">${['Name','Email','Phone','Grade','Subject','Message','Date'].map(h=>`<th style="padding:12px 14px;text-align:left;color:#fff;font-weight:800;">${h}</th>`).join('')}</tr></thead>
         <tbody>${_adminData.enquiries.map((e,i)=>TR(i,[
-          `<span style="font-weight:800;">${e.name||'—'}</span>`,
-          `<span style="color:#6C63FF;font-weight:600;">${e.email||'—'}</span>`,
-          e.phone||'—', e.grade?'Gr.'+e.grade:'—', e.subject||'—', e.type||'—',
-          `<span style="color:#555;max-width:200px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.message||'—'}</span>`,
+          `<b>${e.name||'—'}</b>`,`<span style="color:#6C63FF;font-weight:600;">${e.email||'—'}</span>`,
+          e.phone||'—',e.grade?'Gr.'+e.grade:'—',e.subject||'—',
+          `<span style="color:#555;max-width:180px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.message||'—'}</span>`,
           e.createdAt?.toDate?e.createdAt.toDate().toLocaleDateString('en-IN'):'—'])).join('')}
         </tbody></table></div>`;
   }
 }
 
 // ─── PRICING ──────────────────────────────────────────────────────────
-let pricingCurrency='INR', pricingType='1on1';
+let pricingCurrency='INR',pricingType='1on1';
 const PRICING_DATA={
   '1on1':{packs:[
-    {classes:4, label:'Starter', tag:'',             popular:false,perClass:{INR:799,USD:10, GBP:8,  AED:36,CAD:14},color:'#FF6B6B',emoji:'🌱'},
-    {classes:8, label:'Builder', tag:'Save 8%',      popular:false,perClass:{INR:749,USD:9,  GBP:7,  AED:34,CAD:13},color:'#FF9F43',emoji:'🚀'},
-    {classes:16,label:'Achiever',tag:'Most Popular',  popular:true, perClass:{INR:699,USD:8,  GBP:7,  AED:31,CAD:11},color:'#6C63FF',emoji:'⭐'},
-    {classes:32,label:'Champion',tag:'Best Value',    popular:false,perClass:{INR:649,USD:7.5,GBP:6,  AED:28,CAD:10},color:'#1DD1A1',emoji:'🏆'},
+    {classes:4, label:'Starter', tag:'',            popular:false,perClass:{INR:799,USD:22,GBP:17,AED:81,CAD:30},color:'#FF6B6B',emoji:'🌱'},
+    {classes:8, label:'Builder', tag:'Save 5%',     popular:false,perClass:{INR:749,USD:21,GBP:16,AED:77,CAD:28},color:'#FF9F43',emoji:'🚀'},
+    {classes:16,label:'Achiever',tag:'Most Popular', popular:true, perClass:{INR:699,USD:20,GBP:15,AED:73,CAD:27},color:'#6C63FF',emoji:'⭐'},
+    {classes:32,label:'Champion',tag:'Best Value',   popular:false,perClass:{INR:649,USD:18,GBP:14,AED:66,CAD:25},color:'#1DD1A1',emoji:'🏆'},
   ]},
   'group':{packs:[
-    {classes:4, label:'Starter', tag:'',             popular:false,perClass:{INR:449,USD:5.5,GBP:4.5,AED:20,CAD:7.5},color:'#FF6B6B',emoji:'🌱'},
-    {classes:8, label:'Builder', tag:'Save 8%',      popular:false,perClass:{INR:399,USD:5,  GBP:4,  AED:18,CAD:7  },color:'#FF9F43',emoji:'🚀'},
-    {classes:16,label:'Achiever',tag:'Most Popular',  popular:true, perClass:{INR:369,USD:4.5,GBP:3.5,AED:17,CAD:6.5},color:'#6C63FF',emoji:'⭐'},
-    {classes:32,label:'Champion',tag:'Best Value',    popular:false,perClass:{INR:329,USD:4,  GBP:3,  AED:15,CAD:5.5},color:'#1DD1A1',emoji:'🏆'},
+    {classes:4, label:'Starter', tag:'',            popular:false,perClass:{INR:449,USD:13,GBP:10,AED:48,CAD:18},color:'#FF6B6B',emoji:'🌱'},
+    {classes:8, label:'Builder', tag:'Save 5%',     popular:false,perClass:{INR:399,USD:12,GBP:9, AED:44,CAD:16},color:'#FF9F43',emoji:'🚀'},
+    {classes:16,label:'Achiever',tag:'Most Popular', popular:true, perClass:{INR:369,USD:11,GBP:8, AED:40,CAD:15},color:'#6C63FF',emoji:'⭐'},
+    {classes:32,label:'Champion',tag:'Best Value',   popular:false,perClass:{INR:329,USD:10,GBP:7, AED:37,CAD:14},color:'#1DD1A1',emoji:'🏆'},
   ]}
 };
 const CURRENCY_SYMBOL={INR:'₹',USD:'$',GBP:'£',AED:'AED ',CAD:'CA$'};
-
 function setCurrency(c){
   pricingCurrency=c;
   document.querySelectorAll('.cur-btn').forEach(b=>{const a=b.id==='cur-'+c;b.style.background=a?'linear-gradient(135deg,#FF6B6B,#FF9F43)':'transparent';b.style.color=a?'#fff':'#888';});
@@ -2129,7 +1969,7 @@ function setSessionType(t){
 function renderPricingCards(){
   const el=document.getElementById('pricing-cards');if(!el)return;
   const sym=CURRENCY_SYMBOL[pricingCurrency];
-  el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px;">
+  el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;">
     ${PRICING_DATA[pricingType].packs.map(p=>{const tot=Math.round(p.perClass[pricingCurrency]*p.classes);return`
       <div class="card ${p.popular?'':'card-hover'}" style="padding:28px;border-top:5px solid ${p.color};position:relative;${p.popular?'box-shadow:0 16px 48px rgba(108,99,255,.22);transform:scale(1.03);':''}">
         ${p.tag?`<div style="position:absolute;top:-1px;right:20px;background:${p.popular?'linear-gradient(135deg,#6C63FF,#A29BFE)':'linear-gradient(135deg,#FF9F43,#FDCB6E)'};color:#fff;font-size:11px;font-weight:800;padding:5px 14px;border-radius:0 0 10px 10px;">${p.tag}</div>`:''}
@@ -2142,7 +1982,7 @@ function renderPricingCards(){
           <div style="font-size:13px;font-weight:700;color:#555;">✅ ${p.classes} live sessions</div>
           <div style="font-size:13px;font-weight:700;color:#555;">✅ Personalised curriculum</div>
           <div style="font-size:13px;font-weight:700;color:#555;">✅ Intel-certified teacher</div>
-          <div style="font-size:13px;font-weight:700;color:#555;">✅ Auto Google Meet link</div>
+          <div style="font-size:13px;font-weight:700;color:#555;">✅ Auto Jitsi Meet link</div>
           ${p.classes>=16?'<div style="font-size:13px;font-weight:700;color:#555;">✅ Priority scheduling</div>':''}
           ${p.classes>=32?'<div style="font-size:13px;font-weight:700;color:#555;">✅ Dedicated support</div>':''}
         </div>
@@ -2150,20 +1990,16 @@ function renderPricingCards(){
       </div>`;}).join('')}
   </div>
   <div style="text-align:center;margin-top:28px;padding:20px;background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.05);">
-    <p style="font-size:14px;color:#888;font-weight:700;">💡 Prices per subject. Need multiple? <button onclick="nav('contact')" style="border:none;background:none;color:#FF6B6B;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;font-size:14px;">Contact us for bundle deals →</button></p>
+    <p style="font-size:14px;color:#888;font-weight:700;">💡 Prices per subject. Bundle deals available — <button onclick="nav('contact')" style="border:none;background:none;color:#FF6B6B;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;font-size:14px;">Contact us →</button></p>
   </div>`;
 }
 
-// ─── SCROLL TOP ───────────────────────────────────────────────────────
-window.addEventListener('scroll',()=>{
-  const b=document.getElementById('scroll-top');if(b)b.classList.toggle('show',window.scrollY>400);
-});
+// ─── SCROLL TOP ────────────────────────────────────────────────────────
+window.addEventListener('scroll',()=>{const b=document.getElementById('scroll-top');if(b)b.classList.toggle('show',window.scrollY>400);});
 
-// ─── INIT ─────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded',()=>{
-  initMarquee(); initFaq(); renderSessionsPage();
-});
+document.addEventListener('DOMContentLoaded',()=>{ initMarquee(); initFaq(); renderSessionsPage(); });
 </script>
+
 
 </body>
 </html>
