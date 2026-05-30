@@ -37,9 +37,13 @@ body{font-family:'Nunito',sans-serif;background:#FFFDF8;color:#1a1a2e;min-height
 .trust-badge{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:50px;padding:6px 14px;font-size:12px;font-weight:700;color:#fff;}
 
 /* ── MAIN LAYOUT ── */
-.main{max-width:960px;margin:0 auto;padding:40px 24px 60px;}
+.main{max-width:1080px;margin:0 auto;padding:40px 24px 60px;}
 .grid{display:grid;grid-template-columns:1fr 2fr;gap:32px;align-items:start;}
-@media(max-width:680px){.grid{grid-template-columns:1fr;}}
+@media(max-width:680px){
+  .grid{grid-template-columns:1fr;}
+  .form-card{order:-1;}  /* form always first on mobile */
+  .side-col{order:1;}    /* side info below on mobile */
+}
 
 /* ── SIDE INFO ── */
 .side-card{background:#fff;border-radius:20px;padding:28px;box-shadow:0 4px 20px rgba(0,0,0,.08);}
@@ -144,7 +148,7 @@ textarea{resize:vertical;min-height:80px;}
   <div class="grid" id="form-section">
 
     <!-- SIDE INFO -->
-    <div>
+    <div class="side-col">
       <div class="side-card">
         <h3>What you get 📦</h3>
         <div class="usp-item"><div class="usp-dot" style="background:#FF6B6B;"></div>1-on-1 live session with an Intel-certified teacher</div>
@@ -239,7 +243,7 @@ textarea{resize:vertical;min-height:80px;}
         </div>
 
         <div class="form-group">
-          <label>Subject for Demo <span class="req">*</span></label>
+          <label>Subjects for Demo <span class="req">*</span> <span style="font-size:11px;color:#aaa;font-weight:600;">(tap all that apply)</span></label>
           <div class="chip-grid" id="subj-chips">
             <div class="subj-chip" data-subj="Computer Basics" style="color:#FF6B6B;" onclick="selectSubject(this)"><span>🖥️ Computer Basics</span></div>
             <div class="subj-chip" data-subj="Coding" style="color:#6C63FF;" onclick="selectSubject(this)"><span>🤖 Coding</span></div>
@@ -251,7 +255,7 @@ textarea{resize:vertical;min-height:80px;}
             <div class="subj-chip" data-subj="Chemistry" style="color:#A29BFE;" onclick="selectSubject(this)"><span>🔬 Chemistry</span></div>
             <div class="subj-chip" data-subj="Not sure yet" style="color:#888;" onclick="selectSubject(this)"><span>🤔 Not sure yet</span></div>
           </div>
-          <div class="form-error" id="err-subject">Please pick a subject</div>
+          <div class="form-error" id="err-subject">Please pick at least one subject</div>
         </div>
 
         <div class="form-group">
@@ -309,12 +313,19 @@ const db = firebase.firestore();
 const RETURN_URL = 'https://intellikidsacademy.in';
 
 // ── SUBJECT SELECTION ─────────────────────────────────────────────────
-let selectedSubject = '';
+let selectedSubjects = new Set();
 function selectSubject(el) {
-  document.querySelectorAll('.subj-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  selectedSubject = el.dataset.subj;
-  document.getElementById('err-subject').style.display = 'none';
+  const subj = el.dataset.subj;
+  if (el.classList.contains('active')) {
+    el.classList.remove('active');
+    selectedSubjects.delete(subj);
+  } else {
+    el.classList.add('active');
+    selectedSubjects.add(subj);
+  }
+  if (selectedSubjects.size > 0) {
+    document.getElementById('err-subject').style.display = 'none';
+  }
 }
 
 // ── FORM SUBMIT ───────────────────────────────────────────────────────
@@ -337,7 +348,7 @@ async function submitForm(e) {
     else err.style.display = 'none';
   });
 
-  if (!selectedSubject) {
+  if (selectedSubjects.size === 0) {
     document.getElementById('err-subject').style.display = 'block';
     valid = false;
   }
@@ -358,7 +369,7 @@ async function submitForm(e) {
     email:       document.getElementById('f-email').value.trim(),
     grade:       document.getElementById('f-grade').value,
     country:     document.getElementById('f-country').value,
-    subject:     selectedSubject,
+    subjects:    Array.from(selectedSubjects).join(', '),
     topic:       document.getElementById('f-topic').value.trim(),
     preferredTime: document.getElementById('f-time').value,
     message:     document.getElementById('f-msg').value.trim(),
