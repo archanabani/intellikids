@@ -183,52 +183,39 @@ async function loadStudentData() {
 
 async function loadTeacherData() {
   const uid = window._ika?.uid; if (!uid) return {sessions:[],students:[]};
-  const sort = arr => arr.sort((x,y)=>{
-    const dx = x.scheduledAt?.toDate?x.scheduledAt.toDate():new Date((x.scheduledAt?.seconds||0)*1000);
-    const dy = y.scheduledAt?.toDate?y.scheduledAt.toDate():new Date((y.scheduledAt?.seconds||0)*1000);
-    return dx-dy;
-  });
-  // Fetch sessions and students separately so one failure does not block the other
-  let sessions = [], students = [];
-  try {
-    const snap = await db.collection('sessions').where('teacherId','==',uid).get();
-    sessions = sort(snap.docs.map(d=>({id:d.id,...d.data()})));
-  } catch(e) { console.warn('Sessions query failed:', e.code); }
-  try {
-    // Get list of assigned student UIDs from teacher profile first (always readable)
-    const teacherSnap = await db.doc('users/'+uid).get();
-    const assignedIds = teacherSnap.exists ? (teacherSnap.data().assignedStudents || []) : [];
-    if (assignedIds.length > 0) {
-      // Fetch each assigned student doc individually (each user can read their own doc,
-      // and admin has full access; teacher reads via direct doc path which rules allow)
-      const promises = assignedIds.map(sid => db.doc('users/'+sid).get().catch(()=>null));
-      const snaps = await Promise.all(promises);
-      students = snaps.filter(s=>s&&s.exists).map(s=>({id:s.id,...s.data()})).filter(u=>u.role==='student');
-    } else {
-      // Fallback: query by assignedTeacherId (works if rules allow it)
-      try {
-        const snap2 = await db.collection('users').where('assignedTeacherId','==',uid).get();
-        students = snap2.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.role==='student');
-      } catch(e2) { console.warn('Students query failed:', e2.code); }
-    }
-  } catch(e) { console.warn('Teacher profile read failed:', e.code); }
-  return { sessions, students };
+  // No orderBy — avoids Firestore composite index requirement. Sort in JS.
+  const [a,b] = await Promise.all([
+    db.collection('sessions').where('teacherId','==',uid).get(),
+    db.collection('users').where('assignedTeacherId','==',uid).get()
+  ]);
+  const sessions = a.docs.map(d=>({id:d.id,...d.data()}))
+    .sort((x,y)=>{
+      const dx = x.scheduledAt?.toDate?x.scheduledAt.toDate():new Date(x.scheduledAt?.seconds*1000||0);
+      const dy = y.scheduledAt?.toDate?y.scheduledAt.toDate():new Date(y.scheduledAt?.seconds*1000||0);
+      return dx-dy;
+    });
+  return {
+    sessions,
+    students: b.docs.map(d=>({id:d.id,...d.data()}))
+  };
 }
 
 async function loadAdminData() {
-  const [a,b,c,d,e] = await Promise.all([
+  const [a,b,c,d,e,f] = await Promise.all([
     db.collection('users').get(),
     db.collection('sessions').get(),
     db.collection('session_requests').get(),
     db.collection('enquiries').get(),
-    db.collection('access_requests').where('status','==','pending').get()
+    db.collection('access_requests').where('status','==','pending').get(),
+    db.collection('demo_bookings').get()
   ]);
   return {
     users:    a.docs.map(d=>({id:d.id,...d.data()})),
     sessions: b.docs.map(d=>({id:d.id,...d.data()})),
     requests: c.docs.map(d=>({id:d.id,...d.data()})),
     enquiries:d.docs.map(d=>({id:d.id,...d.data()})),
-    pending:  e.docs.map(d=>({id:d.id,...d.data()}))
+    pending:  e.docs.map(d=>({id:d.id,...d.data()})),
+    demo_bookings: f.docs.map(d=>({id:d.id,...d.data()}))
   };
 }
 
@@ -251,23 +238,13 @@ async function assignTeacher(studentId) {
   const sel = document.getElementById('assign-t-'+studentId);
   if (!sel) return;
   const teacherId   = sel.value;
-  const opt         = sel.options[sel.selectedIndex];
-  const teacherName = opt?.dataset?.name || opt?.text || '';
+  const teacherName = sel.options[sel.selectedIndex]?.dataset?.name || '';
   try {
-    // Update student doc with assigned teacher
     await db.doc('users/'+studentId).update({ assignedTeacherId: teacherId, assignedTeacherName: teacherName });
-    // Also update teacher doc with assignedStudents array for resilient querying
-    if (teacherId) {
-      try {
-        await db.doc('users/'+teacherId).update({
-          assignedStudents: firebase.firestore.FieldValue.arrayUnion(studentId)
-        });
-      } catch(e2) { /* teacher doc may not exist yet, that's ok */ }
-    }
-    if (teacherId) showToast('✅ Teacher assigned! Teacher dashboard will now show this student.','success');
+    if (teacherId) showToast('✅ Teacher assigned to student!','success');
     else showToast('Teacher unassigned.','success');
     _adminData=null; initAdminDash();
-  } catch(e) { showToast('Failed to assign teacher. Try again.','error'); console.error(e); }
+  } catch(e) { showToast('Failed to assign teacher. Try again.','error'); }
 }
 
 async function approveSessionRequest(reqId) {
@@ -588,7 +565,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
         <h1 class="hero-title">Where <span>curious kids</span> become confident learners 🚀</h1>
         <p class="hero-desc">Live 1-on-1 & group sessions for Grades 3–12. Personalised curriculum, expert teachers, real results — in Coding, Maths, English, Physics, Chemistry & Computer Basics.</p>
         <div class="hero-cta">
-          <button class="btn btn-main" onclick="window.open('https://archanabani.github.io/application-student-form/','_blank')">Book Free Demo 🎯</button>
+          <button class="btn btn-main" onclick="window.open('book-demo.html','_self')">Book Free Demo 🎯</button>
           <button class="btn btn-sec"  onclick="nav('subjects')">Explore Subjects →</button>
         </div>
         <div style="display:flex;gap:28px;margin-top:36px;flex-wrap:wrap;">
@@ -733,7 +710,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
   <div style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);padding:60px 24px;text-align:center;">
     <h2 style="color:#fff;margin-bottom:12px;">Ready to unlock your child's potential? 🌟</h2>
     <p style="color:rgba(255,255,255,.85);font-size:16px;font-weight:600;margin-bottom:28px;">First demo session is completely FREE. No cards. No pressure.</p>
-    <button class="btn" onclick="nav('contact')" style="background:#fff;color:#FF6B6B;padding:16px 40px;font-size:17px;font-weight:900;box-shadow:0 8px 28px rgba(0,0,0,.2);" onclick="window.open('https://archanabani.github.io/application-student-form/','_blank')">Book Your Free Demo 🎯</button>
+    <button class="btn" onclick="nav('contact')" style="background:#fff;color:#FF6B6B;padding:16px 40px;font-size:17px;font-weight:900;box-shadow:0 8px 28px rgba(0,0,0,.2);" onclick="window.open('book-demo.html','_self')">Book Your Free Demo 🎯</button>
   </div>
 
   <!-- FOOTER -->
@@ -859,7 +836,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
         </div>
       </div>
       <div style="text-align:center;margin-top:48px;">
-        <button class="btn btn-main" onclick="window.open('https://archanabani.github.io/application-student-form/','_blank')">Book Free Demo for Any Subject 🎯</button>
+        <button class="btn btn-main" onclick="window.open('book-demo.html','_self')">Book Free Demo for Any Subject 🎯</button>
       </div>
     </div>
   </div>
@@ -905,14 +882,14 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
           <div style="font-weight:900;font-size:16px;color:#00B894;margin-bottom:4px;">First Demo Class is Always FREE!</div>
           <p style="font-size:14px;color:#555;font-weight:600;margin:0;">You pick the topic — no generic intro. See the Intellikids difference before spending a rupee.</p>
         </div>
-        <button class="btn btn-green" onclick="window.open('https://archanabani.github.io/application-student-form/','_blank')">Book Free Demo 🎯</button>
+        <button class="btn btn-green" onclick="window.open('book-demo.html','_self')">Book Free Demo 🎯</button>
       </div>
     </div>
     <div style="max-width:1100px;margin:40px auto;padding:0 24px;" id="pricing-cards"></div>
     <div style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);padding:60px 24px;text-align:center;">
       <h2 style="color:#fff;margin-bottom:12px;">Not sure where to start? 🤔</h2>
       <p style="color:rgba(255,255,255,.85);font-size:16px;font-weight:600;margin-bottom:28px;">Start with a FREE demo. You pick the topic, we show you the magic.</p>
-      <button class="btn" onclick="nav('contact')" style="background:#fff;color:#FF6B6B;padding:16px 40px;font-size:17px;font-weight:900;box-shadow:0 8px 28px rgba(0,0,0,.2);" onclick="window.open('https://archanabani.github.io/application-student-form/','_blank')">Book Your Free Demo 🎯</button>
+      <button class="btn" onclick="nav('contact')" style="background:#fff;color:#FF6B6B;padding:16px 40px;font-size:17px;font-weight:900;box-shadow:0 8px 28px rgba(0,0,0,.2);" onclick="window.open('book-demo.html','_self')">Book Your Free Demo 🎯</button>
     </div>
   </div>
 </div>
@@ -1063,7 +1040,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
       </button>
       <div style="background:#F0EEFF;border-radius:14px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#6C63FF;font-weight:700;line-height:1.6;">🔐 First time? Sign in with Google — admin approves your access (usually within 2–4 hours).</div>
       <div style="margin-top:4px;padding-top:16px;border-top:1px solid #f0f0f0;text-align:center;font-size:13px;color:#888;font-weight:600;">
-        New here? <button onclick="nav('contact')" style="background:none;border:none;cursor:pointer;color:#6C63FF;font-weight:800;font-size:13px;" onclick="window.open('https://archanabani.github.io/application-student-form/','_blank')">Book a free demo first →</button>
+        New here? <button onclick="nav('contact')" style="background:none;border:none;cursor:pointer;color:#6C63FF;font-weight:800;font-size:13px;">Book a free demo first →</button>
       </div>
       <div style="margin-top:10px;text-align:center;">
         <button onclick="nav('teacher-login')" style="background:none;border:none;cursor:pointer;color:#999;font-size:13px;font-weight:600;">Are you a teacher? →</button>
@@ -1205,6 +1182,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
       <button class="tab-btn" onclick="adminTab(this,'students')">🎒 Students</button>
       <button class="tab-btn" onclick="adminTab(this,'teachers')">👩‍🏫 Teachers</button>
       <button class="tab-btn" onclick="adminTab(this,'sessions')">📅 All Sessions</button>
+      <button class="tab-btn" onclick="adminTab(this,'demo_bookings')">🎯 Demo Bookings</button>
       <button class="tab-btn" onclick="adminTab(this,'enquiries')">📩 Enquiries</button>
     </div>
     <div id="admin-content"><div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div></div>
@@ -1649,24 +1627,7 @@ async function initTeacherDash(){
     document.getElementById('td-s-cnt').textContent=teacherData.students.length;
     document.getElementById('td-sess-cnt').textContent=teacherData.sessions.filter(s=>!s.completed).length;
     document.getElementById('td-today-cnt').textContent=teacherData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);return d.toDateString()===tod;}).length;
-  } catch(e){
-    console.error('Teacher data error:', e);
-    teacherData={sessions:[],students:[]};
-    // Show error with Firestore rules fix instructions
-    const cont = document.getElementById('td-content');
-    if(cont) cont.innerHTML = `<div style="background:#FFF6E8;border-radius:16px;padding:20px 24px;border:2px solid #FDCB6E;margin-bottom:16px;">
-      <div style="font-weight:800;font-size:15px;color:#FF9F43;margin-bottom:8px;">⚠️ Permission Error — Firestore Rules Need Updating</div>
-      <p style="font-size:13px;color:#666;font-weight:600;line-height:1.7;margin-bottom:12px;">Go to <strong>Firebase Console → Firestore → Rules</strong> and add these rules, then click Publish:</p>
-      <pre style="background:#1a1a2e;color:#A29BFE;padding:14px;border-radius:10px;font-size:11px;overflow-x:auto;line-height:1.8;">match /sessions/{id} {
-  allow read, write: if request.auth != null;
-}
-match /users/{uid} {
-  allow read: if request.auth != null;
-  allow write: if request.auth.uid == uid;
-}</pre>
-      <button class="btn btn-main" style="margin-top:12px;" onclick="teacherData=null;initTeacherDash()">🔄 Retry after updating rules</button>
-    </div>`;
-  }
+  } catch(e){teacherData={sessions:[],students:[]};}
   renderTeacherTab('sessions');
 }
 
@@ -1887,6 +1848,49 @@ function renderAdminTab(tab){
         }).join('')}</tbody></table></div>`;
   }
 
+  else if(tab==='demo_bookings'){
+    const bookings = _adminData.demo_bookings || [];
+    if(!bookings.length){
+      el.innerHTML = emptyState('🎯','No demo bookings yet','Entries from the book-demo.html form appear here as parents submit it.','');
+      return;
+    }
+    // Sort newest first
+    const sorted = [...bookings].sort((a,b) => {
+      const ta = a.submittedAt?.toDate ? a.submittedAt.toDate() : new Date(a.submittedAt||0);
+      const tb = b.submittedAt?.toDate ? b.submittedAt.toDate() : new Date(b.submittedAt||0);
+      return tb - ta;
+    });
+    let html = '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">' +
+      '<h3 style="font-family:Nunito,sans-serif;font-size:17px;margin:0;">🎯 Demo Bookings (' + sorted.length + ')</h3>' +
+      '<div style="font-size:13px;color:#888;font-weight:600;">Most recent first · Data stored in Firestore: <strong>demo_bookings</strong> collection</div>' +
+      '</div>' +
+      '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<thead><tr style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);">' +
+      ['#','Parent','Student','Phone','Email','Grade','Country','Subject','Topic','Pref. Time','Message','Date'].map(h =>
+        '<th style="padding:11px 14px;text-align:left;color:#fff;font-weight:800;white-space:nowrap;">' + h + '</th>'
+      ).join('') + '</tr></thead><tbody>';
+    sorted.forEach((b,i) => {
+      const dt = b.submittedAt?.toDate ? b.submittedAt.toDate() : new Date(b.submittedAt||0);
+      const dateStr = dt.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) + ' ' + dt.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+      html += '<tr style="border-bottom:1px solid #f0f0f0;background:' + (i%2?'#FAFAFA':'#fff') + ';">' +
+        '<td style="padding:10px 14px;font-weight:800;color:#ccc;">' + (i+1) + '</td>' +
+        '<td style="padding:10px 14px;font-weight:800;">' + (b.parentName||'—') + '</td>' +
+        '<td style="padding:10px 14px;font-weight:700;">' + (b.studentName||'—') + '</td>' +
+        '<td style="padding:10px 14px;"><a href="tel:' + (b.phone||'') + '" style="color:#1DD1A1;font-weight:700;text-decoration:none;">' + (b.phone||'—') + '</a></td>' +
+        '<td style="padding:10px 14px;color:#6C63FF;font-weight:600;">' + (b.email||'—') + '</td>' +
+        '<td style="padding:10px 14px;font-weight:700;">' + (b.grade||'—') + '</td>' +
+        '<td style="padding:10px 14px;color:#555;">' + (b.country||'—') + '</td>' +
+        '<td style="padding:10px 14px;font-weight:800;color:#FF9F43;">' + (b.subject||'—') + '</td>' +
+        '<td style="padding:10px 14px;color:#555;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (b.topic||'—') + '</td>' +
+        '<td style="padding:10px 14px;color:#555;">' + (b.preferredTime||'Any') + '</td>' +
+        '<td style="padding:10px 14px;color:#555;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (b.message||'—') + '</td>' +
+        '<td style="padding:10px 14px;color:#aaa;white-space:nowrap;font-weight:600;">' + dateStr + '</td>' +
+        '</tr>';
+    });
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+  }
+
   else if(tab==='enquiries'){
     if(!_adminData.enquiries.length){el.innerHTML=emptyState('📩','No enquiries yet','Demo booking forms appear here.');return;}
     el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">📩 Demo Enquiries (${_adminData.enquiries.length})</h3>
@@ -1945,15 +1949,14 @@ function renderPricingCards(){
         <div style="font-size:34px;font-weight:900;color:${p.color};margin-bottom:4px;">${sym}${tot.toLocaleString()}</div>
         <div style="font-size:13px;color:#999;font-weight:700;margin-bottom:20px;">${sym}${Number.isInteger(p.perClass[pricingCurrency])?p.perClass[pricingCurrency]:p.perClass[pricingCurrency].toFixed(1)} per class</div>
         <div style="border-top:1.5px dashed #f0f0f0;padding-top:16px;margin-bottom:20px;display:flex;flex-direction:column;gap:8px;">
-          <div style="font-size:13px;font-weight:700;color:#555;">🎯 ${p.classes} live 1-on-1 sessions</div>
-          <div style="font-size:13px;font-weight:700;color:#555;">🧬 Custom curriculum built for your child</div>
-          <div style="font-size:13px;font-weight:700;color:#555;">🏅 Intel-certified teacher</div>
-          <div style="font-size:13px;font-weight:700;color:#555;">📈 Learn at your child's own pace</div>
-          <div style="font-size:13px;font-weight:700;color:#555;">👨‍👩‍👧 Regular parent progress updates</div>
-          ${p.classes>=16?'<div style="font-size:13px;font-weight:700;color:#555;">⭐ Priority session scheduling</div>':''}
-          ${p.classes>=32?'<div style="font-size:13px;font-weight:700;color:#555;">💬 Dedicated teacher support</div>':''}
+          <div style="font-size:13px;font-weight:700;color:#555;">✅ ${p.classes} live sessions</div>
+          <div style="font-size:13px;font-weight:700;color:#555;">✅ Personalised curriculum</div>
+          <div style="font-size:13px;font-weight:700;color:#555;">✅ Intel-certified teacher</div>
+          <div style="font-size:13px;font-weight:700;color:#555;">✅ Auto Google Meet link</div>
+          ${p.classes>=16?'<div style="font-size:13px;font-weight:700;color:#555;">✅ Priority scheduling</div>':''}
+          ${p.classes>=32?'<div style="font-size:13px;font-weight:700;color:#555;">✅ Dedicated support</div>':''}
         </div>
-        <button class="btn btn-main" style="width:100%;background:linear-gradient(135deg,${p.color},${p.color}CC);" onclick="window.open('https://archanabani.github.io/application-student-form/','_blank')">Buy Now →</button>
+        <button class="btn btn-main" style="width:100%;background:linear-gradient(135deg,${p.color},${p.color}CC);" onclick="window.open('book-demo.html','_self')">Buy Now →</button>
       </div>`;}).join('')}
   </div>
   <div style="text-align:center;margin-top:28px;padding:20px;background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.05);">
