@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Little Stars Early Learning — Intellikids Academy 🌟</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,#FFF9F0 0%,#F0EEFF 50%,#E8FFF8 100%);min-height:100vh;color:#1a1a2e;}
+
+/* floating stars background */
+body::before{content:'⭐ 🌟 ✨ 🌈 🎨 🎮 🚀 🎉 🌸 🎵';position:fixed;top:0;left:0;width:100%;height:100%;font-size:24px;line-height:3;letter-spacing:60px;opacity:.06;z-index:0;pointer-events:none;word-break:break-all;}
+
+.wrap{max-width:620px;margin:0 auto;padding:28px 20px 60px;position:relative;z-index:1;}
+
+/* ── TOP BADGE ── */
+.top-badge{text-align:center;margin-bottom:20px;}
+.top-badge .emoji-row{font-size:40px;letter-spacing:8px;margin-bottom:8px;}
+.brand{display:inline-flex;align-items:center;gap:8px;background:#fff;border-radius:50px;padding:8px 18px;box-shadow:0 2px 12px rgba(0,0,0,.08);}
+.brand-icon{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#FF6B6B,#FF9F43);display:flex;align-items:center;justify-content:center;font-size:16px;}
+.brand-name{font-weight:900;font-size:14px;color:#1a1a2e;}
+.brand-name span{color:#FF6B6B;}
+
+/* ── HERO CARD ── */
+.hero-card{background:linear-gradient(135deg,#FF6B6B,#FF9F43);border-radius:28px;padding:36px 28px;text-align:center;color:#fff;margin-bottom:24px;position:relative;overflow:hidden;box-shadow:0 12px 40px rgba(255,107,107,.35);}
+.hero-card::before{content:'🌟';position:absolute;font-size:120px;opacity:.1;top:-20px;right:-20px;line-height:1;}
+.hero-card::after{content:'🎨';position:absolute;font-size:80px;opacity:.1;bottom:-10px;left:-10px;line-height:1;}
+.hero-title{font-size:clamp(22px,6vw,32px);font-weight:900;line-height:1.2;margin-bottom:8px;}
+.hero-sub{font-size:15px;font-weight:700;opacity:.9;line-height:1.6;}
+.age-badge{display:inline-block;background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.5);border-radius:50px;padding:6px 18px;font-size:13px;font-weight:800;margin-top:14px;}
+
+/* ── FORM CARD ── */
+.form-card{background:#fff;border-radius:24px;padding:32px 28px;box-shadow:0 8px 32px rgba(0,0,0,.08);margin-bottom:20px;}
+.section-title{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:900;color:#1a1a2e;margin-bottom:20px;padding-bottom:12px;border-bottom:2px dashed #f0f0f0;}
+.section-title .icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+
+/* form inputs */
+.form-group{margin-bottom:18px;}
+.form-group label{display:block;font-size:13px;font-weight:800;color:#555;margin-bottom:7px;}
+.form-group label .req{color:#FF6B6B;}
+.form-group label .hint{font-size:11px;color:#aaa;font-weight:600;}
+input[type=text],input[type=email],input[type=tel],input[type=number],select,textarea{
+  width:100%;padding:13px 16px;border:2px solid #E8E8F0;border-radius:14px;
+  font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;color:#1a1a2e;background:#FAFAFA;
+  transition:border-color .2s,box-shadow .2s;outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:#FF6B6B;box-shadow:0 0 0 3px rgba(255,107,107,.1);background:#fff;}
+textarea{resize:vertical;min-height:80px;}
+.half{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:480px){.half{grid-template-columns:1fr;}}
+.form-error{color:#FF6B6B;font-size:12px;font-weight:700;margin-top:5px;display:none;}
+.form-error.show,.form-error[style*="block"]{display:block;}
+
+/* ── AGE BUTTONS ── */
+.age-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+@media(max-width:380px){.age-grid{grid-template-columns:1fr 1fr;}}
+.age-btn{border:2px solid #E8E8F0;background:#FAFAFA;border-radius:16px;padding:14px 8px;text-align:center;cursor:pointer;transition:all .2s;font-family:'Nunito',sans-serif;}
+.age-btn:hover{border-color:#FF9F43;background:#FFF6E8;}
+.age-btn.active{border-color:#FF6B6B;background:linear-gradient(135deg,#FFF0F0,#FFF6E8);}
+.age-btn .age-emoji{font-size:28px;display:block;margin-bottom:6px;}
+.age-btn .age-label{font-size:12px;font-weight:800;color:#444;line-height:1.3;}
+.age-btn .age-sub{font-size:10px;color:#aaa;font-weight:600;margin-top:2px;}
+
+/* ── INTEREST CHIPS ── */
+.interest-grid{display:flex;flex-wrap:wrap;gap:8px;}
+.i-chip{display:flex;align-items:center;gap:6px;padding:9px 14px;border:2px solid #E8E8F0;border-radius:50px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;background:#FAFAFA;color:#555;user-select:none;}
+.i-chip:hover{border-color:#6C63FF;background:#F0EEFF;}
+.i-chip.active{background:linear-gradient(135deg,#6C63FF,#A29BFE);color:#fff;border-color:transparent;}
+
+/* ── RADIO STYLE ── */
+.radio-row{display:flex;flex-wrap:wrap;gap:10px;}
+.radio-opt{display:flex;align-items:center;gap:8px;padding:10px 16px;border:2px solid #E8E8F0;border-radius:12px;cursor:pointer;transition:all .15s;background:#FAFAFA;}
+.radio-opt input{display:none;}
+.radio-opt span{font-size:13px;font-weight:700;color:#555;}
+.radio-opt.selected{background:linear-gradient(135deg,#E8FFF8,#F0EEFF);border-color:#1DD1A1;}
+.radio-opt.selected span{color:#1a1a2e;}
+
+/* ── SUBMIT ── */
+.btn-submit{width:100%;padding:18px;background:linear-gradient(135deg,#FF6B6B,#FF9F43);border:none;border-radius:16px;color:#fff;font-family:'Nunito',sans-serif;font-size:17px;font-weight:900;cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:0 6px 24px rgba(255,107,107,.35);letter-spacing:.3px;}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(255,107,107,.45);}
+.btn-submit:disabled{opacity:.7;cursor:not-allowed;transform:none;}
+.loader{display:inline-block;width:16px;height:16px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-left:8px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── SUCCESS ── */
+.success{display:none;text-align:center;padding:40px 20px;}
+.success-anim{font-size:72px;margin-bottom:16px;animation:bounce 1s ease infinite alternate;}
+@keyframes bounce{from{transform:translateY(0);}to{transform:translateY(-12px);}}
+.success h2{font-size:26px;font-weight:900;color:#FF6B6B;margin-bottom:8px;}
+.success p{color:#666;font-size:15px;font-weight:600;line-height:1.7;margin-bottom:24px;}
+.home-btn{display:inline-block;background:linear-gradient(135deg,#6C63FF,#A29BFE);color:#fff;padding:14px 32px;border-radius:50px;font-weight:900;font-size:15px;text-decoration:none;}
+.count-txt{font-size:13px;color:#aaa;font-weight:700;margin-top:12px;}
+
+/* ── FOOTER ── */
+.foot{text-align:center;padding:16px;font-size:12px;color:#aaa;font-weight:600;}
+.foot a{color:#6C63FF;font-weight:700;text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- BRAND -->
+  <div class="top-badge">
+    <div class="emoji-row">🌟 🎨 🚀 🎵 🌈</div>
+    <div class="brand">
+      <div class="brand-icon">🎓</div>
+      <div class="brand-name">Intelli<span>kids</span> Academy</div>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero-card">
+    <div class="hero-title">Hello Little Star! 🌟<br/>Let's Learn Something Fun!</div>
+    <div class="hero-sub">Tell us a little about your child and we will set up<br/>a <strong>FREE fun learning session</strong> just for them!</div>
+    <div class="age-badge">👶 For children aged 3 – 8 years (Nursery to Grade 2)</div>
+  </div>
+
+  <!-- SUCCESS SCREEN -->
+  <div class="success" id="success-screen">
+    <div class="success-anim">🎉</div>
+    <h2>Yay! You're all set!</h2>
+    <p>Thank you so much! Our team will call you within <strong>2 hours</strong> to confirm your little star's FREE learning session. Get ready for the fun! 🚀</p>
+    <a href="https://intellikidsacademy.in" class="home-btn" id="home-btn">← Back to Intellikids</a>
+    <div class="count-txt">Redirecting in <span id="count">10</span>s…</div>
+  </div>
+
+  <!-- FORM -->
+  <div id="form-section">
+
+    <!-- SECTION 1: ABOUT YOUR CHILD -->
+    <div class="form-card">
+      <div class="section-title">
+        <div class="icon" style="background:#FFF6E8;">👧</div>
+        About Your Little Star
+      </div>
+
+      <div class="form-group">
+        <label>Your Child's Name <span class="req">*</span></label>
+        <input type="text" id="f-child" placeholder="e.g. Aarav, Ananya, Zara…"/>
+        <div class="form-error" id="err-child">Please enter your child's name</div>
+      </div>
+
+      <div class="form-group">
+        <label>How old is your child? <span class="req">*</span></label>
+        <div class="age-grid" id="age-grid">
+          <div class="age-btn" data-age="3 years (Nursery)" onclick="selectAge(this)">
+            <span class="age-emoji">🐣</span>
+            <div class="age-label">3 years</div>
+            <div class="age-sub">Nursery</div>
+          </div>
+          <div class="age-btn" data-age="4 years (Play Group / Junior KG)" onclick="selectAge(this)">
+            <span class="age-emoji">🌱</span>
+            <div class="age-label">4 years</div>
+            <div class="age-sub">JKG / Play Group</div>
+          </div>
+          <div class="age-btn" data-age="5 years (Senior KG)" onclick="selectAge(this)">
+            <span class="age-emoji">🌻</span>
+            <div class="age-label">5 years</div>
+            <div class="age-sub">Senior KG</div>
+          </div>
+          <div class="age-btn" data-age="6 years (Grade 1)" onclick="selectAge(this)">
+            <span class="age-emoji">📚</span>
+            <div class="age-label">6 years</div>
+            <div class="age-sub">Grade 1</div>
+          </div>
+          <div class="age-btn" data-age="7 years (Grade 2)" onclick="selectAge(this)">
+            <span class="age-emoji">🚀</span>
+            <div class="age-label">7 years</div>
+            <div class="age-sub">Grade 2</div>
+          </div>
+          <div class="age-btn" data-age="8 years (Grade 3)" onclick="selectAge(this)">
+            <span class="age-emoji">⭐</span>
+            <div class="age-label">8 years</div>
+            <div class="age-sub">Grade 3</div>
+          </div>
+        </div>
+        <div class="form-error" id="err-age">Please select your child's age</div>
+      </div>
+
+      <div class="form-group">
+        <label>What does your child love? 🎨 <span class="hint">(pick all that apply)</span></label>
+        <div class="interest-grid">
+          <div class="i-chip" onclick="toggleInterest(this)" data-int="Drawing & Art">🎨 Drawing</div>
+          <div class="i-chip" onclick="toggleInterest(this)" data-int="Stories & Books">📖 Stories</div>
+          <div class="i-chip" onclick="toggleInterest(this)" data-int="Numbers & Puzzles">🔢 Numbers</div>
+          <div class="i-chip" onclick="toggleInterest(this)" data-int="Animals & Nature">🐾 Animals</div>
+          <div class="i-chip" onclick="toggleInterest(this)" data-int="Music & Dance">🎵 Music</div>
+          <div class="i-chip" onclick="toggleInterest(this)" data-int="Computers & Gadgets">💻 Computers</div>
+          <div class="i-chip" onclick="toggleInterest(this)" data-int="Space & Science">🚀 Space</div>
+          <div class="i-chip" onclick="toggleInterest(this)" data-int="Lego & Building">🏗️ Building</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: PARENT DETAILS -->
+    <div class="form-card">
+      <div class="section-title">
+        <div class="icon" style="background:#F0EEFF;">👨‍👩‍👧</div>
+        Parent / Guardian Details
+      </div>
+
+      <div class="form-group">
+        <label>Your Name <span class="req">*</span></label>
+        <input type="text" id="f-parent" placeholder="e.g. Priya Sharma"/>
+        <div class="form-error" id="err-parent">Please enter your name</div>
+      </div>
+
+      <div class="half">
+        <div class="form-group">
+          <label>WhatsApp Number <span class="req">*</span></label>
+          <input type="tel" id="f-phone" placeholder="+91 98765 43210"/>
+          <div class="form-error" id="err-phone">Please enter a valid number</div>
+        </div>
+        <div class="form-group">
+          <label>Email Address <span class="req">*</span></label>
+          <input type="email" id="f-email" placeholder="hello@example.com"/>
+          <div class="form-error" id="err-email">Please enter a valid email</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Country / Time Zone</label>
+        <select id="f-country">
+          <option value="India (IST)">🇮🇳 India (IST)</option>
+          <option value="UAE (GST)">🇦🇪 UAE (GST)</option>
+          <option value="UK (GMT/BST)">🇬🇧 UK (GMT/BST)</option>
+          <option value="USA (EST/PST)">🇺🇸 USA (EST/PST)</option>
+          <option value="Canada">🇨🇦 Canada</option>
+          <option value="Other">🌍 Other</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Best time to call your child? 📞</label>
+        <div class="radio-row" id="time-row">
+          <div class="radio-opt" onclick="selectTime(this)" data-time="Morning (9–12 PM)">
+            <input type="radio" name="pref-time"/><span>🌅 Morning</span>
+          </div>
+          <div class="radio-opt" onclick="selectTime(this)" data-time="Afternoon (12–4 PM)">
+            <input type="radio" name="pref-time"/><span>☀️ Afternoon</span>
+          </div>
+          <div class="radio-opt" onclick="selectTime(this)" data-time="Evening (4–8 PM)">
+            <input type="radio" name="pref-time"/><span>🌆 Evening</span>
+          </div>
+          <div class="radio-opt" onclick="selectTime(this)" data-time="Weekend only">
+            <input type="radio" name="pref-time"/><span>📅 Weekend</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Anything you want us to know? <span class="hint">Optional</span></label>
+        <textarea id="f-msg" placeholder="e.g. My child is shy at first but loves games. She enjoys storytelling and is curious about space…"></textarea>
+      </div>
+    </div>
+
+    <!-- PRIVACY + SUBMIT -->
+    <div style="text-align:center;margin-bottom:12px;">
+      <div style="display:inline-flex;align-items:center;gap:8px;background:#E8FFF8;border-radius:50px;padding:8px 18px;font-size:12px;font-weight:700;color:#00B894;">
+        🔒 Your details are safe. We never share your information.
+      </div>
+    </div>
+
+    <button class="btn-submit" id="submit-btn" onclick="submitForm()">
+      Book My Child's FREE Session 🚀
+    </button>
+
+    <p style="text-align:center;font-size:12px;color:#aaa;font-weight:600;margin-top:14px;">
+      We'll call you within 2 hours to set up the session 🎉
+    </p>
+
+  </div><!-- /form-section -->
+
+  <div class="foot">
+    © 2025 Intellikids Academy &nbsp;·&nbsp;
+    <a href="https://intellikidsacademy.in">intellikidsacademy.in</a> &nbsp;·&nbsp;
+    hello@intellikidsacademy.in
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCFWK0iuWALDpn1AfxZNE_Q1Bk60i7yP3U",
+  authDomain: "intellikids-academy.firebaseapp.com",
+  projectId: "intellikids-academy",
+  storageBucket: "intellikids-academy.firebasestorage.app",
+  messagingSenderId: "861404961917",
+  appId: "1:861404961917:web:74d453b1a4862fa0096514"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const RETURN_URL = 'https://intellikidsacademy.in';
+
+let selectedAge = '';
+const selectedInterests = new Set();
+let selectedTime = '';
+
+function selectAge(el) {
+  document.querySelectorAll('.age-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  selectedAge = el.dataset.age;
+  document.getElementById('err-age').style.display = 'none';
+}
+
+function toggleInterest(el) {
+  el.classList.toggle('active');
+  const int = el.dataset.int;
+  if (el.classList.contains('active')) selectedInterests.add(int);
+  else selectedInterests.delete(int);
+}
+
+function selectTime(el) {
+  document.querySelectorAll('.radio-opt').forEach(r => r.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedTime = el.dataset.time;
+}
+
+async function submitForm() {
+  let valid = true;
+  const required = [
+    ['f-child',  'err-child',  v => v.trim().length > 1],
+    ['f-parent', 'err-parent', v => v.trim().length > 1],
+    ['f-phone',  'err-phone',  v => v.trim().length > 6],
+    ['f-email',  'err-email',  v => /\S+@\S+\.\S+/.test(v)],
+  ];
+  required.forEach(([id, errId, fn]) => {
+    const el = document.getElementById(id);
+    const err = document.getElementById(errId);
+    if (!fn(el.value)) { err.style.display = 'block'; valid = false; }
+    else err.style.display = 'none';
+  });
+  if (!selectedAge) {
+    document.getElementById('err-age').style.display = 'block';
+    valid = false;
+  }
+  if (!valid) {
+    document.querySelector('[style*="display: block"].form-error, .form-error[style*="block"]')?.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = 'Booking… <span class="loader"></span>';
+
+  const data = {
+    formType:      'little-stars-early-learners',
+    childName:     document.getElementById('f-child').value.trim(),
+    childAge:      selectedAge,
+    interests:     Array.from(selectedInterests).join(', ') || 'Not specified',
+    parentName:    document.getElementById('f-parent').value.trim(),
+    phone:         document.getElementById('f-phone').value.trim(),
+    email:         document.getElementById('f-email').value.trim(),
+    country:       document.getElementById('f-country').value,
+    preferredTime: selectedTime || 'Any time',
+    message:       document.getElementById('f-msg').value.trim(),
+    source:        'little-stars-form',
+    submittedAt:   firebase.firestore.FieldValue.serverTimestamp(),
+  };
+
+  try {
+    await db.collection('demo_bookings').add(data);
+  } catch(e) {
+    // Save locally as fallback
+    const p = JSON.parse(localStorage.getItem('pending_ls') || '[]');
+    p.push({...data, submittedAt: new Date().toISOString()});
+    localStorage.setItem('pending_ls', JSON.stringify(p));
+  }
+
+  document.getElementById('form-section').style.display = 'none';
+  const s = document.getElementById('success-screen');
+  s.style.display = 'block';
+  s.scrollIntoView({behavior:'smooth'});
+
+  let n = 10;
+  const countEl = document.getElementById('count');
+  const timer = setInterval(() => {
+    n--; countEl.textContent = n;
+    if (n <= 0) { clearInterval(timer); window.location.href = RETURN_URL; }
+  }, 1000);
+}
+
+document.getElementById('home-btn').href = RETURN_URL;
+</script>
+</body>
+</html>
