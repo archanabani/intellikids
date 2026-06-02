@@ -220,12 +220,32 @@ textarea{resize:vertical;min-height:80px;}
 
         <div class="half">
           <div class="form-group">
-            <label>Student's Grade <span class="req">*</span></label>
+            <label>Child's Age / Grade <span class="req">*</span></label>
             <select id="f-grade">
-              <option value="">Select Grade</option>
-              <option>Grade 3</option><option>Grade 4</option><option>Grade 5</option>
-              <option>Grade 6</option><option>Grade 7</option><option>Grade 8</option>
-              <option>Grade 9</option><option>Grade 10</option><option>Grade 11</option><option>Grade 12</option>
+              <option value="">Select Age / Grade</option>
+              <optgroup label="🌟 Early Years">
+                <option value="Age 3-4 (Nursery / Play Group)">Age 3–4 (Nursery / Play Group)</option>
+                <option value="Age 4-5 (Junior KG)">Age 4–5 (Junior KG)</option>
+                <option value="Age 5-6 (Senior KG)">Age 5–6 (Senior KG)</option>
+              </optgroup>
+              <optgroup label="📚 Primary School">
+                <option value="Grade 1">Grade 1</option>
+                <option value="Grade 2">Grade 2</option>
+                <option value="Grade 3">Grade 3</option>
+                <option value="Grade 4">Grade 4</option>
+                <option value="Grade 5">Grade 5</option>
+              </optgroup>
+              <optgroup label="📖 Middle School">
+                <option value="Grade 6">Grade 6</option>
+                <option value="Grade 7">Grade 7</option>
+                <option value="Grade 8">Grade 8</option>
+              </optgroup>
+              <optgroup label="🎓 High School">
+                <option value="Grade 9">Grade 9</option>
+                <option value="Grade 10">Grade 10</option>
+                <option value="Grade 11">Grade 11</option>
+                <option value="Grade 12">Grade 12</option>
+              </optgroup>
             </select>
             <div class="form-error" id="err-grade">Please select a grade</div>
           </div>
