@@ -201,21 +201,23 @@ async function loadTeacherData() {
 }
 
 async function loadAdminData() {
-  const [a,b,c,d,e,f] = await Promise.all([
+  const [a,b,c,d,e,f,g] = await Promise.all([
     db.collection('users').get(),
     db.collection('sessions').get(),
     db.collection('session_requests').get(),
     db.collection('enquiries').get(),
     db.collection('access_requests').where('status','==','pending').get(),
-    db.collection('demo_bookings').get()
+    db.collection('demo_bookings').get(),
+    db.collection('teacher_applications').get()
   ]);
   return {
-    users:    a.docs.map(d=>({id:d.id,...d.data()})),
-    sessions: b.docs.map(d=>({id:d.id,...d.data()})),
-    requests: c.docs.map(d=>({id:d.id,...d.data()})),
-    enquiries:d.docs.map(d=>({id:d.id,...d.data()})),
-    pending:  e.docs.map(d=>({id:d.id,...d.data()})),
-    demo_bookings: f.docs.map(d=>({id:d.id,...d.data()}))
+    users:         a.docs.map(d=>({id:d.id,...d.data()})),
+    sessions:      b.docs.map(d=>({id:d.id,...d.data()})),
+    requests:      c.docs.map(d=>({id:d.id,...d.data()})),
+    enquiries:     d.docs.map(d=>({id:d.id,...d.data()})),
+    pending:       e.docs.map(d=>({id:d.id,...d.data()})),
+    demo_bookings: f.docs.map(d=>({id:d.id,...d.data()})),
+    applications:  g.docs.map(d=>({id:d.id,...d.data()}))
   };
 }
 
@@ -1183,6 +1185,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
       <button class="tab-btn" onclick="adminTab(this,'teachers')">👩‍🏫 Teachers</button>
       <button class="tab-btn" onclick="adminTab(this,'sessions')">📅 All Sessions</button>
       <button class="tab-btn" onclick="adminTab(this,'demo_bookings')">🎯 Demo Bookings</button>
+      <button class="tab-btn" onclick="adminTab(this,'applications')">📋 Applications</button>
       <button class="tab-btn" onclick="adminTab(this,'enquiries')">📩 Enquiries</button>
     </div>
     <div id="admin-content"><div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div></div>
@@ -1891,6 +1894,80 @@ function renderAdminTab(tab){
     el.innerHTML = html;
   }
 
+  else if(tab==='applications'){
+    const apps = (_adminData.applications || []).sort((a,b) => {
+      const ta = a.appliedAt?.toDate ? a.appliedAt.toDate() : new Date(a.appliedAt||0);
+      const tb = b.appliedAt?.toDate ? b.appliedAt.toDate() : new Date(b.appliedAt||0);
+      return tb - ta;
+    });
+    if (!apps.length) {
+      el.innerHTML = emptyState('📋','No applications yet','Teacher applications from teacher-apply.html will appear here once submitted.');
+      return;
+    }
+    // Stats row
+    const statNew        = apps.filter(a => !a.status || a.status==='new').length;
+    const statShortlist  = apps.filter(a => a.status==='shortlisted').length;
+    const statHired      = apps.filter(a => a.status==='hired').length;
+    const statRejected   = apps.filter(a => a.status==='rejected').length;
+    let html = '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">' +
+      '<h3 style="font-family:Nunito,sans-serif;font-size:17px;margin:0;">📋 Teacher Applications (' + apps.length + ')</h3>' +
+      '<button class="btn btn-green btn-sm" onclick="exportApplicationsCSV()">⬇️ Export CSV</button>' +
+      '</div>' +
+      '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;">' +
+      '<div class="stat-card" style="border-top:3px solid #54A0FF;background:#EBF4FF;min-width:100px;"><div style="font-size:18px;">🆕</div><div class="stat-val" style="color:#54A0FF;font-size:22px;">' + statNew + '</div><div class="stat-lbl">New</div></div>' +
+      '<div class="stat-card" style="border-top:3px solid #FF9F43;background:#FFF6E8;min-width:100px;"><div style="font-size:18px;">👀</div><div class="stat-val" style="color:#FF9F43;font-size:22px;">' + statShortlist + '</div><div class="stat-lbl">Shortlisted</div></div>' +
+      '<div class="stat-card" style="border-top:3px solid #1DD1A1;background:#E8FFF8;min-width:100px;"><div style="font-size:18px;">✅</div><div class="stat-val" style="color:#1DD1A1;font-size:22px;">' + statHired + '</div><div class="stat-lbl">Hired</div></div>' +
+      '<div class="stat-card" style="border-top:3px solid #FF6B6B;background:#FFF0F0;min-width:100px;"><div style="font-size:18px;">❌</div><div class="stat-val" style="color:#FF6B6B;font-size:22px;">' + statRejected + '</div><div class="stat-lbl">Rejected</div></div>' +
+      '</div>';
+    apps.forEach((app, i) => {
+      const dt = app.appliedAt?.toDate ? app.appliedAt.toDate() : new Date(app.appliedAt||0);
+      const dateStr = dt.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+      const status = app.status || 'new';
+      const statusColor = status==='hired'?'#1DD1A1':status==='shortlisted'?'#FF9F43':status==='rejected'?'#FF6B6B':'#54A0FF';
+      const statusLabel = status==='hired'?'✅ Hired':status==='shortlisted'?'👀 Shortlisted':status==='rejected'?'❌ Rejected':'🆕 New';
+      html += '<div class="card" style="padding:22px;margin-bottom:16px;border-left:4px solid ' + statusColor + ';">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;">' +
+        // Left: name + contact
+        '<div style="flex:1;min-width:200px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+        '<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#F06292,#E91E8C);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff;flex-shrink:0;">' + ((app.firstName||'?')[0]).toUpperCase() + '</div>' +
+        '<div>' +
+        '<div style="font-weight:900;font-size:16px;">' + (app.firstName||'') + ' ' + (app.lastName||'') + '</div>' +
+        '<div style="font-size:12px;color:#aaa;font-weight:600;">' + dateStr + ' · ' + (app.city||'') + ', ' + (app.country||'') + '</div>' +
+        '</div></div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
+        '<a href="tel:' + (app.phone||'') + '" style="display:flex;align-items:center;gap:5px;background:#E8FFF8;color:#1DD1A1;padding:5px 12px;border-radius:50px;font-size:12px;font-weight:800;text-decoration:none;">📞 ' + (app.phone||'—') + '</a>' +
+        '<a href="mailto:' + (app.email||'') + '" style="display:flex;align-items:center;gap:5px;background:#F0EEFF;color:#6C63FF;padding:5px 12px;border-radius:50px;font-size:12px;font-weight:800;text-decoration:none;">📧 ' + (app.email||'—') + '</a>' +
+        (app.linkedin ? '<a href="' + app.linkedin + '" target="_blank" style="display:flex;align-items:center;gap:5px;background:#EBF4FF;color:#54A0FF;padding:5px 12px;border-radius:50px;font-size:12px;font-weight:800;text-decoration:none;">🔗 LinkedIn</a>' : '') +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">' +
+        (app.subjects||'').split(', ').filter(Boolean).map(s => '<span class="chip" style="background:#FFF0F5;color:#E91E8C;border-color:#F48FB1;font-size:11px;padding:4px 10px;">' + s + '</span>').join('') +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;font-size:12px;color:#666;font-weight:600;">' +
+        '<div>🎓 <strong>Qual:</strong> ' + (app.qualification||'—').split('(')[0].trim() + '</div>' +
+        '<div>⭐ <strong>Exp:</strong> ' + (app.yearsExp||'0') + ' years</div>' +
+        '<div>🏅 <strong>Intel Cert:</strong> ' + (app.intelCertification||'Not answered') + '</div>' +
+        '<div>💰 <strong>Expected:</strong> ' + (app.expectedPay||'—') + '</div>' +
+        '<div>📅 <strong>Sessions/wk:</strong> ' + (app.sessionsPerWeek||'—') + '</div>' +
+        '<div>🌍 <strong>Grades:</strong> ' + (app.grades||'—') + '</div>' +
+        '</div>' +
+        (app.philosophy ? '<div style="margin-top:10px;background:#FAFAFA;border-radius:10px;padding:10px 12px;font-size:12px;color:#555;font-weight:600;line-height:1.6;border-left:3px solid #E91E8C;"><strong>Teaching philosophy:</strong> ' + app.philosophy.slice(0,200) + (app.philosophy.length>200?'…':'') + '</div>' : '') +
+        '</div>' +
+        // Right: status + actions
+        '<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;min-width:140px;">' +
+        '<span class="chip" style="background:' + statusColor + '22;color:' + statusColor + ';font-weight:800;">' + statusLabel + '</span>' +
+        '<select onchange="updateAppStatus('' + app.id + '',this.value)" style="padding:7px 10px;border-radius:10px;border:2px solid #E8E8FF;font-weight:700;font-size:12px;width:100%;">' +
+        '<option value="new"' + (status==='new'?' selected':'') + '>🆕 New</option>' +
+        '<option value="shortlisted"' + (status==='shortlisted'?' selected':'') + '>👀 Shortlisted</option>' +
+        '<option value="hired"' + (status==='hired'?' selected':'') + '>✅ Hired</option>' +
+        '<option value="rejected"' + (status==='rejected'?' selected':'') + '>❌ Rejected</option>' +
+        '</select>' +
+        '</div>' +
+        '</div></div>';
+    });
+    el.innerHTML = html;
+  }
+
   else if(tab==='enquiries'){
     if(!_adminData.enquiries.length){el.innerHTML=emptyState('📩','No enquiries yet','Demo booking forms appear here.');return;}
     el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">📩 Demo Enquiries (${_adminData.enquiries.length})</h3>
@@ -1965,6 +2042,49 @@ function renderPricingCards(){
 }
 
 // ─── SCROLL TOP ───────────────────────────────────────────────────────
+async function updateAppStatus(appId, newStatus) {
+  try {
+    await db.doc('teacher_applications/' + appId).update({ status: newStatus });
+    showToast('Status updated to ' + newStatus + '!', 'success');
+    _adminData = null; initAdminDash();
+    // Switch back to applications tab after reload
+    setTimeout(() => {
+      const tabs = document.querySelectorAll('#page-admin-dashboard .tab-btn');
+      tabs.forEach(t => { if (t.onclick && t.onclick.toString().includes('applications')) t.click(); });
+    }, 800);
+  } catch(e) { showToast('Failed to update status. Try again.','error'); }
+}
+
+function exportApplicationsCSV() {
+  const apps = _adminData?.applications || [];
+  if (!apps.length) { showToast('No applications to export.','error'); return; }
+  const headers = ['Name','Email','Phone','City','Country','Subjects','Grades','Qualification','Experience (yrs)','Intel Cert','Teaching Styles','Session Type','Available Days','Hours','Sessions/Week','Languages','Expected Pay','Philosophy','Status','Applied Date'];
+  const rows = apps.map(a => {
+    const dt = a.appliedAt?.toDate ? a.appliedAt.toDate() : new Date(a.appliedAt||0);
+    return [
+      (a.firstName||'') + ' ' + (a.lastName||''),
+      a.email||'', a.phone||'', a.city||'', a.country||'',
+      a.subjects||'', a.grades||'', a.qualification||'',
+      a.yearsExp||'0', a.intelCertification||'',
+      a.teachingStyles||'', a.sessionType||'',
+      a.availableDays||'', a.availableHours||'',
+      a.sessionsPerWeek||'', a.languages||'',
+      a.expectedPay||'', (a.philosophy||'').replace(/,/g,' ').replace(/
+/g,' '),
+      a.status||'new',
+      dt.toLocaleDateString('en-IN')
+    ].map(v => '"' + String(v).replace(/"/g,'""') + '"');
+  });
+  const csv = [headers.map(h=>'"'+h+'"').join(','), ...rows.map(r=>r.join(','))].join('
+');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'intellikids_teacher_applications_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('CSV downloaded!','success');
+}
+
 window.addEventListener('scroll',()=>{
   const b=document.getElementById('scroll-top');if(b)b.classList.toggle('show',window.scrollY>400);
 });
