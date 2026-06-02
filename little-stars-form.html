@@ -9,7 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,#FFF9F0 0%,#F0EEFF 50%,#E8FFF8 100%);min-height:100vh;color:#1a1a2e;}
+body{font-family:'Nunito',sans-serif;background:linear-gradient(160deg,#FFF8F0 0%,#FFF0F5 60%,#FCE4EC 100%);min-height:100vh;color:#1a1a2e;}
 
 /* floating stars background */
 body::before{content:'⭐ 🌟 ✨ 🌈 🎨 🎮 🚀 🎉 🌸 🎵';position:fixed;top:0;left:0;width:100%;height:100%;font-size:24px;line-height:3;letter-spacing:60px;opacity:.06;z-index:0;pointer-events:none;word-break:break-all;}
@@ -20,12 +20,12 @@ body::before{content:'⭐ 🌟 ✨ 🌈 🎨 🎮 🚀 🎉 🌸 🎵';position:
 .top-badge{text-align:center;margin-bottom:20px;}
 .top-badge .emoji-row{font-size:40px;letter-spacing:8px;margin-bottom:8px;}
 .brand{display:inline-flex;align-items:center;gap:8px;background:#fff;border-radius:50px;padding:8px 18px;box-shadow:0 2px 12px rgba(0,0,0,.08);}
-.brand-icon{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#FF6B6B,#FF9F43);display:flex;align-items:center;justify-content:center;font-size:16px;}
+.brand-icon{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#F06292,#E91E8C);display:flex;align-items:center;justify-content:center;font-size:16px;}
 .brand-name{font-weight:900;font-size:14px;color:#1a1a2e;}
-.brand-name span{color:#FF6B6B;}
+.brand-name span{color:#FF6B35;}
 
 /* ── HERO CARD ── */
-.hero-card{background:linear-gradient(135deg,#FF6B6B,#FF9F43);border-radius:28px;padding:36px 28px;text-align:center;color:#fff;margin-bottom:24px;position:relative;overflow:hidden;box-shadow:0 12px 40px rgba(255,107,107,.35);}
+.hero-card{background:linear-gradient(135deg,#F06292,#E91E8C,#C2185B);border-radius:28px;padding:36px 28px;text-align:center;color:#fff;margin-bottom:24px;position:relative;overflow:hidden;box-shadow:0 12px 40px rgba(233,30,140,.35);}
 .hero-card::before{content:'🌟';position:absolute;font-size:120px;opacity:.1;top:-20px;right:-20px;line-height:1;}
 .hero-card::after{content:'🎨';position:absolute;font-size:80px;opacity:.1;bottom:-10px;left:-10px;line-height:1;}
 .hero-title{font-size:clamp(22px,6vw,32px);font-weight:900;line-height:1.2;margin-bottom:8px;}
@@ -47,7 +47,7 @@ input[type=text],input[type=email],input[type=tel],input[type=number],select,tex
   font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;color:#1a1a2e;background:#FAFAFA;
   transition:border-color .2s,box-shadow .2s;outline:none;
 }
-input:focus,select:focus,textarea:focus{border-color:#FF6B6B;box-shadow:0 0 0 3px rgba(255,107,107,.1);background:#fff;}
+input:focus,select:focus,textarea:focus{border-color:#E91E8C;box-shadow:0 0 0 3px rgba(233,30,140,.1);background:#fff;}
 textarea{resize:vertical;min-height:80px;}
 .half{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 @media(max-width:480px){.half{grid-template-columns:1fr;}}
@@ -58,8 +58,8 @@ textarea{resize:vertical;min-height:80px;}
 .age-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
 @media(max-width:380px){.age-grid{grid-template-columns:1fr 1fr;}}
 .age-btn{border:2px solid #E8E8F0;background:#FAFAFA;border-radius:16px;padding:14px 8px;text-align:center;cursor:pointer;transition:all .2s;font-family:'Nunito',sans-serif;}
-.age-btn:hover{border-color:#FF9F43;background:#FFF6E8;}
-.age-btn.active{border-color:#FF6B6B;background:linear-gradient(135deg,#FFF0F0,#FFF6E8);}
+.age-btn:hover{border-color:#F06292;background:#FFF0F5;}
+.age-btn.active{border-color:#E91E8C;background:linear-gradient(135deg,#FFF0F5,#FCE4EC);}
 .age-btn .age-emoji{font-size:28px;display:block;margin-bottom:6px;}
 .age-btn .age-label{font-size:12px;font-weight:800;color:#444;line-height:1.3;}
 .age-btn .age-sub{font-size:10px;color:#aaa;font-weight:600;margin-top:2px;}
@@ -67,20 +67,20 @@ textarea{resize:vertical;min-height:80px;}
 /* ── INTEREST CHIPS ── */
 .interest-grid{display:flex;flex-wrap:wrap;gap:8px;}
 .i-chip{display:flex;align-items:center;gap:6px;padding:9px 14px;border:2px solid #E8E8F0;border-radius:50px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;background:#FAFAFA;color:#555;user-select:none;}
-.i-chip:hover{border-color:#6C63FF;background:#F0EEFF;}
-.i-chip.active{background:linear-gradient(135deg,#6C63FF,#A29BFE);color:#fff;border-color:transparent;}
+.i-chip:hover{border-color:#F06292;background:#FFF0F5;}
+.i-chip.active{background:linear-gradient(135deg,#F06292,#E91E8C);color:#fff;border-color:transparent;}
 
 /* ── RADIO STYLE ── */
 .radio-row{display:flex;flex-wrap:wrap;gap:10px;}
 .radio-opt{display:flex;align-items:center;gap:8px;padding:10px 16px;border:2px solid #E8E8F0;border-radius:12px;cursor:pointer;transition:all .15s;background:#FAFAFA;}
 .radio-opt input{display:none;}
 .radio-opt span{font-size:13px;font-weight:700;color:#555;}
-.radio-opt.selected{background:linear-gradient(135deg,#E8FFF8,#F0EEFF);border-color:#1DD1A1;}
+.radio-opt.selected{background:linear-gradient(135deg,#FFF0F5,#FCE4EC);border-color:#E91E8C;}
 .radio-opt.selected span{color:#1a1a2e;}
 
 /* ── SUBMIT ── */
-.btn-submit{width:100%;padding:18px;background:linear-gradient(135deg,#FF6B6B,#FF9F43);border:none;border-radius:16px;color:#fff;font-family:'Nunito',sans-serif;font-size:17px;font-weight:900;cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:0 6px 24px rgba(255,107,107,.35);letter-spacing:.3px;}
-.btn-submit:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(255,107,107,.45);}
+.btn-submit{width:100%;padding:18px;background:linear-gradient(135deg,#F06292,#E91E8C);border:none;border-radius:16px;color:#fff;font-family:'Nunito',sans-serif;font-size:17px;font-weight:900;cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:0 6px 24px rgba(233,30,140,.35);letter-spacing:.3px;}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(233,30,140,.45);}
 .btn-submit:disabled{opacity:.7;cursor:not-allowed;transform:none;}
 .loader{display:inline-block;width:16px;height:16px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-left:8px;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -89,14 +89,14 @@ textarea{resize:vertical;min-height:80px;}
 .success{display:none;text-align:center;padding:40px 20px;}
 .success-anim{font-size:72px;margin-bottom:16px;animation:bounce 1s ease infinite alternate;}
 @keyframes bounce{from{transform:translateY(0);}to{transform:translateY(-12px);}}
-.success h2{font-size:26px;font-weight:900;color:#FF6B6B;margin-bottom:8px;}
+.success h2{font-size:26px;font-weight:900;color:#E91E8C;margin-bottom:8px;}
 .success p{color:#666;font-size:15px;font-weight:600;line-height:1.7;margin-bottom:24px;}
-.home-btn{display:inline-block;background:linear-gradient(135deg,#6C63FF,#A29BFE);color:#fff;padding:14px 32px;border-radius:50px;font-weight:900;font-size:15px;text-decoration:none;}
+.home-btn{display:inline-block;background:linear-gradient(135deg,#F06292,#E91E8C);color:#fff;padding:14px 32px;border-radius:50px;font-weight:900;font-size:15px;text-decoration:none;}
 .count-txt{font-size:13px;color:#aaa;font-weight:700;margin-top:12px;}
 
 /* ── FOOTER ── */
 .foot{text-align:center;padding:16px;font-size:12px;color:#aaa;font-weight:600;}
-.foot a{color:#6C63FF;font-weight:700;text-decoration:none;}
+.foot a{color:#E91E8C;font-weight:700;text-decoration:none;}
 </style>
 </head>
 <body>
@@ -106,13 +106,14 @@ textarea{resize:vertical;min-height:80px;}
   <div class="top-badge">
     <div class="emoji-row">🌟 🎨 🚀 🎵 🌈</div>
     <div class="brand">
-      <div class="brand-icon">🎓</div>
-      <div class="brand-name">Intelli<span>kids</span> Academy</div>
+      <div class="brand-icon" style="background:linear-gradient(135deg,#F06292,#E91E8C,#C2185B);">🚀</div>
+      <div style="font-family:'Nunito',sans-serif;font-size:15px;font-weight:900;"><span style="color:#1a1a2e;">Intelli</span><span style="color:#FF6B35;">kids</span> <span style="font-size:11px;font-weight:800;color:#aaa;letter-spacing:2px;">ACADEMY</span></div>
     </div>
   </div>
 
   <!-- HERO -->
   <div class="hero-card">
+    <div style="font-size:9px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,.8);margin-bottom:8px;">WHERE CURIOUS KIDS GROW</div>
     <div class="hero-title">Hello Little Star! 🌟<br/>Let's Learn Something Fun!</div>
     <div class="hero-sub">Tell us a little about your child and we will set up<br/>a <strong>FREE fun learning session</strong> just for them!</div>
     <div class="age-badge">👶 For children aged 3 – 8 years (Nursery to Grade 2)</div>
