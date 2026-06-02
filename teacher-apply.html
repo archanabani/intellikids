@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Teach with Intellikids Academy — Apply Now</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Nunito',sans-serif;background:#FFFDF8;color:#1a1a2e;min-height:100vh;}
+
+/* ── NAV ── */
+.nav{background:#fff;border-bottom:2px solid #f0f0f0;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:68px;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.06);}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo-icon{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#F06292,#E91E8C,#C2185B);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 12px rgba(233,30,140,.3);}
+.logo-text{font-weight:900;font-size:17px;color:#1a1a2e;line-height:1.1;}
+.logo-text span{color:#FF6B35;}
+.back-btn{background:#FFF0F5;color:#C2185B;border:none;padding:9px 18px;border-radius:50px;font-weight:800;font-size:13px;cursor:pointer;font-family:'Nunito',sans-serif;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+
+/* ── HERO ── */
+.hero{background:linear-gradient(135deg,#1a1a2e 0%,#3d0a2e 50%,#C2185B 100%);padding:56px 24px;text-align:center;position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(240,98,146,.25),transparent 50%),radial-gradient(circle at 80% 50%,rgba(194,24,91,.2),transparent 50%);}
+.hero-inner{position:relative;z-index:1;max-width:680px;margin:0 auto;}
+.hero-pill{display:inline-block;background:linear-gradient(135deg,#F06292,#E91E8C);color:#fff;font-size:12px;font-weight:800;padding:6px 20px;border-radius:50px;letter-spacing:.5px;margin-bottom:16px;}
+.hero h1{color:#fff;font-size:clamp(24px,5vw,40px);font-weight:900;line-height:1.2;margin-bottom:12px;}
+.hero h1 span{background:linear-gradient(135deg,#FCB8D2,#F48FB1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hero p{color:#9090B0;font-size:15px;font-weight:600;line-height:1.8;max-width:520px;margin:0 auto 20px;}
+.hero-badges{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;}
+.hero-badge{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:50px;padding:7px 16px;font-size:12px;font-weight:700;color:#fff;}
+
+/* ── PROGRESS BAR ── */
+.progress-wrap{background:#f0f0f0;height:6px;border-radius:3px;margin:0;}
+.progress-bar{height:6px;background:linear-gradient(90deg,#F06292,#E91E8C,#C2185B);border-radius:3px;transition:width .4s ease;}
+
+/* ── MAIN ── */
+.main{max-width:760px;margin:0 auto;padding:40px 20px 60px;}
+
+/* ── SECTION CARD ── */
+.s-card{background:#fff;border-radius:24px;padding:32px 28px;box-shadow:0 4px 24px rgba(0,0,0,.07);margin-bottom:24px;border-top:4px solid transparent;}
+.s-card.purple{border-top-color:#E91E8C;}
+.s-card.orange{border-top-color:#FF9F43;}
+.s-card.green{border-top-color:#1DD1A1;}
+.s-card.blue{border-top-color:#54A0FF;}
+.s-card.red{border-top-color:#FF6B6B;}
+.s-card.teal{border-top-color:#00CEC9;}
+
+.s-title{display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-bottom:14px;border-bottom:2px dashed #f5f5f5;}
+.s-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.s-title-text h3{font-size:17px;font-weight:900;margin-bottom:2px;}
+.s-title-text p{font-size:12px;color:#aaa;font-weight:600;}
+
+/* ── FORM ELEMENTS ── */
+.form-group{margin-bottom:18px;}
+.form-group label{display:block;font-size:13px;font-weight:800;color:#444;margin-bottom:7px;}
+.form-group label .req{color:#FF6B6B;}
+.form-group label .hint{font-size:11px;color:#aaa;font-weight:600;margin-left:4px;}
+input[type=text],input[type=email],input[type=tel],input[type=url],input[type=number],select,textarea{
+  width:100%;padding:13px 16px;border:2px solid #E8E8F0;border-radius:14px;
+  font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;color:#1a1a2e;
+  background:#FAFAFA;transition:border-color .2s,box-shadow .2s;outline:none;
+}
+input:focus,select:focus,textarea:focus{border-color:#E91E8C;box-shadow:0 0 0 3px rgba(233,30,140,.1);background:#fff;}
+textarea{resize:vertical;}
+.half{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.third{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+@media(max-width:540px){.half,.third{grid-template-columns:1fr;}}
+.form-error{color:#FF6B6B;font-size:12px;font-weight:700;margin-top:5px;display:none;}
+.form-error.show{display:block;}
+
+/* ── CHIP SELECTORS ── */
+.chip-grid{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{display:flex;align-items:center;gap:6px;padding:8px 14px;border:2px solid #E8E8F0;border-radius:50px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;background:#FAFAFA;color:#555;user-select:none;}
+.chip:hover{border-color:#F06292;background:#FFF0F5;}
+.chip.active{background:linear-gradient(135deg,#F06292,#E91E8C);color:#fff;border-color:transparent;}
+.chip.orange-chip.active{background:linear-gradient(135deg,#F06292,#E91E8C);border-color:transparent;}
+.chip.green-chip.active{background:linear-gradient(135deg,#1DD1A1,#00B894);border-color:transparent;}
+
+/* ── RADIO CARDS ── */
+.radio-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;}
+.radio-card{border:2px solid #E8E8F0;border-radius:16px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .2s;background:#FAFAFA;}
+.radio-card:hover{border-color:#F06292;background:#FFF0F5;}
+.radio-card.active{border-color:#E91E8C;background:linear-gradient(135deg,#FFF0F5,#FCE4EC);}
+.radio-card .rc-emoji{font-size:28px;margin-bottom:8px;}
+.radio-card .rc-label{font-size:13px;font-weight:800;color:#444;}
+.radio-card .rc-sub{font-size:11px;color:#aaa;font-weight:600;margin-top:3px;}
+
+/* ── RANGE SLIDER ── */
+.slider-wrap{padding:8px 0;}
+input[type=range]{width:100%;height:6px;appearance:none;background:linear-gradient(90deg,#F06292,#E91E8C);border-radius:3px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:20px;height:20px;border-radius:50%;background:#E91E8C;border:3px solid #fff;box-shadow:0 2px 8px rgba(233,30,140,.4);}
+.slider-labels{display:flex;justify-content:space-between;font-size:11px;color:#aaa;font-weight:700;margin-top:6px;}
+.slider-val{text-align:center;font-size:18px;font-weight:900;color:#E91E8C;margin-bottom:8px;}
+
+/* ── INTEL CERT HIGHLIGHT ── */
+.intel-box{background:linear-gradient(135deg,#FFF0F5,#FCE4EC);border:2px solid #F48FB1;border-radius:16px;padding:18px 20px;display:flex;align-items:flex-start;gap:14px;}
+.intel-icon{font-size:28px;flex-shrink:0;}
+.intel-text h4{font-size:14px;font-weight:900;color:#C2185B;margin-bottom:4px;}
+.intel-text p{font-size:12px;color:#555;font-weight:600;line-height:1.6;}
+
+/* ── DECLARATION ── */
+.declaration{background:linear-gradient(135deg,#FFF0F5,#FFF9F0);border-radius:16px;padding:18px 20px;margin-bottom:20px;}
+.declaration label{display:flex;align-items:flex-start;gap:12px;cursor:pointer;font-size:13px;font-weight:700;color:#444;line-height:1.6;}
+.declaration input[type=checkbox]{width:18px;height:18px;flex-shrink:0;margin-top:2px;accent-color:#E91E8C;cursor:pointer;}
+
+/* ── SUBMIT ── */
+.btn-submit{width:100%;padding:18px;background:linear-gradient(135deg,#F06292,#E91E8C,#C2185B);border:none;border-radius:16px;color:#fff;font-family:'Nunito',sans-serif;font-size:17px;font-weight:900;cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:0 6px 24px rgba(233,30,140,.4);letter-spacing:.3px;}
+.btn-submit:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(233,30,140,.5);}
+.btn-submit:disabled{opacity:.7;cursor:not-allowed;transform:none;}
+.loader{display:inline-block;width:16px;height:16px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-left:8px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── SUCCESS ── */
+.success{display:none;text-align:center;padding:60px 24px;}
+.success-icon{font-size:72px;margin-bottom:16px;}
+.success h2{font-size:28px;font-weight:900;color:#E91E8C;margin-bottom:10px;}
+.success p{color:#666;font-size:15px;font-weight:600;line-height:1.8;max-width:480px;margin:0 auto 28px;}
+.success-steps{background:#FFF0F5;border-radius:16px;padding:20px 24px;text-align:left;max-width:420px;margin:0 auto 28px;}
+.success-steps h4{font-size:14px;font-weight:800;color:#E91E8C;margin-bottom:12px;}
+.success-step{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px;font-weight:700;color:#555;}
+.step-num{width:24px;height:24px;border-radius:50%;background:#E91E8C;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0;}
+.home-btn{display:inline-block;background:linear-gradient(135deg,#F06292,#E91E8C);color:#fff;padding:14px 32px;border-radius:50px;font-weight:900;font-size:15px;text-decoration:none;box-shadow:0 6px 20px rgba(233,30,140,.35);}
+
+/* ── FOOTER ── */
+.foot{text-align:center;padding:20px;font-size:12px;color:#aaa;font-weight:600;border-top:1px solid #f0f0f0;}
+.foot a{color:#E91E8C;font-weight:700;text-decoration:none;}
+
+/* ── REQUIRED NOTE ── */
+.req-note{font-size:12px;color:#aaa;font-weight:600;text-align:right;margin-bottom:20px;}
+.req-note span{color:#E91E8C;}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <a style="display:flex;align-items:center;gap:12px;text-decoration:none;" href="https://intellikidsacademy.in">
+    <div style="width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#F06292,#E91E8C,#C2185B);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 12px rgba(233,30,140,.3);">🚀</div>
+    <div style="line-height:1.1;">
+      <div style="font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;letter-spacing:-.3px;"><span style="color:#1a1a2e;">Intelli</span><span style="color:#FF6B35;">kids</span></div>
+      <div style="font-size:9px;font-weight:800;letter-spacing:2.5px;color:#aaa;margin-top:1px;">ACADEMY</div>
+    </div>
+  </a>
+  <a class="back-btn" href="https://intellikidsacademy.in">← Back to Website</a>
+</nav>
+
+<!-- PROGRESS -->
+<div class="progress-wrap"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <div style="display:inline-block;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:50px;padding:4px 14px;font-size:9px;font-weight:800;letter-spacing:2px;color:#fff;margin-bottom:8px;">WHERE CURIOUS KIDS GROW</div>
+    <div class="hero-pill">👩‍🏫 WE'RE HIRING PASSIONATE TEACHERS</div>
+    <h1>Join the Intellikids <span>Teaching Family</span> 🏆</h1>
+    <p>We're looking for passionate, patient and creative educators who believe every child learns differently. If that's you — we'd love to meet you!</p>
+    <div class="hero-badges">
+      <div class="hero-badge">🏅 Intel Labs Certified Training</div>
+      <div class="hero-badge">💰 Competitive Pay</div>
+      <div class="hero-badge">📅 Flexible Hours</div>
+      <div class="hero-badge">🌍 Teach from Anywhere</div>
+      <div class="hero-badge">🧬 Personalised Teaching Style</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="req-note"><span>*</span> Required fields</div>
+
+  <!-- SUCCESS SCREEN -->
+  <div class="success" id="success-screen">
+    <div class="success-icon">🎉</div>
+    <h2>Application Submitted!</h2>
+    <p>Thank you for applying to teach with Intellikids Academy! Our team will review your application and get back to you within <strong>3–5 working days</strong>.</p>
+    <div class="success-steps">
+      <h4>What happens next?</h4>
+      <div class="success-step"><div class="step-num">1</div>Our team reviews your application</div>
+      <div class="success-step"><div class="step-num">2</div>We call you for a brief intro chat</div>
+      <div class="success-step"><div class="step-num">3</div>Short demo teaching session (online)</div>
+      <div class="success-step"><div class="step-num">4</div>Intel Labs certification onboarding</div>
+      <div class="success-step"><div class="step-num">5</div>Welcome to Intellikids! 🎓</div>
+    </div>
+    <a href="https://intellikidsacademy.in" class="home-btn">← Back to Intellikids Academy</a>
+  </div>
+
+  <!-- FORM -->
+  <div id="form-section">
+
+  <!-- SECTION 1: PERSONAL INFO -->
+  <div class="s-card purple">
+    <div class="s-title">
+      <div class="s-icon" style="background:#F0EEFF;">👤</div>
+      <div class="s-title-text"><h3>Personal Information</h3><p>Tell us a little about yourself</p></div>
+    </div>
+
+    <div class="half">
+      <div class="form-group">
+        <label>First Name <span class="req">*</span></label>
+        <input type="text" id="f-fname" placeholder="Priya"/>
+        <div class="form-error" id="err-fname">Required</div>
+      </div>
+      <div class="form-group">
+        <label>Last Name <span class="req">*</span></label>
+        <input type="text" id="f-lname" placeholder="Sharma"/>
+        <div class="form-error" id="err-lname">Required</div>
+      </div>
+    </div>
+
+    <div class="half">
+      <div class="form-group">
+        <label>Email Address <span class="req">*</span></label>
+        <input type="email" id="f-email" placeholder="priya@example.com"/>
+        <div class="form-error" id="err-email">Enter a valid email</div>
+      </div>
+      <div class="form-group">
+        <label>WhatsApp Number <span class="req">*</span></label>
+        <input type="tel" id="f-phone" placeholder="+91 98765 43210"/>
+        <div class="form-error" id="err-phone">Required</div>
+      </div>
+    </div>
+
+    <div class="half">
+      <div class="form-group">
+        <label>City <span class="req">*</span></label>
+        <input type="text" id="f-city" placeholder="Mumbai"/>
+        <div class="form-error" id="err-city">Required</div>
+      </div>
+      <div class="form-group">
+        <label>Country <span class="req">*</span></label>
+        <select id="f-country">
+          <option value="">Select Country</option>
+          <option value="India">🇮🇳 India</option>
+          <option value="UAE">🇦🇪 UAE</option>
+          <option value="UK">🇬🇧 United Kingdom</option>
+          <option value="USA">🇺🇸 USA</option>
+          <option value="Canada">🇨🇦 Canada</option>
+          <option value="Australia">🇦🇺 Australia</option>
+          <option value="Other">🌍 Other</option>
+        </select>
+        <div class="form-error" id="err-country">Required</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>LinkedIn / Portfolio URL <span class="hint">(Optional but recommended)</span></label>
+      <input type="url" id="f-linkedin" placeholder="https://linkedin.com/in/yourname"/>
+    </div>
+  </div>
+
+  <!-- SECTION 2: SUBJECTS -->
+  <div class="s-card orange">
+    <div class="s-title">
+      <div class="s-icon" style="background:#FFF6E8;">📚</div>
+      <div class="s-title-text"><h3>Subjects You Can Teach</h3><p>Select all that apply</p></div>
+    </div>
+
+    <div class="form-group">
+      <label>Primary Subjects <span class="req">*</span> <span class="hint">Pick all you're confident teaching</span></label>
+      <div class="chip-grid" id="subj-chips">
+        <div class="chip orange-chip" data-subj="Computer Basics" onclick="toggleChip(this,'subjects')">🖥️ Computer Basics</div>
+        <div class="chip orange-chip" data-subj="Coding / Programming" onclick="toggleChip(this,'subjects')">🤖 Coding</div>
+        <div class="chip orange-chip" data-subj="Maths" onclick="toggleChip(this,'subjects')">🔢 Maths</div>
+        <div class="chip orange-chip" data-subj="English" onclick="toggleChip(this,'subjects')">✍️ English</div>
+        <div class="chip orange-chip" data-subj="Science" onclick="toggleChip(this,'subjects')">🔭 Science</div>
+        <div class="chip orange-chip" data-subj="Biology" onclick="toggleChip(this,'subjects')">🧬 Biology</div>
+        <div class="chip orange-chip" data-subj="Physics" onclick="toggleChip(this,'subjects')">🚀 Physics</div>
+        <div class="chip orange-chip" data-subj="Chemistry" onclick="toggleChip(this,'subjects')">🔬 Chemistry</div>
+        <div class="chip orange-chip" data-subj="Early Learning (KG–Grade 2)" onclick="toggleChip(this,'subjects')">🌟 Early Learning (KG–Gr.2)</div>
+        <div class="chip orange-chip" data-subj="General Primary (Gr. 3–5)" onclick="toggleChip(this,'subjects')">📖 General Primary (Gr.3–5)</div>
+      </div>
+      <div class="form-error" id="err-subjects">Please select at least one subject</div>
+    </div>
+
+    <div class="form-group">
+      <label>Grade Levels You're Comfortable With <span class="req">*</span></label>
+      <div class="chip-grid" id="grade-chips">
+        <div class="chip orange-chip" data-grade="Nursery / KG (Age 3–6)" onclick="toggleChip(this,'grades')">👶 Nursery / KG</div>
+        <div class="chip orange-chip" data-grade="Grade 1–3" onclick="toggleChip(this,'grades')">📗 Gr. 1–3</div>
+        <div class="chip orange-chip" data-grade="Grade 4–6" onclick="toggleChip(this,'grades')">📘 Gr. 4–6</div>
+        <div class="chip orange-chip" data-grade="Grade 7–9" onclick="toggleChip(this,'grades')">📙 Gr. 7–9</div>
+        <div class="chip orange-chip" data-grade="Grade 10–12" onclick="toggleChip(this,'grades')">🎓 Gr. 10–12</div>
+      </div>
+      <div class="form-error" id="err-grades">Please select at least one grade level</div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: EXPERIENCE -->
+  <div class="s-card green">
+    <div class="s-title">
+      <div class="s-icon" style="background:#E8FFF8;">🏆</div>
+      <div class="s-title-text"><h3>Teaching Experience</h3><p>Your background and qualifications</p></div>
+    </div>
+
+    <div class="half">
+      <div class="form-group">
+        <label>Highest Qualification <span class="req">*</span></label>
+        <select id="f-qualification">
+          <option value="">Select</option>
+          <option>Bachelor's Degree (B.Ed / B.Sc / BA / B.Tech)</option>
+          <option>Master's Degree (M.Ed / M.Sc / MA / M.Tech)</option>
+          <option>PhD / Doctorate</option>
+          <option>Diploma in Education</option>
+          <option>Currently Pursuing Degree</option>
+          <option>Other</option>
+        </select>
+        <div class="form-error" id="err-qualification">Required</div>
+      </div>
+      <div class="form-group">
+        <label>Specialisation / Major <span class="req">*</span></label>
+        <input type="text" id="f-major" placeholder="e.g. Mathematics, Computer Science…"/>
+        <div class="form-error" id="err-major">Required</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Years of Teaching Experience <span class="req">*</span></label>
+      <div class="slider-val" id="exp-val">0 years</div>
+      <div class="slider-wrap">
+        <input type="range" id="f-experience" min="0" max="20" value="0" oninput="updateSlider(this.value,'exp-val',v=>v==20?'20+ years':v+' year'+(v==1?'':'s'))"/>
+        <div class="slider-labels"><span>Fresh Graduate</span><span>5 yrs</span><span>10 yrs</span><span>15 yrs</span><span>20+ yrs</span></div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Where have you taught before? <span class="hint">Optional — school, coaching, online, private tutor etc.</span></label>
+      <textarea id="f-prev-exp" rows="3" placeholder="e.g. 3 years at DPS, 2 years private tutoring, 1 year on Unacademy…"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Do you have any teaching certifications? <span class="hint">B.Ed, CTET, TET, Cambridge, etc.</span></label>
+      <input type="text" id="f-certs" placeholder="e.g. B.Ed, CTET cleared, Cambridge TKT…"/>
+    </div>
+  </div>
+
+  <!-- SECTION 4: TEACHING STYLE -->
+  <div class="s-card blue">
+    <div class="s-title">
+      <div class="s-icon" style="background:#EBF4FF;">🎨</div>
+      <div class="s-title-text"><h3>Your Teaching Style</h3><p>Help us understand how you teach</p></div>
+    </div>
+
+    <div class="form-group">
+      <label>How would you describe your teaching style? <span class="req">*</span> <span class="hint">Pick all that fit you</span></label>
+      <div class="chip-grid">
+        <div class="chip" data-style="Patient & Encouraging" onclick="toggleChip(this,'styles')">🤗 Patient & Encouraging</div>
+        <div class="chip" data-style="Structured & Methodical" onclick="toggleChip(this,'styles')">📐 Structured & Methodical</div>
+        <div class="chip" data-style="Fun & Gamified" onclick="toggleChip(this,'styles')">🎮 Fun & Gamified</div>
+        <div class="chip" data-style="Visual & Diagram-based" onclick="toggleChip(this,'styles')">🖼️ Visual & Diagram-based</div>
+        <div class="chip" data-style="Story-based Learning" onclick="toggleChip(this,'styles')">📖 Story-based</div>
+        <div class="chip" data-style="Concept-first, Practice-next" onclick="toggleChip(this,'styles')">💡 Concept-first</div>
+        <div class="chip" data-style="Activity & Project-based" onclick="toggleChip(this,'styles')">🔨 Project-based</div>
+        <div class="chip" data-style="Adaptive to each student" onclick="toggleChip(this,'styles')">🧬 Adaptive</div>
+      </div>
+      <div class="form-error" id="err-styles">Please select at least one</div>
+    </div>
+
+    <div class="form-group">
+      <label>Preferred session type <span class="req">*</span></label>
+      <div class="radio-cards">
+        <div class="radio-card" onclick="selectRadio(this,'session-type','1-on-1 Only')">
+          <div class="rc-emoji">🎯</div>
+          <div class="rc-label">1-on-1 Only</div>
+          <div class="rc-sub">Just me and the student</div>
+        </div>
+        <div class="radio-card" onclick="selectRadio(this,'session-type','Group Only')">
+          <div class="rc-emoji">👥</div>
+          <div class="rc-label">Group Only</div>
+          <div class="rc-sub">Small groups (max 4)</div>
+        </div>
+        <div class="radio-card" onclick="selectRadio(this,'session-type','Both')">
+          <div class="rc-emoji">🌟</div>
+          <div class="rc-label">Both</div>
+          <div class="rc-sub">Happy with either</div>
+        </div>
+      </div>
+      <div class="form-error" id="err-session-type">Please select one</div>
+    </div>
+
+    <div class="form-group">
+      <label>In your own words — why do you believe every child is different and how do you adapt? <span class="req">*</span></label>
+      <textarea id="f-philosophy" rows="4" placeholder="Share your teaching philosophy. How do you personalise learning? How do you handle a child who is struggling vs one who is ahead?…"></textarea>
+      <div class="form-error" id="err-philosophy">Please share your teaching philosophy</div>
+    </div>
+  </div>
+
+  <!-- SECTION 5: AVAILABILITY -->
+  <div class="s-card red">
+    <div class="s-title">
+      <div class="s-icon" style="background:#FFF0F0;">📅</div>
+      <div class="s-title-text"><h3>Availability & Setup</h3><p>When can you teach and your tech setup</p></div>
+    </div>
+
+    <div class="form-group">
+      <label>Available Days <span class="req">*</span></label>
+      <div class="chip-grid">
+        <div class="chip green-chip" data-day="Monday" onclick="toggleChip(this,'days')">Mon</div>
+        <div class="chip green-chip" data-day="Tuesday" onclick="toggleChip(this,'days')">Tue</div>
+        <div class="chip green-chip" data-day="Wednesday" onclick="toggleChip(this,'days')">Wed</div>
+        <div class="chip green-chip" data-day="Thursday" onclick="toggleChip(this,'days')">Thu</div>
+        <div class="chip green-chip" data-day="Friday" onclick="toggleChip(this,'days')">Fri</div>
+        <div class="chip green-chip" data-day="Saturday" onclick="toggleChip(this,'days')">Sat</div>
+        <div class="chip green-chip" data-day="Sunday" onclick="toggleChip(this,'days')">Sun</div>
+      </div>
+      <div class="form-error" id="err-days">Please select at least one day</div>
+    </div>
+
+    <div class="form-group">
+      <label>Preferred Teaching Hours <span class="req">*</span></label>
+      <div class="chip-grid">
+        <div class="chip green-chip" data-hours="Morning (6–10 AM)" onclick="toggleChip(this,'hours')">🌅 Morning (6–10 AM)</div>
+        <div class="chip green-chip" data-hours="Late Morning (10 AM–12 PM)" onclick="toggleChip(this,'hours')">☀️ Late Morning</div>
+        <div class="chip green-chip" data-hours="Afternoon (12–4 PM)" onclick="toggleChip(this,'hours')">🌤️ Afternoon</div>
+        <div class="chip green-chip" data-hours="Evening (4–8 PM)" onclick="toggleChip(this,'hours')">🌆 Evening</div>
+        <div class="chip green-chip" data-hours="Night (8–10 PM)" onclick="toggleChip(this,'hours')">🌙 Night</div>
+      </div>
+      <div class="form-error" id="err-hours">Please select at least one time slot</div>
+    </div>
+
+    <div class="half">
+      <div class="form-group">
+        <label>Sessions per week you can commit to <span class="req">*</span></label>
+        <div class="slider-val" id="sess-val">5 sessions/week</div>
+        <div class="slider-wrap">
+          <input type="range" id="f-sessions" min="1" max="30" value="5" oninput="updateSlider(this.value,'sess-val',v=>v+' session'+(v==1?'':'s')+'/week')"/>
+          <div class="slider-labels"><span>1</span><span>10</span><span>20</span><span>30</span></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Languages you can teach in <span class="req">*</span></label>
+        <div class="chip-grid">
+          <div class="chip" data-lang="English" onclick="toggleChip(this,'langs')">English</div>
+          <div class="chip" data-lang="Hindi" onclick="toggleChip(this,'langs')">Hindi</div>
+          <div class="chip" data-lang="Tamil" onclick="toggleChip(this,'langs')">Tamil</div>
+          <div class="chip" data-lang="Telugu" onclick="toggleChip(this,'langs')">Telugu</div>
+          <div class="chip" data-lang="Marathi" onclick="toggleChip(this,'langs')">Marathi</div>
+          <div class="chip" data-lang="Bengali" onclick="toggleChip(this,'langs')">Bengali</div>
+          <div class="chip" data-lang="Kannada" onclick="toggleChip(this,'langs')">Kannada</div>
+          <div class="chip" data-lang="Other" onclick="toggleChip(this,'langs')">Other</div>
+        </div>
+        <div class="form-error" id="err-langs">Select at least one language</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Your tech setup for online teaching <span class="req">*</span></label>
+      <div class="chip-grid">
+        <div class="chip" data-tech="Laptop / Desktop" onclick="toggleChip(this,'tech')">💻 Laptop / Desktop</div>
+        <div class="chip" data-tech="Webcam" onclick="toggleChip(this,'tech')">📷 Webcam</div>
+        <div class="chip" data-tech="Stable Internet" onclick="toggleChip(this,'tech')">📶 Stable Internet</div>
+        <div class="chip" data-tech="Headset / Mic" onclick="toggleChip(this,'tech')">🎤 Headset / Mic</div>
+        <div class="chip" data-tech="Drawing Tablet" onclick="toggleChip(this,'tech')">✏️ Drawing Tablet</div>
+        <div class="chip" data-tech="Whiteboard" onclick="toggleChip(this,'tech')">📋 Whiteboard</div>
+      </div>
+      <div class="form-error" id="err-tech">Please select your setup</div>
+    </div>
+  </div>
+
+  <!-- SECTION 6: ABOUT YOU -->
+  <div class="s-card teal">
+    <div class="s-title">
+      <div class="s-icon" style="background:#E0FAFA;">💬</div>
+      <div class="s-title-text"><h3>A Little More About You</h3><p>Let your personality shine</p></div>
+    </div>
+
+    <div class="form-group">
+      <label>What inspired you to become a teacher?</label>
+      <textarea id="f-inspired" rows="3" placeholder="Tell us your story — what made you choose teaching and what keeps you passionate about it…"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Tell us about a student success story you're proud of <span class="hint">Optional</span></label>
+      <textarea id="f-story" rows="3" placeholder="A moment when you saw a child truly understand something for the first time, or overcome a challenge with your help…"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>How do you handle a child who is distracted or losing interest during a session?</label>
+      <textarea id="f-distracted" rows="3" placeholder="Share your real approach — what techniques do you use to re-engage a child?…"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Expected pay per session (INR) <span class="hint">This helps us match you to the right role</span></label>
+      <div class="slider-val" id="pay-val">₹500 per session</div>
+      <div class="slider-wrap">
+        <input type="range" id="f-pay" min="200" max="2000" step="50" value="500" oninput="updateSlider(this.value,'pay-val',v=>'₹'+v+' per session')"/>
+        <div class="slider-labels"><span>₹200</span><span>₹700</span><span>₹1200</span><span>₹1700</span><span>₹2000</span></div>
+      </div>
+    </div>
+
+    <!-- INTEL CERTIFICATION HIGHLIGHT -->
+    <div class="intel-box">
+      <div class="intel-icon">🏅</div>
+      <div class="intel-text">
+        <h4>Intel Labs Certification — What to Expect</h4>
+        <p>All Intellikids teachers go through our Intel Labs certification programme. It's a structured online training covering personalised teaching methodologies, child psychology basics, and our platform tools. Typically takes 2–3 days and is fully supported. This certification is what sets Intellikids teachers apart.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- DECLARATION -->
+  <div class="declaration">
+    <label>
+      <input type="checkbox" id="f-declare"/>
+      I confirm that all information provided in this application is accurate and true. I understand that Intellikids Academy may verify my qualifications and conduct a background check before onboarding. I am committed to delivering high-quality, personalised education to every child.
+    </label>
+    <div class="form-error" id="err-declare">Please accept the declaration to proceed</div>
+  </div>
+
+  <div style="text-align:center;margin-bottom:14px;">
+    <div style="display:inline-flex;align-items:center;gap:8px;background:#F0EEFF;border-radius:50px;padding:8px 18px;font-size:12px;font-weight:700;color:#6C63FF;">
+      🔒 Your application is confidential and secure
+    </div>
+  </div>
+
+  <button class="btn-submit" id="submit-btn" onclick="submitApplication()">
+    Submit My Application 🚀
+  </button>
+
+  <p style="text-align:center;font-size:12px;color:#aaa;font-weight:600;margin-top:14px;">
+    We review every application personally and respond within 3–5 working days 🎓
+  </p>
+
+  </div><!-- /form-section -->
+
+  <div class="foot">
+    © 2025 Intellikids Academy &nbsp;·&nbsp;
+    <a href="https://intellikidsacademy.in">intellikidsacademy.in</a> &nbsp;·&nbsp;
+    hello@intellikidsacademy.in
+  </div>
+</div><!-- /main -->
+
+<script>
+// ── FIREBASE ──────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyCFWK0iuWALDpn1AfxZNE_Q1Bk60i7yP3U",
+  authDomain: "intellikids-academy.firebaseapp.com",
+  projectId: "intellikids-academy",
+  storageBucket: "intellikids-academy.firebasestorage.app",
+  messagingSenderId: "861404961917",
+  appId: "1:861404961917:web:74d453b1a4862fa0096514"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const RETURN_URL = 'https://intellikidsacademy.in';
+
+// ── STATE ─────────────────────────────────────────────────────────────
+const selections = {
+  subjects: new Set(), grades: new Set(), styles: new Set(),
+  days: new Set(), hours: new Set(), langs: new Set(), tech: new Set()
+};
+const radioVals = { 'session-type': '' };
+
+// ── CHIP TOGGLE ───────────────────────────────────────────────────────
+function toggleChip(el, group) {
+  el.classList.toggle('active');
+  const key = el.dataset[group === 'subjects' ? 'subj' : group === 'grades' ? 'grade' :
+    group === 'styles' ? 'style' : group === 'days' ? 'day' : group === 'hours' ? 'hours' :
+    group === 'langs' ? 'lang' : group === 'tech' ? 'tech' : 'subj'];
+  if (el.classList.contains('active')) selections[group].add(key);
+  else selections[group].delete(key);
+  updateProgress();
+}
+
+// ── RADIO CARD ────────────────────────────────────────────────────────
+function selectRadio(el, group, val) {
+  el.closest('.radio-cards').querySelectorAll('.radio-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  radioVals[group] = val;
+  updateProgress();
+}
+
+// ── SLIDER ────────────────────────────────────────────────────────────
+function updateSlider(val, elId, formatter) {
+  document.getElementById(elId).textContent = formatter(val);
+  updateProgress();
+}
+
+// ── PROGRESS ─────────────────────────────────────────────────────────
+function updateProgress() {
+  const fields = [
+    document.getElementById('f-fname')?.value.trim(),
+    document.getElementById('f-lname')?.value.trim(),
+    document.getElementById('f-email')?.value.trim(),
+    document.getElementById('f-phone')?.value.trim(),
+    document.getElementById('f-city')?.value.trim(),
+    document.getElementById('f-country')?.value,
+    selections.subjects.size > 0 ? 'ok' : '',
+    selections.grades.size > 0 ? 'ok' : '',
+    document.getElementById('f-qualification')?.value,
+    document.getElementById('f-major')?.value.trim(),
+    selections.styles.size > 0 ? 'ok' : '',
+    radioVals['session-type'],
+    document.getElementById('f-philosophy')?.value.trim(),
+    selections.days.size > 0 ? 'ok' : '',
+    selections.hours.size > 0 ? 'ok' : '',
+    selections.langs.size > 0 ? 'ok' : '',
+    selections.tech.size > 0 ? 'ok' : '',
+  ];
+  const filled = fields.filter(v => v && v.length > 0).length;
+  const pct = Math.round((filled / fields.length) * 100);
+  document.getElementById('progress-bar').style.width = pct + '%';
+}
+document.querySelectorAll('input,select,textarea').forEach(el => el.addEventListener('input', updateProgress));
+
+// ── SUBMIT ────────────────────────────────────────────────────────────
+async function submitApplication() {
+  let valid = true;
+  const required = [
+    ['f-fname',         'err-fname',         v => v.trim().length > 1],
+    ['f-lname',         'err-lname',         v => v.trim().length > 1],
+    ['f-email',         'err-email',         v => /\S+@\S+\.\S+/.test(v)],
+    ['f-phone',         'err-phone',         v => v.trim().length > 6],
+    ['f-city',          'err-city',          v => v.trim().length > 1],
+    ['f-country',       'err-country',       v => v !== ''],
+    ['f-qualification', 'err-qualification', v => v !== ''],
+    ['f-major',         'err-major',         v => v.trim().length > 1],
+    ['f-philosophy',    'err-philosophy',    v => v.trim().length > 20],
+  ];
+  required.forEach(([id, errId, fn]) => {
+    const el = document.getElementById(id);
+    const err = document.getElementById(errId);
+    if (!fn(el.value)) { err.classList.add('show'); valid = false; }
+    else err.classList.remove('show');
+  });
+
+  const chipRequired = [
+    ['subjects','err-subjects'], ['grades','err-grades'],
+    ['styles','err-styles'], ['days','err-days'],
+    ['hours','err-hours'], ['langs','err-langs'], ['tech','err-tech']
+  ];
+  chipRequired.forEach(([group, errId]) => {
+    const err = document.getElementById(errId);
+    if (selections[group].size === 0) { err.classList.add('show'); valid = false; }
+    else err.classList.remove('show');
+  });
+
+  if (!radioVals['session-type']) {
+    document.getElementById('err-session-type').classList.add('show'); valid = false;
+  } else document.getElementById('err-session-type').classList.remove('show');
+
+  if (!document.getElementById('f-declare').checked) {
+    document.getElementById('err-declare').classList.add('show'); valid = false;
+  } else document.getElementById('err-declare').classList.remove('show');
+
+  if (!valid) {
+    document.querySelector('.show')?.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = 'Submitting… <span class="loader"></span>';
+
+  const data = {
+    formType:       'teacher-application',
+    firstName:      document.getElementById('f-fname').value.trim(),
+    lastName:       document.getElementById('f-lname').value.trim(),
+    email:          document.getElementById('f-email').value.trim(),
+    phone:          document.getElementById('f-phone').value.trim(),
+    city:           document.getElementById('f-city').value.trim(),
+    country:        document.getElementById('f-country').value,
+    linkedin:       document.getElementById('f-linkedin').value.trim(),
+    subjects:       Array.from(selections.subjects).join(', '),
+    grades:         Array.from(selections.grades).join(', '),
+    qualification:  document.getElementById('f-qualification').value,
+    specialisation: document.getElementById('f-major').value.trim(),
+    yearsExp:       document.getElementById('f-experience').value,
+    prevExperience: document.getElementById('f-prev-exp').value.trim(),
+    certifications: document.getElementById('f-certs').value.trim(),
+    teachingStyles: Array.from(selections.styles).join(', '),
+    sessionType:    radioVals['session-type'],
+    philosophy:     document.getElementById('f-philosophy').value.trim(),
+    availableDays:  Array.from(selections.days).join(', '),
+    availableHours: Array.from(selections.hours).join(', '),
+    sessionsPerWeek:document.getElementById('f-sessions').value,
+    languages:      Array.from(selections.langs).join(', '),
+    techSetup:      Array.from(selections.tech).join(', '),
+    whyTeaching:    document.getElementById('f-inspired').value.trim(),
+    successStory:   document.getElementById('f-story').value.trim(),
+    distractionApproach: document.getElementById('f-distracted').value.trim(),
+    expectedPay:    '₹' + document.getElementById('f-pay').value + ' per session',
+    status:         'new',
+    appliedAt:      firebase.firestore.FieldValue.serverTimestamp(),
+  };
+
+  try {
+    await db.collection('teacher_applications').add(data);
+  } catch(e) {
+    const p = JSON.parse(localStorage.getItem('pending_ta') || '[]');
+    p.push({...data, appliedAt: new Date().toISOString()});
+    localStorage.setItem('pending_ta', JSON.stringify(p));
+  }
+
+  document.getElementById('form-section').style.display = 'none';
+  document.getElementById('success-screen').style.display = 'block';
+  document.getElementById('progress-bar').style.width = '100%';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+</script>
+</body>
+</html>
