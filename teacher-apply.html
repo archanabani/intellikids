@@ -488,13 +488,43 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:20px;height:20px;b
       </div>
     </div>
 
-    <!-- INTEL CERTIFICATION HIGHLIGHT -->
-    <div class="intel-box">
-      <div class="intel-icon">🏅</div>
-      <div class="intel-text">
-        <h4>Intel Labs Certification — What to Expect</h4>
-        <p>All Intellikids teachers go through our Intel Labs certification programme. It's a structured online training covering personalised teaching methodologies, child psychology basics, and our platform tools. Typically takes 2–3 days and is fully supported. This certification is what sets Intellikids teachers apart.</p>
+    <!-- INTEL CERTIFICATION QUESTION -->
+    <div class="form-group">
+      <label>Do you have an Intel Labs Certification? <span class="hint">Honest answer is fine — it is not mandatory to apply</span></label>
+      <div class="radio-cards" style="grid-template-columns:1fr 1fr 1fr;">
+        <div class="radio-card" onclick="selectRadio(this,'intel-cert','Yes, I have it')">
+          <div class="rc-emoji">✅</div>
+          <div class="rc-label">Yes, I have it</div>
+        </div>
+        <div class="radio-card" onclick="selectRadio(this,'intel-cert','No, I do not have it')">
+          <div class="rc-emoji">❌</div>
+          <div class="rc-label">No, I don't</div>
+        </div>
+        <div class="radio-card" onclick="selectRadio(this,'intel-cert','I am not sure')">
+          <div class="rc-emoji">🤔</div>
+          <div class="rc-label">Not sure</div>
+        </div>
       </div>
+    </div>
+  </div>
+
+  <!-- PAY TERMS + DECLARATION -->
+  <div style="background:linear-gradient(135deg,#FFF0F5,#FFF8F0);border-radius:20px;padding:24px;margin-bottom:20px;border:2px solid #F48FB1;">
+    <div style="font-weight:900;font-size:16px;color:#C2185B;margin-bottom:16px;">💰 Pay Structure — Please Read Before Applying</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+      <div style="background:#fff;border-radius:14px;padding:16px;border-left:4px solid #E91E8C;text-align:center;">
+        <div style="font-size:28px;font-weight:900;color:#E91E8C;">₹300</div>
+        <div style="font-size:13px;font-weight:800;color:#444;margin-top:4px;">Per Regular Session</div>
+        <div style="font-size:11px;color:#aaa;font-weight:600;margin-top:4px;">Guaranteed minimum pay for every confirmed class</div>
+      </div>
+      <div style="background:#fff;border-radius:14px;padding:16px;border-left:4px solid #FF9F43;text-align:center;">
+        <div style="font-size:28px;font-weight:900;color:#FF9F43;">₹100</div>
+        <div style="font-size:13px;font-weight:800;color:#444;margin-top:4px;">Per Trial / Demo Session</div>
+        <div style="font-size:11px;color:#aaa;font-weight:600;margin-top:4px;">Guaranteed minimum pay for every trial or demo class you take</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#888;font-weight:600;line-height:1.8;background:#fff;border-radius:12px;padding:12px 14px;">
+      📌 These are <strong>guaranteed minimum amounts</strong>. Your actual pay may be higher based on your experience, subject, and student feedback. Pay is processed weekly. Trial sessions are paid even if the student does not convert to a regular student.
     </div>
   </div>
 
@@ -502,9 +532,9 @@ input[type=range]::-webkit-slider-thumb{appearance:none;width:20px;height:20px;b
   <div class="declaration">
     <label>
       <input type="checkbox" id="f-declare"/>
-      I confirm that all information provided in this application is accurate and true. I understand that Intellikids Academy may verify my qualifications and conduct a background check before onboarding. I am committed to delivering high-quality, personalised education to every child.
+      I have read and agree to the pay structure above (₹300 guaranteed per regular session, ₹100 guaranteed per trial/demo session). I confirm that all information in this application is true and accurate. I understand Intellikids Academy may verify my details before onboarding. I am committed to teaching every child with patience, care and dedication.
     </label>
-    <div class="form-error" id="err-declare">Please accept the declaration to proceed</div>
+    <div class="form-error" id="err-declare">Please read and accept the terms above to submit your application</div>
   </div>
 
   <div style="text-align:center;margin-bottom:14px;">
@@ -549,7 +579,7 @@ const selections = {
   subjects: new Set(), grades: new Set(), styles: new Set(),
   days: new Set(), hours: new Set(), langs: new Set(), tech: new Set()
 };
-const radioVals = { 'session-type': '' };
+const radioVals = { 'session-type': '', 'intel-cert': '' };
 
 // ── CHIP TOGGLE ───────────────────────────────────────────────────────
 function toggleChip(el, group) {
@@ -680,6 +710,7 @@ async function submitApplication() {
     successStory:   document.getElementById('f-story').value.trim(),
     distractionApproach: document.getElementById('f-distracted').value.trim(),
     expectedPay:    '₹' + document.getElementById('f-pay').value + ' per session',
+    intelCertification: radioVals['intel-cert'] || 'Not answered',
     status:         'new',
     appliedAt:      firebase.firestore.FieldValue.serverTimestamp(),
   };
