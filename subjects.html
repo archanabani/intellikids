@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Subjects | Intellikids Academy – Coding, Maths, IGCSE, Physics & More</title>
+<meta name="description" content="Expert online tuition for Coding, Maths, English, Physics, Chemistry, Computer Basics, Science and Olympiad prep. Grades 3–12. 1-on-1 and group classes available. Book your FREE demo today!"/>
+<meta name="keywords" content="online coding classes kids, online maths tuition, igcse tuition online, physics tuition online, chemistry online classes, computer basics kids, science tuition online"/>
+<meta name="robots" content="index, follow"/>
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18171441020"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','AW-18171441020');</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Nunito',sans-serif;background:#FFFDF8;color:#1a1a2e;overflow-x:hidden;}
+:root{--shadow:0 4px 20px rgba(0,0,0,.08);}
+h1,h2,h3{font-family:'Baloo 2',sans-serif;font-weight:800;}
+h1{font-size:clamp(28px,5vw,52px);}
+h2{font-size:clamp(22px,4vw,38px);}
+.section{max-width:1100px;margin:0 auto;padding:0 24px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:50px;font-family:'Nunito',sans-serif;font-weight:800;cursor:pointer;transition:all .25s;text-decoration:none;}
+.btn-main{background:linear-gradient(135deg,#FF6B6B,#FF9F43);color:#fff;padding:14px 32px;font-size:16px;box-shadow:0 6px 20px rgba(255,107,107,.35);}
+.btn-main:hover{transform:translateY(-3px);}
+.btn-sec{background:#fff;border:2.5px solid #FF6B6B;color:#FF6B6B;padding:12px 28px;font-size:15px;}
+.card{background:#fff;border-radius:20px;box-shadow:var(--shadow);}
+.card-hover{transition:transform .25s,box-shadow .25s;}
+.card-hover:hover{transform:translateY(-6px);box-shadow:0 12px 32px rgba(0,0,0,.12);}
+.chip{display:inline-block;padding:5px 14px;border-radius:50px;font-size:12px;font-weight:800;}
+.chip-red{background:#FFF0F0;color:#FF6B6B;}
+.chip-purple{background:#F0EEFF;color:#6C63FF;}
+.chip-orange{background:#FFF6E8;color:#FF9F43;}
+.chip-green{background:#E8FFF8;color:#1DD1A1;}
+.chip-blue{background:#EBF4FF;color:#54A0FF;}
+#navbar{position:sticky;top:0;z-index:500;background:rgba(255,253,248,.95);backdrop-filter:blur(16px);border-bottom:2px solid #FFE8E8;}
+.nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:68px;padding:0 24px;}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-logo-icon{width:44px;height:44px;background:linear-gradient(135deg,#FF6B6B,#FF9F43);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;}
+.nav-logo-text .brand{font-family:'Baloo 2',sans-serif;font-size:18px;font-weight:800;background:linear-gradient(135deg,#FF6B6B,#6C63FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;}
+.nav-logo-text .sub{font-size:10px;font-weight:800;color:#FF9F43;letter-spacing:1px;}
+.nav-links{display:flex;gap:4px;}
+.nav-link{background:transparent;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#444;padding:8px 14px;border-radius:50px;transition:all .2s;text-decoration:none;display:inline-block;}
+.nav-link:hover,.nav-link.active{background:#FFF0F0;color:#FF6B6B;}
+.nav-actions{display:flex;gap:10px;}
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:8px;border:none;background:transparent;}
+.hamburger span{display:block;width:24px;height:2.5px;background:#444;border-radius:2px;}
+.mobile-menu{display:none;background:#fff;border-bottom:2px solid #FFE8E8;padding:16px 24px;flex-direction:column;gap:10px;}
+.mobile-menu.open{display:flex;}
+@media(max-width:900px){.nav-links,.nav-actions{display:none;}.hamburger{display:flex;}}
+footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
+.footer-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:40px;margin-bottom:48px;}
+.footer-link{font-size:13px;color:#888;margin-bottom:8px;font-weight:600;display:block;text-decoration:none;transition:color .2s;}
+.footer-link:hover{color:#FF6B6B;}
+.footer-bottom{border-top:1px solid #333;padding-top:24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.wa-float{position:fixed;bottom:28px;right:28px;z-index:400;width:56px;height:56px;background:#25D366;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;text-decoration:none;box-shadow:0 6px 20px rgba(37,211,102,.4);transition:transform .2s;}
+.wa-float:hover{transform:scale(1.1);}
+@keyframes fade-up{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+.fade-up{animation:fade-up .6s ease both;}
+</style>
+</head>
+<body>
+<nav id="navbar">
+  <div class="nav-inner">
+    <a class="nav-logo" href="index.html">
+      <div class="nav-logo-icon">🧠</div>
+      <div class="nav-logo-text"><div class="brand">Intellikids</div><div class="sub">ACADEMY</div></div>
+    </a>
+    <div class="nav-links">
+      <a class="nav-link" href="index.html">Home</a>
+      <a class="nav-link active" href="subjects.html">Subjects</a>
+      <a class="nav-link" href="pricing.html">Pricing</a>
+      <a class="nav-link" href="about.html">About Us</a>
+      <a class="nav-link" href="book-demo.html">Contact</a>
+    </div>
+    <div class="nav-actions">
+      <a class="btn btn-sec" style="font-size:13px;padding:9px 20px;" href="index.html">Student Login</a>
+      <a class="btn btn-main" style="font-size:13px;padding:9px 20px;" href="book-demo.html">Book Free Demo 🎯</a>
+    </div>
+    <div class="hamburger" onclick="document.getElementById('mob-menu').classList.toggle('open')"><span></span><span></span><span></span></div>
+  </div>
+  <div class="mobile-menu" id="mob-menu">
+    <a class="nav-link" href="index.html">🏠 Home</a>
+    <a class="nav-link active" href="subjects.html">📚 Subjects</a>
+    <a class="nav-link" href="pricing.html">💰 Pricing</a>
+    <a class="nav-link" href="about.html">🌍 About Us</a>
+    <a class="nav-link" href="book-demo.html">💬 Book Demo</a>
+    <a class="btn btn-main" href="book-demo.html">🎯 Book Free Demo</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div style="background:linear-gradient(160deg,#FFF9F0,#F0F0FF,#F0FFF8);padding:70px 24px 50px;text-align:center;">
+  <div class="section fade-up">
+    <div style="display:inline-block;background:#F0EEFF;border-radius:50px;padding:8px 22px;font-size:13px;font-weight:800;color:#6C63FF;margin-bottom:16px;">📚 ALL SUBJECTS</div>
+    <h1 style="margin-bottom:16px;">Subjects that make kids <span style="background:linear-gradient(135deg,#6C63FF,#FF9F43);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">go "WOW" ✨</span></h1>
+    <p style="font-size:17px;color:#555;font-weight:600;max-width:600px;margin:0 auto 32px;">Live sessions — 1-on-1 or small group (max 4). Fully personalised curriculum for Grades 3–12.</p>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;">
+      <a class="btn btn-main" href="book-demo.html">Book Free Demo 🎯</a>
+      <a class="btn btn-sec" href="pricing.html">View Pricing →</a>
+    </div>
+  </div>
+</div>
+
+<!-- SUBJECTS GRID -->
+<div style="padding:60px 24px;background:#FFFDF8;">
+  <div class="section">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;">
+
+      <div class="card card-hover" style="padding:32px;border-top:5px solid #FF6B6B;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+          <div style="width:60px;height:60px;border-radius:18px;background:#FFF0F0;display:flex;align-items:center;justify-content:center;font-size:32px;">🖥️</div>
+          <div><div style="font-weight:800;font-size:18px;">Computer Basics</div><span class="chip chip-red">Gr. 3–10</span></div>
+        </div>
+        <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Mouse, keyboard, internet, MS Office & digital safety — made fun! Essential digital skills for the modern world.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+          <span class="chip chip-red" style="font-size:11px;">1-on-1 Sessions</span>
+          <span class="chip chip-red" style="font-size:11px;">Group (max 4)</span>
+          <span class="chip chip-red" style="font-size:11px;">Custom Curriculum</span>
+        </div>
+        <a class="btn btn-main" href="book-demo.html" style="width:100%;justify-content:center;">Book Free Demo →</a>
+      </div>
+
+      <div class="card card-hover" style="padding:32px;border-top:5px solid #6C63FF;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+          <div style="width:60px;height:60px;border-radius:18px;background:#F0EEFF;display:flex;align-items:center;justify-content:center;font-size:32px;">🤖</div>
+          <div><div style="font-weight:800;font-size:18px;">Coding</div><span class="chip chip-purple">Gr. 3–10</span></div>
+        </div>
+        <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:12px;">Scratch → Python → Web Dev. Build real stuff from day one. Projects-first approach that makes coding click.</p>
+        <div style="background:#F0EEFF;border-radius:12px;padding:10px 14px;font-size:13px;color:#6C63FF;font-weight:700;margin-bottom:16px;">🔢 Topics: Scratch, HTML/CSS, Python, Game Dev, Web Design</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+          <span class="chip chip-purple" style="font-size:11px;">1-on-1 Sessions</span>
+          <span class="chip chip-purple" style="font-size:11px;">Group (max 4)</span>
+          <span class="chip chip-purple" style="font-size:11px;">Project-Based</span>
+        </div>
+        <a class="btn btn-main" href="book-demo.html" style="width:100%;justify-content:center;background:linear-gradient(135deg,#6C63FF,#A29BFE);">Book Free Demo →</a>
+      </div>
+
+      <div class="card card-hover" style="padding:32px;border-top:5px solid #FF9F43;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+          <div style="width:60px;height:60px;border-radius:18px;background:#FFF6E8;display:flex;align-items:center;justify-content:center;font-size:32px;">🔢</div>
+          <div><div style="font-weight:800;font-size:18px;">Maths</div><span class="chip chip-orange">Gr. 3–10</span></div>
+        </div>
+        <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:12px;">Numbers, algebra, geometry & beyond. We make it click, for real. From basic arithmetic to advanced algebra.</p>
+        <div style="background:#FFF6E8;border-radius:12px;padding:10px 14px;font-size:13px;color:#FF9F43;font-weight:700;margin-bottom:16px;">📐 Also: Vedic Maths & Olympiad Math available</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+          <span class="chip chip-orange" style="font-size:11px;">1-on-1 Sessions</span>
+          <span class="chip chip-orange" style="font-size:11px;">Group (max 4)</span>
+          <span class="chip chip-orange" style="font-size:11px;">Custom Curriculum</span>
+        </div>
+        <a class="btn btn-main" href="book-demo.html" style="width:100%;justify-content:center;background:linear-gradient(135deg,#FF9F43,#FDCB6E);color:#1a1a2e;">Book Free Demo →</a>
+      </div>
+
+      <div class="card card-hover" style="padding:32px;border-top:5px solid #1DD1A1;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+          <div style="width:60px;height:60px;border-radius:18px;background:#E8FFF8;display:flex;align-items:center;justify-content:center;font-size:32px;">✍️</div>
+          <div><div style="font-weight:800;font-size:18px;">English</div><span class="chip chip-green">Gr. 3–10</span></div>
+        </div>
+        <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:12px;">Reading, writing, grammar & speaking — the whole package. Build confidence in communication from the ground up.</p>
+        <div style="background:#E8FFF8;border-radius:12px;padding:10px 14px;font-size:13px;color:#1DD1A1;font-weight:700;margin-bottom:16px;">📖 Covers: Creative Writing, Grammar, Comprehension, Speaking</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+          <span class="chip chip-green" style="font-size:11px;">1-on-1 Sessions</span>
+          <span class="chip chip-green" style="font-size:11px;">Group (max 4)</span>
+          <span class="chip chip-green" style="font-size:11px;">Custom Curriculum</span>
+        </div>
+        <a class="btn btn-main" href="book-demo.html" style="width:100%;justify-content:center;background:linear-gradient(135deg,#1DD1A1,#00B894);">Book Free Demo →</a>
+      </div>
+
+      <div class="card card-hover" style="padding:32px;border-top:5px solid #54A0FF;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+          <div style="width:60px;height:60px;border-radius:18px;background:#EBF4FF;display:flex;align-items:center;justify-content:center;font-size:32px;">🚀</div>
+          <div><div style="font-weight:800;font-size:18px;">Physics</div><span class="chip chip-blue">Gr. 9–12</span></div>
+        </div>
+        <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:12px;">Forces, waves, optics, electricity — physics that makes you go "whoa". CBSE, ICSE & IGCSE aligned.</p>
+        <div style="background:#FFF6E8;border-radius:12px;padding:10px 14px;font-size:13px;color:#FF9F43;font-weight:700;margin-bottom:16px;">⚠️ Available for Grade 9, 10, 11 & 12 only</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+          <span class="chip chip-blue" style="font-size:11px;">1-on-1 Sessions</span>
+          <span class="chip chip-blue" style="font-size:11px;">Group (max 4)</span>
+          <span class="chip chip-blue" style="font-size:11px;">Custom Curriculum</span>
+        </div>
+        <a class="btn btn-main" href="book-demo.html" style="width:100%;justify-content:center;background:linear-gradient(135deg,#54A0FF,#3d86e8);">Book Free Demo →</a>
+      </div>
+
+      <div class="card card-hover" style="padding:32px;border-top:5px solid #A29BFE;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+          <div style="width:60px;height:60px;border-radius:18px;background:#F3F0FF;display:flex;align-items:center;justify-content:center;font-size:32px;">🔬</div>
+          <div><div style="font-weight:800;font-size:18px;">Chemistry</div><span class="chip chip-purple">Gr. 9–12</span></div>
+        </div>
+        <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:12px;">Atoms, bonds, reactions & organic chem. Science but make it cool. Concept-first with real-world examples.</p>
+        <div style="background:#FFF6E8;border-radius:12px;padding:10px 14px;font-size:13px;color:#FF9F43;font-weight:700;margin-bottom:16px;">⚠️ Available for Grade 9, 10, 11 & 12 only</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+          <span class="chip chip-purple" style="font-size:11px;">1-on-1 Sessions</span>
+          <span class="chip chip-purple" style="font-size:11px;">Group (max 4)</span>
+          <span class="chip chip-purple" style="font-size:11px;">Custom Curriculum</span>
+        </div>
+        <a class="btn btn-main" href="book-demo.html" style="width:100%;justify-content:center;background:linear-gradient(135deg,#A29BFE,#6C63FF);">Book Free Demo →</a>
+      </div>
+
+      <div class="card card-hover" style="padding:32px;border-top:5px solid #00CEC9;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+          <div style="width:60px;height:60px;border-radius:18px;background:#E0FAFA;display:flex;align-items:center;justify-content:center;font-size:32px;">🔭</div>
+          <div><div style="font-weight:800;font-size:18px;">Science</div><span class="chip" style="background:#E0FAFA;color:#00CEC9;">Gr. 3–8</span></div>
+        </div>
+        <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:16px;">From living cells to outer space — general science made visual, hands-on and genuinely exciting for young explorers.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+          <span class="chip" style="background:#E0FAFA;color:#00CEC9;font-size:11px;">1-on-1 Sessions</span>
+          <span class="chip" style="background:#E0FAFA;color:#00CEC9;font-size:11px;">Group (max 4)</span>
+          <span class="chip" style="background:#E0FAFA;color:#00CEC9;font-size:11px;">Custom Curriculum</span>
+        </div>
+        <a class="btn btn-main" href="book-demo.html" style="width:100%;justify-content:center;background:linear-gradient(135deg,#00CEC9,#009d99);">Book Free Demo →</a>
+      </div>
+
+      <div class="card card-hover" style="padding:32px;border-top:5px solid #FD79A8;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+          <div style="width:60px;height:60px;border-radius:18px;background:#FFF0F8;display:flex;align-items:center;justify-content:center;font-size:32px;">🏅</div>
+          <div><div style="font-weight:800;font-size:18px;">Olympiad Prep</div><span class="chip" style="background:#FFF0F8;color:#FD79A8;">All Grades</span></div>
+        </div>
+        <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:12px;">IMO, NSO, SOF and more. Strategic prep that goes beyond the textbook — pattern recognition, speed, and confidence.</p>
+        <div style="background:#FFF0F8;border-radius:12px;padding:10px 14px;font-size:13px;color:#FD79A8;font-weight:700;margin-bottom:16px;">🏆 Covers: IMO, NSO, IEO, SOF Olympiads</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
+          <span class="chip" style="background:#FFF0F8;color:#FD79A8;font-size:11px;">1-on-1 Sessions</span>
+          <span class="chip" style="background:#FFF0F8;color:#FD79A8;font-size:11px;">Group (max 4)</span>
+          <span class="chip" style="background:#FFF0F8;color:#FD79A8;font-size:11px;">All Grades</span>
+        </div>
+        <a class="btn btn-main" href="book-demo.html" style="width:100%;justify-content:center;background:linear-gradient(135deg,#FD79A8,#e84393);">Book Free Demo →</a>
+      </div>
+
+    </div>
+    <div style="text-align:center;margin-top:48px;">
+      <p style="color:#777;font-weight:700;font-size:15px;margin-bottom:20px;">Not sure which subject? Book a free consultation and we'll guide you! 💬</p>
+      <a class="btn btn-main" href="book-demo.html">Book Free Demo for Any Subject 🎯</a>
+    </div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<div style="background:linear-gradient(135deg,#FFF0F8,#F0EEFF);padding:70px 24px;">
+  <div class="section">
+    <div style="text-align:center;margin-bottom:48px;">
+      <div style="display:inline-block;background:#F0EEFF;border-radius:50px;padding:7px 22px;font-size:13px;font-weight:800;color:#6C63FF;margin-bottom:14px;">HOW IT WORKS</div>
+      <h2>Start learning in <span style="color:#FF6B6B;">3 easy steps 🙌</span></h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px;">
+      <div class="card" style="padding:32px;text-align:center;border-top:4px solid #FF6B6B;"><div style="font-size:44px;margin-bottom:16px;">📋</div><div style="font-weight:800;font-size:28px;color:#FF6B6B;margin-bottom:8px;">01</div><h3 style="font-size:18px;margin-bottom:10px;font-family:'Nunito',sans-serif;">Book a Free Demo</h3><p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;">Fill the form or WhatsApp us. Zero obligation — just see if we're the right fit!</p></div>
+      <div class="card" style="padding:32px;text-align:center;border-top:4px solid #6C63FF;"><div style="font-size:44px;margin-bottom:16px;">👋</div><div style="font-weight:800;font-size:28px;color:#6C63FF;margin-bottom:8px;">02</div><h3 style="font-size:18px;margin-bottom:10px;font-family:'Nunito',sans-serif;">Meet Your Teacher</h3><p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;">We match your child with the perfect teacher for their subject, grade, and learning style.</p></div>
+      <div class="card" style="padding:32px;text-align:center;border-top:4px solid #FF9F43;"><div style="font-size:44px;margin-bottom:16px;">🚀</div><div style="font-weight:800;font-size:28px;color:#FF9F43;margin-bottom:8px;">03</div><h3 style="font-size:18px;margin-bottom:10px;font-family:'Nunito',sans-serif;">Start Learning!</h3><p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;">Live Google Meet sessions at your preferred time. No hassle, no apps to install.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);padding:70px 24px;text-align:center;">
+  <h2 style="color:#fff;margin-bottom:14px;">Pick a subject. Book a FREE demo. 🎯</h2>
+  <p style="color:rgba(255,255,255,.9);font-size:16px;font-weight:600;margin-bottom:28px;max-width:480px;margin-left:auto;margin-right:auto;">Your first class is always free. No payment needed to get started.</p>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;">
+    <a class="btn" href="book-demo.html" style="background:#fff;color:#FF6B6B;padding:16px 40px;font-size:17px;font-weight:900;box-shadow:0 8px 28px rgba(0,0,0,.2);">Book Free Demo 🎯</a>
+    <a class="btn" href="pricing.html" style="background:transparent;border:2.5px solid #fff;color:#fff;padding:14px 36px;font-size:16px;">See Pricing →</a>
+  </div>
+</div>
+
+<footer>
+  <div class="section">
+    <div class="footer-grid">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div style="width:40px;height:40px;background:linear-gradient(135deg,#FF6B6B,#FF9F43);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;">🧠</div>
+          <div><div style="font-family:'Baloo 2',sans-serif;font-size:16px;font-weight:800;color:#fff;">Intellikids Academy</div><div style="font-size:10px;font-weight:800;color:#FF9F43;letter-spacing:1px;">ONLINE LEARNING</div></div>
+        </div>
+        <p style="font-size:13px;line-height:1.8;color:#888;font-weight:600;">Personalised live learning for curious minds, Grades 3–12.</p>
+        <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+          <a href="https://wa.me/8796502497" target="_blank" style="text-decoration:none;font-size:22px;">💬</a>
+          <a href="mailto:hello@intellikidsacademy.in" style="text-decoration:none;font-size:22px;">📧</a>
+          <a href="https://www.instagram.com/intellikidsacademy?igsh=OWc2ZXZ6YXNsanA3" target="_blank" style="text-decoration:none;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#f09433,#dc2743,#bc1888);color:#fff;font-size:16px;">📸</a>
+          <a href="https://www.facebook.com/share/1AcyZXhQtY/" target="_blank" style="text-decoration:none;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:#1877F2;color:#fff;font-size:16px;">👥</a>
+        </div>
+      </div>
+      <div>
+        <div style="font-weight:800;font-size:15px;color:#fff;margin-bottom:16px;">Quick Links</div>
+        <a class="footer-link" href="index.html">🏠 Home</a>
+        <a class="footer-link" href="subjects.html">📚 Subjects</a>
+        <a class="footer-link" href="pricing.html">💰 Pricing</a>
+        <a class="footer-link" href="about.html">🌍 About Us</a>
+        <a class="footer-link" href="book-demo.html">🎯 Book Free Demo</a>
+      </div>
+      <div>
+        <div style="font-weight:800;font-size:15px;color:#fff;margin-bottom:16px;">Contact</div>
+        <div style="font-size:13px;color:#888;margin-bottom:10px;font-weight:600;">📧 hello@intellikidsacademy.in</div>
+        <div style="font-size:13px;color:#888;margin-bottom:10px;font-weight:600;">📞 +91 8796502497</div>
+        <div style="font-size:13px;color:#888;margin-bottom:10px;font-weight:600;">📞 +91 8882905957</div>
+        <div style="font-size:13px;color:#888;font-weight:600;margin-top:16px;">🌐 intellikidsacademy.com</div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span style="font-size:13px;color:#555;font-weight:600;">© 2026 Intellikids Academy · Made with ❤️ for curious kids</span>
+      <span style="font-size:13px;color:#555;font-weight:600;">Grades 3–12 · Personalised · Live · Fun</span>
+    </div>
+  </div>
+</footer>
+<a href="https://wa.me/918796502497" target="_blank" class="wa-float">💬</a>
+</body>
+</html>
