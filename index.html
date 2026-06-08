@@ -563,6 +563,281 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
 </head>
 <body>
 
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- INTRO GLOBE ANIMATION OVERLAY                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<style>
+#intro-overlay{
+  position:fixed;inset:0;z-index:99999;
+  background:#08081a;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow:hidden;
+  font-family:'Nunito',sans-serif;
+}
+#intro-overlay *{box-sizing:border-box;}
+@keyframes ikaBrandIn{0%{opacity:0;transform:translateY(-20px);}100%{opacity:1;transform:translateY(0);}}
+@keyframes ikaTagIn{0%{opacity:0;transform:translateY(16px);}100%{opacity:1;transform:translateY(0);}}
+@keyframes ikaPulseRing{0%{transform:scale(1);opacity:.7;}100%{transform:scale(2.2);opacity:0;}}
+@keyframes ikaSlideOff{0%{transform:translateX(0);}100%{transform:translateX(-110vw);}}
+</style>
+
+<div id="intro-overlay">
+  <canvas id="iStars" style="position:absolute;inset:0;width:100%;height:100%;z-index:0;"></canvas>
+
+  <!-- Brand -->
+  <div style="
+    position:absolute;top:32px;left:50%;transform:translateX(-50%);
+    display:flex;align-items:center;gap:12px;white-space:nowrap;
+    animation:ikaBrandIn .7s ease both;
+    z-index:3;
+  ">
+    <div style="
+      width:48px;height:48px;
+      background:linear-gradient(135deg,#FF6B6B,#FF9F43);
+      border-radius:14px;display:flex;align-items:center;justify-content:center;
+      font-size:26px;flex-shrink:0;
+      box-shadow:0 0 28px rgba(255,107,107,.6);
+    ">🧠</div>
+    <div>
+      <div style="font-family:'Baloo 2',sans-serif;font-weight:800;font-size:24px;color:#fff;line-height:1.1;letter-spacing:.5px;">INTELLIKIDS</div>
+      <div style="font-size:10px;font-weight:800;color:#FF9F43;letter-spacing:4px;">ACADEMY</div>
+    </div>
+  </div>
+
+  <!-- Globe canvas -->
+  <canvas id="iGlobe" width="480" height="480" style="position:relative;z-index:2;margin-top:20px;"></canvas>
+
+  <!-- Tagline -->
+  <div style="
+    position:absolute;bottom:48px;left:0;right:0;text-align:center;
+    animation:ikaTagIn .8s .6s ease both;
+    z-index:3;
+  ">
+    <div style="font-family:'Baloo 2',sans-serif;font-size:clamp(16px,3vw,26px);font-weight:800;color:#fff;margin-bottom:6px;">
+      Connecting Curious Kids <span style="background:linear-gradient(90deg,#FF9F43,#FDCB6E);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Worldwide 🚀</span>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.4);letter-spacing:3px;">TAP ANYWHERE TO SKIP</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  /* ── STARFIELD ── */
+  var sc = document.getElementById('iStars');
+  sc.width = window.innerWidth; sc.height = window.innerHeight;
+  var sctx = sc.getContext('2d');
+  var stars = [];
+  for(var i=0;i<180;i++){
+    stars.push({x:Math.random()*sc.width,y:Math.random()*sc.height,r:Math.random()*1.6+.3,a:Math.random(),da:(Math.random()*.01+.003)*(Math.random()<.5?1:-1)});
+  }
+  function drawStars(){
+    sctx.clearRect(0,0,sc.width,sc.height);
+    for(var i=0;i<stars.length;i++){
+      var s=stars[i];
+      s.a+=s.da; if(s.a<.05||s.a>1)s.da*=-1;
+      sctx.beginPath();sctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      sctx.fillStyle='rgba(255,255,255,'+s.a+')';sctx.fill();
+    }
+  }
+
+  /* ── GLOBE ── */
+  var gc = document.getElementById('iGlobe');
+  var g = gc.getContext('2d');
+  var W=480,H=480,R=170,cx=W/2,cy=H/2;
+
+  var countries=[
+    {name:'India',     lat:20,   lng:78,   color:'#FF6B6B',flag:'🇮🇳',hub:true},
+    {name:'UK',        lat:51,   lng:-1,   color:'#FF9F43',flag:'🇬🇧'},
+    {name:'UAE',       lat:24,   lng:54,   color:'#FDCB6E',flag:'🇦🇪'},
+    {name:'Canada',    lat:56,   lng:-106, color:'#6C63FF',flag:'🇨🇦'},
+    {name:'USA',       lat:38,   lng:-97,  color:'#54A0FF',flag:'🇺🇸'},
+    {name:'Australia', lat:-25,  lng:133,  color:'#1DD1A1',flag:'🇦🇺'},
+    {name:'Singapore', lat:1.3,  lng:103,  color:'#A29BFE',flag:'🇸🇬'},
+  ];
+
+  function to3D(lat,lng,r){
+    var phi=(90-lat)*Math.PI/180;
+    var theta=(lng+180)*Math.PI/180;
+    return {x:-r*Math.sin(phi)*Math.cos(theta), y:r*Math.cos(phi), z:r*Math.sin(phi)*Math.sin(theta)};
+  }
+
+  function proj(p,ay){
+    var c=Math.cos(ay),s=Math.sin(ay);
+    return {sx:cx+p.x*c+p.z*s, sy:cy-p.y, z:-p.x*s+p.z*c};
+  }
+
+  function lerpArc(a,b,t){
+    var ix=a.x+(b.x-a.x)*t, iy=a.y+(b.y-a.y)*t, iz=a.z+(b.z-a.z)*t;
+    var len=Math.sqrt(ix*ix+iy*iy+iz*iz)||1;
+    var lift=R+24+Math.sin(t*Math.PI)*55;
+    return {x:ix/len*lift, y:iy/len*lift, z:iz/len*lift};
+  }
+
+  var angle=0;
+  var rT=0, rFrom=0, rTo=1;
+  var connections=[];
+  var arcProg={};
+
+  function nextTarget(){
+    rFrom=rTo; rT=0;
+    /* always return to India hub every 2nd hop */
+    if(rFrom!==0&&connections.length%2===1){rTo=0;}
+    else{
+      var opts=[];
+      for(var i=0;i<countries.length;i++){if(i!==rFrom)opts.push(i);}
+      rTo=opts[Math.floor(Math.random()*opts.length)];
+    }
+  }
+
+  var startMs=null;
+  var INTRO_MS=6000; // total animation time
+
+  function frame(ts){
+    if(!startMs) startMs=ts;
+    var elapsed=ts-startMs;
+
+    angle+=.005;
+    rT+=.014;
+    var key=rFrom+'-'+rTo;
+    arcProg[key]=Math.min(rT,1);
+    if(rT>=1){
+      if(!connections.find(function(c){return c[0]===rFrom&&c[1]===rTo;}))
+        connections.push([rFrom,rTo]);
+      nextTarget();
+    }
+
+    /* draw */
+    drawStars();
+    g.clearRect(0,0,W,H);
+
+    /* globe fill */
+    var grd=g.createRadialGradient(cx-55,cy-45,15,cx,cy,R);
+    grd.addColorStop(0,'#2a1b5e');
+    grd.addColorStop(.6,'#16103a');
+    grd.addColorStop(1,'#080616');
+    g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.fillStyle=grd;g.fill();
+
+    /* outer purple glow */
+    var og=g.createRadialGradient(cx,cy,R-1,cx,cy,R+22);
+    og.addColorStop(0,'rgba(108,99,255,.45)');
+    og.addColorStop(1,'rgba(108,99,255,0)');
+    g.beginPath();g.arc(cx,cy,R+22,0,Math.PI*2);g.fillStyle=og;g.fill();
+
+    /* grid lines */
+    for(var lat=-60;lat<=60;lat+=30){
+      g.beginPath();var first=true;
+      for(var lng2=-180;lng2<=180;lng2+=3){
+        var p3=to3D(lat,lng2,R),pr=proj(p3,angle);
+        if(pr.z>-10){if(first){g.moveTo(pr.sx,pr.sy);first=false;}else g.lineTo(pr.sx,pr.sy);}else first=true;
+      }
+      g.strokeStyle='rgba(108,99,255,.15)';g.lineWidth=.8;g.stroke();
+    }
+    for(var lng3=-180;lng3<=180;lng3+=30){
+      g.beginPath();first=true;
+      for(var lat2=-90;lat2<=90;lat2+=3){
+        var p3b=to3D(lat2,lng3,R),prb=proj(p3b,angle);
+        if(prb.z>-10){if(first){g.moveTo(prb.sx,prb.sy);first=false;}else g.lineTo(prb.sx,prb.sy);}else first=true;
+      }
+      g.strokeStyle='rgba(108,99,255,.09)';g.lineWidth=.6;g.stroke();
+    }
+
+    /* screen positions */
+    var spts=countries.map(function(c){
+      var p=to3D(c.lat,c.lng,R);return Object.assign(proj(p,angle),{color:c.color,flag:c.flag,hub:c.hub,name:c.name});
+    });
+
+    /* draw arcs */
+    connections.forEach(function(pair){
+      var fi=pair[0],ti=pair[1];
+      var k=fi+'-'+ti,prog=arcProg[k]||1;
+      var fa=to3D(countries[fi].lat,countries[fi].lng,R);
+      var ta=to3D(countries[ti].lat,countries[ti].lng,R);
+      g.beginPath();var fst=true;
+      for(var s=0;s<=prog;s+=.025){
+        var ip=lerpArc(fa,ta,s),ipr=proj(ip,angle);
+        if(ipr.z>-R*.5){if(fst){g.moveTo(ipr.sx,ipr.sy);fst=false;}else g.lineTo(ipr.sx,ipr.sy);}else fst=true;
+      }
+      var gr2=g.createLinearGradient(spts[fi].sx,spts[fi].sy,spts[ti].sx,spts[ti].sy);
+      gr2.addColorStop(0,countries[fi].color+'BB');
+      gr2.addColorStop(1,countries[ti].color+'BB');
+      g.strokeStyle=gr2;g.lineWidth=1.8;g.stroke();
+    });
+
+    /* rocket on current leg */
+    var rf3=to3D(countries[rFrom].lat,countries[rFrom].lng,R);
+    var rt3=to3D(countries[rTo].lat,countries[rTo].lng,R);
+    var rPos=lerpArc(rf3,rt3,rT),rPr=proj(rPos,angle);
+    if(rPr.z>-R*.3){
+      /* trail */
+      for(var tr=Math.max(0,rT-.18);tr<rT;tr+=.025){
+        var tp=lerpArc(rf3,rt3,tr),tpr=proj(tp,angle);
+        var al=(tr-(rT-.18))/.18*.5;
+        g.beginPath();g.arc(tpr.sx,tpr.sy,3,0,Math.PI*2);
+        g.fillStyle='rgba(255,159,67,'+al+')';g.fill();
+      }
+      /* rocket */
+      g.save();
+      var nx=lerpArc(rf3,rt3,Math.min(rT+.04,1)),nxpr=proj(nx,angle);
+      g.translate(rPr.sx,rPr.sy);
+      g.rotate(Math.atan2(nxpr.sy-rPr.sy,nxpr.sx-rPr.sx));
+      g.font='20px serif';g.textAlign='center';g.textBaseline='middle';
+      g.fillText('🚀',0,0);
+      g.restore();
+    }
+
+    /* country dots */
+    var now=Date.now();
+    spts.forEach(function(pt,i){
+      if(pt.z<-20)return;
+      var vis=Math.max(0,Math.min(1,(pt.z+20)/(R)));
+      var pulse=1+Math.sin(now*.003+i*1.2)*.25;
+
+      if(countries[i].hub){
+        g.beginPath();g.arc(pt.sx,pt.sy,16*pulse,0,Math.PI*2);
+        g.fillStyle='rgba(255,107,107,'+(0.15*vis)+')';g.fill();
+      }
+      /* ring */
+      g.beginPath();g.arc(pt.sx,pt.sy,8,0,Math.PI*2);
+      g.fillStyle=pt.color+'44';g.fill();
+      /* dot */
+      g.beginPath();g.arc(pt.sx,pt.sy,5,0,Math.PI*2);
+      g.globalAlpha=vis;g.fillStyle=pt.color;g.fill();g.globalAlpha=1;
+      /* label */
+      if(vis>.45){
+        g.font='bold 11px Nunito,sans-serif';
+        g.fillStyle='rgba(255,255,255,'+vis+')';
+        g.textAlign='center';g.textBaseline='bottom';
+        g.fillText(pt.flag+' '+pt.name,pt.sx,pt.sy-11);
+      }
+    });
+
+    /* shine */
+    var sh=g.createRadialGradient(cx-R*.4,cy-R*.35,5,cx-R*.2,cy-R*.2,R*.5);
+    sh.addColorStop(0,'rgba(255,255,255,.09)');sh.addColorStop(1,'rgba(255,255,255,0)');
+    g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.fillStyle=sh;g.fill();
+
+    if(elapsed<INTRO_MS){
+      requestAnimationFrame(frame);
+    } else {
+      dissolve();
+    }
+  }
+
+  function dissolve(){
+    var ov=document.getElementById('intro-overlay');
+    if(!ov)return;
+    ov.style.transition='transform 1.1s cubic-bezier(.86,0,.07,1)';
+    ov.style.transform='translateX(-110vw)';
+    setTimeout(function(){ov.remove();document.body.style.overflow='';},1200);
+  }
+
+  document.body.style.overflow='hidden';
+  document.getElementById('intro-overlay').addEventListener('click',function(){dissolve();});
+
+  requestAnimationFrame(frame);
+})();
+</script>
+
 <!-- ─── GLOBAL LOADER ────────────────────────────────────────────────────── -->
 <div id="global-loader">
   <div class="spinner"></div>
