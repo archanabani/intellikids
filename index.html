@@ -101,6 +101,21 @@ const db   = firebase.firestore();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 googleProvider.addScope('https://www.googleapis.com/auth/calendar');
 
+// ─── EARLY UTILS (needed before body scripts load) ─────────────────────────
+function showLoader(show) {
+  const el = document.getElementById('global-loader');
+  if (el) el.classList.toggle('show', show);
+}
+let _toastTimer;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.className = 'show' + (type==='error'?' error':type==='success'?' success':'');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show','error','success'), 3500);
+}
+
 // ─── AUTH STATE ────────────────────────────────────────────────────────────
 auth.onAuthStateChanged(async (user) => {
   showLoader(false);
@@ -1811,7 +1826,6 @@ let gradeFilter    = 'All';
 let studentData    = null;
 let teacherData    = null;
 let _adminData     = null;
-let _toastTimer;
 
 // ─── NAV ─────────────────────────────────────────────────────────────
 function nav(page) {
@@ -1846,17 +1860,6 @@ function showDashboard(role) {
 // ─── UTILS ────────────────────────────────────────────────────────────
 function toggleMobile() { document.getElementById('mobile-menu').classList.toggle('open'); }
 
-function showLoader(show) {
-  document.getElementById('global-loader').classList.toggle('show', show);
-}
-
-function showToast(msg, type) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'show' + (type==='error'?' error':type==='success'?' success':'');
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => t.classList.remove('show','error','success'), 3500);
-}
 
 function emptyState(icon, title, desc) {
   return `<div style="text-align:center;padding:60px 20px;">
