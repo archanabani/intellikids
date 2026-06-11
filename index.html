@@ -130,12 +130,21 @@ function nav(page) {
     history.replaceState(null, '', page === 'home' ? '#' : '#' + page);
   }
   window.scrollTo({top:0, behavior:'smooth'});
-  // These functions are defined in body script — call only if ready
-  if (typeof renderSessionsPage === 'function'  && page === 'sessions')          renderSessionsPage();
-  if (typeof initStudentDash    === 'function'  && page === 'student-dashboard') initStudentDash();
-  if (typeof initTeacherDash    === 'function'  && page === 'teacher-dashboard') initTeacherDash();
-  if (typeof initAdminDash      === 'function'  && page === 'admin-dashboard')   initAdminDash();
-  if (typeof renderPricingCards === 'function'  && page === 'pricing')           renderPricingCards();
+  // These functions are defined in body script — call only if ready.
+  // If not ready yet, store the page so DOMContentLoaded can finish the init.
+  if (typeof renderSessionsPage === 'function'  && page === 'sessions')          { renderSessionsPage(); }
+  else if (page === 'sessions') { window._pendingPage = page; }
+
+  if (typeof initStudentDash    === 'function'  && page === 'student-dashboard') { initStudentDash(); }
+  else if (page === 'student-dashboard') { window._pendingPage = page; }
+
+  if (typeof initTeacherDash    === 'function'  && page === 'teacher-dashboard') { initTeacherDash(); }
+  else if (page === 'teacher-dashboard') { window._pendingPage = page; }
+
+  if (typeof initAdminDash      === 'function'  && page === 'admin-dashboard')   { initAdminDash(); }
+  else if (page === 'admin-dashboard') { window._pendingPage = page; }
+
+  if (typeof renderPricingCards === 'function'  && page === 'pricing')           { renderPricingCards(); }
 }
 
 function showDashboard(role) {
@@ -2099,7 +2108,7 @@ async function initStudentDash() {
     studentData=await loadStudentData();
     document.getElementById('sd-up-cnt').textContent=studentData.sessions.filter(s=>!s.completed).length;
     document.getElementById('sd-done-cnt').textContent=studentData.sessions.filter(s=>s.completed).length;
-  } catch(e){studentData={sessions:[],homework:[],requests:[]};}
+  } catch(e){console.error('Student data load error:',e);studentData={sessions:[],homework:[],requests:[]};}
   renderStudentTab('upcoming');
 }
 
@@ -2382,7 +2391,7 @@ async function initTeacherDash(){
     document.getElementById('td-s-cnt').textContent=teacherData.students.length;
     document.getElementById('td-sess-cnt').textContent=teacherData.sessions.filter(s=>!s.completed).length;
     document.getElementById('td-today-cnt').textContent=teacherData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);return d.toDateString()===tod;}).length;
-  } catch(e){teacherData={sessions:[],students:[]};}
+  } catch(e){console.error('Teacher data load error:',e);teacherData={sessions:[],students:[]};}
   renderTeacherTab('sessions');
 }
 
@@ -2994,6 +3003,16 @@ document.addEventListener('DOMContentLoaded',()=>{
   const publicPages = ['home','subjects','pricing','contact'];
   if (hash && publicPages.includes(hash)) {
     nav(hash);
+  }
+  // If auth resolved before body script finished loading, the dashboard
+  // init was skipped (typeof check failed). Fire it now.
+  const pending = window._pendingPage;
+  if (pending) {
+    window._pendingPage = null;
+    if (pending === 'student-dashboard') initStudentDash();
+    else if (pending === 'teacher-dashboard') initTeacherDash();
+    else if (pending === 'admin-dashboard') initAdminDash();
+    else if (pending === 'sessions') renderSessionsPage();
   }
 });
 </script>
