@@ -135,7 +135,7 @@ function nav(page) {
   if (typeof initStudentDash    === 'function'  && page === 'student-dashboard') initStudentDash();
   if (typeof initTeacherDash    === 'function'  && page === 'teacher-dashboard') initTeacherDash();
   if (typeof initAdminDash      === 'function'  && page === 'admin-dashboard')   initAdminDash();
-  if (typeof renderPricingCards === 'function'  && page === 'pricing')           renderPricingCards();
+  if (page === 'pricing') { if (typeof renderPricingCards === 'function') renderPricingCards(); else setTimeout(renderPricingCards,200); }
 }
 
 function showDashboard(role) {
@@ -637,7 +637,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
       <button class="nav-link"        onclick="nav('subjects')" id="nl-subjects">Subjects</button>
       <button class="nav-link"        onclick="nav('pricing')"  id="nl-pricing">Pricing</button>
       <button class="nav-link"        onclick="window.open('about.html','_self')" id="nl-about">About Us</button>
-      <button class="nav-link"        onclick="nav('contact')" id="nl-contact">Contact</button>
+      <button class="nav-link"        onclick="nav('contact')">Contact</button>
     </div>
     <div class="nav-actions" id="nav-actions">
       <button class="btn btn-sec btn-sm"  onclick="nav('student-login')">Student Login</button>
@@ -979,7 +979,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
   <div style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);padding:60px 24px;text-align:center;">
     <h2 style="color:#fff;margin-bottom:12px;">Ready to unlock your child's potential? 🌟</h2>
     <p style="color:rgba(255,255,255,.85);font-size:16px;font-weight:600;margin-bottom:28px;">First demo session is completely FREE. No cards. No pressure.</p>
-    <button class="btn" onclick="nav('contact')" style="background:#fff;color:#FF6B6B;padding:16px 40px;font-size:17px;font-weight:900;box-shadow:0 8px 28px rgba(0,0,0,.2);">Book Your Free Demo 🎯</button>
+    <button class="btn" onclick="nav('contact')" style="background:#fff;color:#FF6B6B;padding:16px 40px;font-size:17px;font-weight:900;box-shadow:0 8px 28px rgba(0,0,0,.2);" onclick="window.open('book-demo.html','_self')">Book Your Free Demo 🎯</button>
   </div>
 
   <!-- FOOTER -->
@@ -1257,7 +1257,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
     <div style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);padding:60px 24px;text-align:center;">
       <h2 style="color:#fff;margin-bottom:12px;">Not sure where to start? 🤔</h2>
       <p style="color:rgba(255,255,255,.85);font-size:16px;font-weight:600;margin-bottom:28px;">Start with a FREE demo. You pick the topic, we show you the magic.</p>
-      <button class="btn" onclick="nav('contact')" style="background:#fff;color:#FF6B6B;padding:16px 40px;font-size:17px;font-weight:900;box-shadow:0 8px 28px rgba(0,0,0,.2);">Book Your Free Demo 🎯</button>
+      <button class="btn" onclick="nav('contact')" style="background:#fff;color:#FF6B6B;padding:16px 40px;font-size:17px;font-weight:900;box-shadow:0 8px 28px rgba(0,0,0,.2);" onclick="window.open('book-demo.html','_self')">Book Your Free Demo 🎯</button>
     </div>
   </div>
 </div>
@@ -2073,9 +2073,8 @@ async function submitContactForm() {
 // STUDENT DASHBOARD
 // ══════════════════════════════════════════════════════════════════════
 async function initStudentDash() {
-  if(window._studentDashLoading) return; // prevent concurrent runs
+  if(window._studentDashLoading) return;
   window._studentDashLoading = true;
-  const p=window._ika||{};
   const name=p.name||p.displayName||'there';
   document.getElementById('sd-greeting').textContent=`Hey ${name}! 🙌`;
   document.getElementById('sd-email').textContent=p.email||'';
@@ -2097,16 +2096,11 @@ async function initStudentDash() {
     <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">✅</div><div class="stat-val" style="color:#1DD1A1;" id="sd-done-cnt">0</div><div class="stat-lbl">Completed</div></div>
     <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">🔥</div><div class="stat-val" style="color:#FF9F43;">${p.streak||0}</div><div class="stat-lbl">Day Streak</div></div>
     <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">📈</div><div class="stat-val" style="color:#6C63FF;">${p.progress||0}%</div><div class="stat-lbl">Progress</div></div>`;
-  // Show spinner while loading
-  document.getElementById('sd-content').innerHTML='<div style="text-align:center;padding:60px;"><div style="width:40px;height:40px;border:4px solid #FFE8E8;border-top-color:#FF6B6B;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px;"></div><div style="color:#888;font-weight:700;">Fetching your data…</div></div>';
   try {
     studentData=await loadStudentData();
     document.getElementById('sd-up-cnt').textContent=studentData.sessions.filter(s=>!s.completed).length;
     document.getElementById('sd-done-cnt').textContent=studentData.sessions.filter(s=>s.completed).length;
-  } catch(e){
-    console.error('Student data load error:',e);
-    studentData={sessions:[],homework:[],requests:[]};
-  }
+  } catch(e){console.error('Student load error:',e);studentData={sessions:[],homework:[],requests:[]};}
   window._studentDashLoading = false;
   renderStudentTab('upcoming');
 }
@@ -2116,12 +2110,9 @@ function sdTab(btn,tab){
   btn.classList.add('active'); renderStudentTab(tab);
 }
 
-function renderStudentTab(tab){
+async function renderStudentTab(tab){
   const el=document.getElementById('sd-content');
-  if(!studentData){
-    // Still loading — initStudentDash handles spinner, just return
-    return;
-  }
+  if(!studentData){el.innerHTML='<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>';return;}
 
   if(tab==='upcoming'){
     const sess=studentData.sessions.filter(s=>!s.completed);
@@ -2373,7 +2364,7 @@ async function submitBooking(){
 // TEACHER DASHBOARD
 // ══════════════════════════════════════════════════════════════════════
 async function initTeacherDash(){
-  if(window._teacherDashLoading) return; // prevent concurrent runs
+  if(window._teacherDashLoading) return;
   window._teacherDashLoading = true;
   const p=window._ika||{};const name=p.name||'Teacher';
   document.getElementById('td-greeting').textContent=`Welcome, ${name}! 🏆`;
@@ -2387,18 +2378,13 @@ async function initTeacherDash(){
     <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">🗓️</div><div class="stat-val" style="color:#1DD1A1;" id="td-today-cnt">0</div><div class="stat-lbl">Today Classes</div></div>
     <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFFBF0;"><div style="font-size:22px;">⭐</div><div class="stat-val" style="color:#FF9F43;" id="td-rating-val">${p.averageRating ? p.averageRating.toFixed(1) : '—'}</div><div class="stat-lbl">Avg. Rating${p.totalRatings?' ('+p.totalRatings+' reviews)':''}</div></div>
     <div class="stat-card" style="border-top:4px solid #0071C5;background:#EBF4FF;"><div style="font-size:22px;">🏅</div><div class="stat-val" style="color:#0071C5;font-size:16px;">Certified</div><div class="stat-lbl">Intel Labs</div></div>`;
-  // Show spinner in content while loading — don't rely on null check
-  document.getElementById('td-content').innerHTML='<div style="text-align:center;padding:60px;"><div style="width:40px;height:40px;border:4px solid #FFE8E8;border-top-color:#6C63FF;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px;"></div><div style="color:#888;font-weight:700;">Fetching your data…</div></div>';
   try {
     teacherData=await loadTeacherData();
     const tod=new Date().toDateString();
     document.getElementById('td-s-cnt').textContent=teacherData.students.length;
     document.getElementById('td-sess-cnt').textContent=teacherData.sessions.filter(s=>!s.completed).length;
     document.getElementById('td-today-cnt').textContent=teacherData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);return d.toDateString()===tod;}).length;
-  } catch(e){
-    console.error('Teacher data load error:',e);
-    teacherData={sessions:[],students:[]};
-  }
+  } catch(e){console.error('Teacher load error:',e);teacherData={sessions:[],students:[]};}
   window._teacherDashLoading = false;
   renderTeacherTab('sessions');
 }
@@ -2410,10 +2396,7 @@ function tdTab(btn,tab){
 
 function renderTeacherTab(tab){
   const el=document.getElementById('td-content');
-  if(!teacherData){
-    // Still loading — initTeacherDash handles this with its own spinner, just return
-    return;
-  }
+  if(!teacherData){el.innerHTML='<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>';return;}
   if(tab==='sessions'){
     if(!teacherData.sessions.length){
       el.innerHTML=`<div style="text-align:center;padding:48px 20px;">
