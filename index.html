@@ -3,78 +3,13 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-
-<!-- ═══════════════════════════════════════════════════════════
-     SEO – Title & Description (keyword-optimised)
-═══════════════════════════════════════════════════════════ -->
-<title>Intellikids Academy | Best Online Classes for Kids – Coding, Maths, IGCSE, CAIE Tuition</title>
-<meta name="description" content="Intellikids Academy offers the best online classes for kids – live 1-on-1 & group sessions for KG–Grade 12. Expert tutors for Coding, Maths, IGCSE, CAIE, Vedic Maths & Olympiad prep. Personalised live learning. Book a FREE demo today!"/>
-<meta name="keywords" content="online classes for kids, best online classes, coding for kids, CAIE, IGCSE, igcse online, gcse online, online tuition class 10, online tuition class 12, Olympiad preparation online kids, vedic maths online kids, online tuitions, personalised live learning, learn coding for kids, online math programs, learning math online, online computer learning, expert teacher online, intellikids academy"/>
-<meta name="robots" content="index, follow"/>
-<meta name="author" content="Intellikids Academy"/>
-
-<!-- ═══════════════════════════════════════════════════════════
-     Open Graph (Facebook / WhatsApp share)
-═══════════════════════════════════════════════════════════ -->
-<meta property="og:type" content="website"/>
-<meta property="og:title" content="Intellikids Academy | Best Online Classes for Kids – Coding, Maths, IGCSE, CAIE"/>
-<meta property="og:description" content="Live 1-on-1 & group online tuition for KG–Grade 12. Coding, IGCSE, CAIE, Vedic Maths, Olympiad prep. Expert certified teachers. Book your FREE demo today!"/>
-<meta property="og:url" content="https://intellikidsacademy.com"/>
-<meta property="og:site_name" content="Intellikids Academy"/>
-<meta property="og:image" content="https://intellikidsacademy.com/og-image.jpg"/>
-
-<!-- ═══════════════════════════════════════════════════════════
-     Twitter Card
-═══════════════════════════════════════════════════════════ -->
-<meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:title" content="Intellikids Academy | Best Online Classes for Kids"/>
-<meta name="twitter:description" content="Live coding, maths, IGCSE & CAIE tuition for kids KG–Grade 12. Expert teachers. Personalised curriculum. FREE demo class!"/>
-<meta name="twitter:image" content="https://intellikidsacademy.com/og-image.jpg"/>
-
-<!-- ═══════════════════════════════════════════════════════════
-     Canonical + Alternate domains
-═══════════════════════════════════════════════════════════ -->
-<link rel="canonical" href="https://intellikidsacademy.com"/>
-<link rel="alternate" href="https://intellikidsacademy.in" hreflang="en-in"/>
-<link rel="alternate" href="https://intellikidsacademy.com" hreflang="en"/>
-
-<!-- ═══════════════════════════════════════════════════════════
-     Structured Data – JSON-LD (rich results in Google)
-═══════════════════════════════════════════════════════════ -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "EducationalOrganization",
-  "name": "Intellikids Academy",
-  "url": "https://intellikidsacademy.com",
-  "sameAs": ["https://intellikidsacademy.in"],
-  "description": "Best online classes for kids – live 1-on-1 and group tuition for KG–Grade 12. Expert tutors for Coding, Maths, IGCSE, CAIE, Vedic Maths and Olympiad preparation.",
-  "email": "admin@intellikidsacademy.in",
-  "address": { "@type": "PostalAddress", "addressCountry": "IN" },
-  "teaches": ["Coding for Kids","Mathematics","IGCSE","CAIE","Vedic Maths","Olympiad Preparation","English","Physics","Chemistry","Computer Basics"],
-  "hasOfferCatalog": {
-    "@type": "OfferCatalog",
-    "name": "Online Tuition Packages",
-    "itemListElement": [
-      { "@type": "Offer", "name": "1-on-1 Starter Pack – 4 Classes", "price": "799", "priceCurrency": "INR" },
-      { "@type": "Offer", "name": "1-on-1 Achiever Pack – 16 Classes", "price": "699", "priceCurrency": "INR" },
-      { "@type": "Offer", "name": "Group Achiever Pack – 16 Classes", "price": "369", "priceCurrency": "INR" }
-    ]
-  }
-}
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════
-     Google Ads Tag (AW-18171441020)
-═══════════════════════════════════════════════════════════ -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18171441020"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'AW-18171441020');
-</script>
-
+<title>Intellikids Academy – Personalised Live Learning for Grades 3–12</title>
+<meta name="description" content="Live 1-on-1 and group tutoring for Grades 3–12. Coding, Maths, English, Physics, Chemistry & Computer Basics. Personalised curriculum. Book your free demo today!"/>
+<meta name="keywords" content="online tutoring India, kids education, coding for kids, maths tutor, personalised learning, intellikids academy"/>
+<meta property="og:title" content="Intellikids Academy – Live Personalised Learning"/>
+<meta property="og:description" content="1-on-1 and group sessions for Grades 3–12. Real teachers. Real results."/>
+<meta property="og:url" content="https://intellikidsacademy.in"/>
+<link rel="canonical" href="https://intellikidsacademy.in"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet"/>
 
@@ -100,56 +35,6 @@ const auth = firebase.auth();
 const db   = firebase.firestore();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 googleProvider.addScope('https://www.googleapis.com/auth/calendar');
-
-// ─── EARLY UTILS (needed before body scripts load) ─────────────────────────
-function showLoader(show) {
-  const el = document.getElementById('global-loader');
-  if (el) el.classList.toggle('show', show);
-}
-let _toastTimer;
-function showToast(msg, type) {
-  const t = document.getElementById('toast');
-  if (!t) return;
-  t.textContent = msg;
-  t.className = 'show' + (type==='error'?' error':type==='success'?' success':'');
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => t.classList.remove('show','error','success'), 3500);
-}
-
-// ─── NAV (must be global before Firebase + before body parses) ─────────────
-function nav(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-  const el = document.getElementById('page-' + page);
-  if (el) el.classList.add('active');
-  const nl = document.getElementById('nl-' + page);
-  if (nl) nl.classList.add('active');
-  window._currentPage = page;
-  const publicPages = ['home','subjects','pricing','contact'];
-  if (publicPages.includes(page)) {
-    history.replaceState(null, '', page === 'home' ? '#' : '#' + page);
-  }
-  window.scrollTo({top:0, behavior:'smooth'});
-  // These functions are defined in body script — call only if ready
-  if (typeof renderSessionsPage === 'function'  && page === 'sessions')          renderSessionsPage();
-  if (typeof initStudentDash    === 'function'  && page === 'student-dashboard') initStudentDash();
-  if (typeof initTeacherDash    === 'function'  && page === 'teacher-dashboard') initTeacherDash();
-  if (typeof initAdminDash      === 'function'  && page === 'admin-dashboard')   initAdminDash();
-  if (page === 'pricing') { if (typeof renderPricingCards === 'function') renderPricingCards(); else setTimeout(renderPricingCards,200); }
-}
-
-function showDashboard(role) {
-  showLoader(false);
-  if (role === 'student')      nav('student-dashboard');
-  else if (role === 'teacher') nav('teacher-dashboard');
-  else if (role === 'admin')   nav('admin-dashboard');
-  else showToast('Unknown role. Contact admin.', 'error');
-}
-
-function toggleMobile() {
-  const m = document.getElementById('mobile-menu');
-  if (m) m.classList.toggle('open');
-}
 
 // ─── AUTH STATE ────────────────────────────────────────────────────────────
 auth.onAuthStateChanged(async (user) => {
@@ -636,7 +521,6 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
       <button class="nav-link active" onclick="nav('home')"    id="nl-home">Home</button>
       <button class="nav-link"        onclick="nav('subjects')" id="nl-subjects">Subjects</button>
       <button class="nav-link"        onclick="nav('pricing')"  id="nl-pricing">Pricing</button>
-      <button class="nav-link"        onclick="window.open('about.html','_self')" id="nl-about">About Us</button>
       <button class="nav-link"        onclick="nav('contact')">Contact</button>
     </div>
     <div class="nav-actions" id="nav-actions">
@@ -651,7 +535,6 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
     <button class="nav-link" onclick="nav('home');toggleMobile()">🏠 Home</button>
     <button class="nav-link" onclick="nav('subjects');toggleMobile()">📚 Subjects</button>
     <button class="nav-link" onclick="nav('pricing');toggleMobile()">💰 Pricing</button>
-    <button class="nav-link" onclick="window.open('about.html','_self');toggleMobile()">🌍 About Us</button>
     <button class="nav-link" onclick="nav('contact');toggleMobile()">💬 Contact</button>
     <hr style="border-color:#FFE8E8;margin:4px 0;"/>
     <button class="btn btn-sec"  onclick="nav('student-login');toggleMobile()">🎒 Student Login</button>
@@ -678,9 +561,9 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
     </svg>
     <div class="hero-content section">
       <div class="fade-up">
-        <div class="hero-badge">🇮🇳 Trusted by 5,000+ families · KG to Grade 12</div>
+        <div class="hero-badge">🇮🇳 Trusted by 5,000+ Indian families</div>
         <h1 class="hero-title">Where <span>curious kids</span> become confident learners 🚀</h1>
-        <p class="hero-desc">Live 1-on-1 & group sessions for Kindergarten – Grade 12. Personalised curriculum, expert teachers, real results — in Coding, Maths, English, Physics, Chemistry & Computer Basics.</p>
+        <p class="hero-desc">Live 1-on-1 & group sessions for Grades 3–12. Personalised curriculum, expert teachers, real results — in Coding, Maths, English, Physics, Chemistry & Computer Basics.</p>
         <div class="hero-cta">
           <button class="btn btn-main" onclick="window.open('book-demo.html','_self')">Book Free Demo 🎯</button>
           <button class="btn btn-sec"  onclick="nav('subjects')">Explore Subjects →</button>
@@ -696,22 +579,22 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
           <div class="hero-card" style="border-top:4px solid #FF6B6B;">
             <div style="font-size:28px;margin-bottom:8px;">💻</div>
             <div style="font-weight:800;font-size:15px;margin-bottom:4px;">Computer Basics</div>
-            <div class="chip chip-red">KG – Gr. 10</div>
+            <div class="chip chip-red">Gr. 3–10</div>
           </div>
           <div class="hero-card" style="border-top:4px solid #6C63FF;margin-top:20px;">
             <div style="font-size:28px;margin-bottom:8px;">🤖</div>
             <div style="font-weight:800;font-size:15px;margin-bottom:4px;">Coding</div>
-            <div class="chip chip-purple">KG – Gr. 10</div>
+            <div class="chip chip-purple">Gr. 3–10</div>
           </div>
           <div class="hero-card" style="border-top:4px solid #FF9F43;">
             <div style="font-size:28px;margin-bottom:8px;">🔢</div>
             <div style="font-weight:800;font-size:15px;margin-bottom:4px;">Maths</div>
-            <div class="chip chip-orange">KG – Gr. 10</div>
+            <div class="chip chip-orange">Gr. 3–10</div>
           </div>
           <div class="hero-card" style="border-top:4px solid #1DD1A1;margin-top:20px;">
             <div style="font-size:28px;margin-bottom:8px;">✍️</div>
             <div style="font-weight:800;font-size:15px;margin-bottom:4px;">English</div>
-            <div class="chip chip-green">KG – Gr. 10</div>
+            <div class="chip chip-green">Gr. 3–10</div>
           </div>
         </div>
         <!-- floating emojis -->
@@ -721,158 +604,6 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
       </div>
     </div>
   </div>
-
-  <!-- GLOBE ANIMATION SECTION -->
-  <div id="globe-section" style="background:linear-gradient(135deg,#1a1a2e,#2d1b69);padding:60px 24px;text-align:center;overflow:hidden;position:relative;">
-    <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,rgba(108,99,255,.18),transparent 70%);pointer-events:none;"></div>
-    <div class="section" style="position:relative;z-index:1;">
-      <div style="display:inline-block;background:linear-gradient(135deg,#FF6B6B,#FF9F43);border-radius:50px;padding:7px 22px;font-size:13px;font-weight:800;color:#fff;margin-bottom:14px;">🌍 GLOBAL LEARNING NETWORK</div>
-      <h2 style="color:#fff;margin-bottom:10px;">Connecting curious kids <span style="background:linear-gradient(135deg,#FF9F43,#FDCB6E);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">worldwide 🚀</span></h2>
-      <p style="color:#9090B0;font-size:15px;font-weight:600;margin-bottom:36px;max-width:500px;margin-left:auto;margin-right:auto;">Expert teachers in India, students across the globe — live, personalised, and powerful.</p>
-      <div style="display:flex;justify-content:center;align-items:center;gap:40px;flex-wrap:wrap;">
-        <canvas id="globeCanvas" width="320" height="320" style="border-radius:50%;box-shadow:0 0 80px rgba(108,99,255,.4),0 0 30px rgba(255,107,107,.2);"></canvas>
-        <div style="display:flex;flex-direction:column;gap:16px;text-align:left;max-width:260px;">
-          <div style="background:rgba(255,255,255,.07);border-radius:16px;padding:16px 20px;border-left:4px solid #FF6B6B;">
-            <div style="font-weight:900;font-size:18px;color:#fff;">🇮🇳 India</div>
-            <div style="font-size:13px;color:#9090B0;font-weight:600;margin-top:4px;">Our expert teacher hub</div>
-          </div>
-          <div style="background:rgba(255,255,255,.07);border-radius:16px;padding:16px 20px;border-left:4px solid #FF9F43;">
-            <div style="font-weight:900;font-size:18px;color:#fff;">🇬🇧 UK · 🇦🇪 UAE · 🇨🇦 Canada</div>
-            <div style="font-size:13px;color:#9090B0;font-weight:600;margin-top:4px;">Students & families served</div>
-          </div>
-          <div style="background:rgba(255,255,255,.07);border-radius:16px;padding:16px 20px;border-left:4px solid #1DD1A1;">
-            <div style="font-weight:900;font-size:18px;color:#fff;">🇺🇸 USA · 🇦🇺 Australia</div>
-            <div style="font-size:13px;color:#9090B0;font-weight:600;margin-top:4px;">Growing learning communities</div>
-          </div>
-          <button class="btn btn-main" onclick="window.open('book-demo.html','_self')" style="margin-top:8px;">Join From Anywhere 🌐</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <script>
-  // ─── GLOBE ANIMATION ──────────────────────────────────────────────────
-  (function(){
-    const canvas = document.getElementById('globeCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height, R = 130, cx = W/2, cy = H/2;
-    let angle = 0;
-
-    const countries = [
-      {name:'India',     lat:20,  lng:78,  color:'#FF6B6B'},
-      {name:'UK',        lat:51,  lng:-0.1,color:'#FF9F43'},
-      {name:'UAE',       lat:24,  lng:54,  color:'#FDCB6E'},
-      {name:'Canada',    lat:56,  lng:-106,color:'#6C63FF'},
-      {name:'USA',       lat:38,  lng:-97, color:'#54A0FF'},
-      {name:'Australia', lat:-25, lng:133, color:'#1DD1A1'},
-      {name:'Singapore', lat:1.3, lng:103, color:'#A29BFE'},
-    ];
-
-    function latLngTo3D(lat, lng, r) {
-      const phi   = (90 - lat)  * Math.PI / 180;
-      const theta = (lng + 180) * Math.PI / 180;
-      return {
-        x: -r * Math.sin(phi) * Math.cos(theta),
-        y:  r * Math.cos(phi),
-        z:  r * Math.sin(phi) * Math.sin(theta)
-      };
-    }
-
-    let rocketT = 0, rocketFrom = 0, rocketTo = 1;
-
-    function drawGlobe() {
-      ctx.clearRect(0, 0, W, H);
-      const grd = ctx.createRadialGradient(cx-30, cy-30, 10, cx, cy, R);
-      grd.addColorStop(0, '#2d1b69');
-      grd.addColorStop(1, '#1a1a2e');
-      ctx.beginPath();
-      ctx.arc(cx, cy, R, 0, Math.PI*2);
-      ctx.fillStyle = grd;
-      ctx.fill();
-
-      ctx.strokeStyle = 'rgba(108,99,255,.18)';
-      ctx.lineWidth = 1;
-      for (let lat = -60; lat <= 60; lat += 30) {
-        const y3 = R * Math.sin(lat * Math.PI/180);
-        const r2 = Math.sqrt(R*R - y3*y3);
-        ctx.beginPath();
-        ctx.ellipse(cx, cy - y3, r2, r2*0.25, 0, 0, Math.PI*2);
-        ctx.stroke();
-      }
-      for (let i = 0; i < 6; i++) {
-        const a = (i/6)*Math.PI + angle;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, R*Math.abs(Math.cos(a)), R, a, 0, Math.PI*2);
-        ctx.stroke();
-      }
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(cx, cy, R, 0, Math.PI*2);
-      ctx.clip();
-
-      countries.forEach(c => {
-        const p = latLngTo3D(c.lat, c.lng + angle*180/Math.PI, R);
-        if (p.z >= 0) {
-          const sx = cx + p.x, sy = cy - p.y;
-          const brightness = 0.4 + 0.6 * (p.z / R);
-          ctx.beginPath();
-          ctx.arc(sx, sy, 8, 0, Math.PI*2);
-          ctx.fillStyle = c.color + '22';
-          ctx.fill();
-          ctx.beginPath();
-          ctx.arc(sx, sy, 5, 0, Math.PI*2);
-          ctx.fillStyle = c.color;
-          ctx.globalAlpha = brightness;
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        }
-      });
-      ctx.restore();
-
-      const sheen = ctx.createRadialGradient(cx-40, cy-40, 5, cx-10, cy-10, R*0.9);
-      sheen.addColorStop(0, 'rgba(255,255,255,.08)');
-      sheen.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.beginPath();
-      ctx.arc(cx, cy, R, 0, Math.PI*2);
-      ctx.fillStyle = sheen;
-      ctx.fill();
-
-      const from = countries[rocketFrom], to = countries[rocketTo];
-      const fp = latLngTo3D(from.lat, from.lng + angle*180/Math.PI, R);
-      const tp = latLngTo3D(to.lat,   to.lng   + angle*180/Math.PI, R);
-      if (fp.z >= 0 && tp.z >= 0) {
-        const arc = Math.sin(rocketT * Math.PI) * 30;
-        const rx = cx + fp.x + (tp.x - fp.x)*rocketT;
-        const ry = cy - fp.y + (-(tp.y) - (-fp.y))*rocketT - arc;
-        ctx.font = '18px serif';
-        ctx.fillText('🚀', rx-9, ry+9);
-        ctx.setLineDash([3,5]);
-        ctx.strokeStyle = 'rgba(255,159,67,.4)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(cx + fp.x, cy - fp.y);
-        for (let t = 0; t <= rocketT; t += 0.05) {
-          const arcH = Math.sin(t*Math.PI)*30;
-          const tx2 = cx + fp.x + (tp.x-fp.x)*t;
-          const ty2 = cy - fp.y + (-(tp.y)-(-fp.y))*t - arcH;
-          ctx.lineTo(tx2, ty2);
-        }
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    }
-
-    function animate() {
-      angle += 0.004;
-      rocketT += 0.008;
-      if (rocketT >= 1) { rocketT = 0; rocketFrom = rocketTo; rocketTo = (rocketTo + 1) % countries.length; }
-      drawGlobe();
-      requestAnimationFrame(animate);
-    }
-    animate();
-  })();
-  </script>
 
   <!-- MARQUEE -->
   <div class="marquee-wrap">
@@ -991,20 +722,18 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
             <div style="width:40px;height:40px;background:linear-gradient(135deg,#FF6B6B,#FF9F43);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;">🧠</div>
             <div><div style="font-family:'Baloo 2',sans-serif;font-weight:800;font-size:18px;color:#fff;">Intellikids</div><div style="font-size:10px;font-weight:800;color:#FF9F43;letter-spacing:1px;">ACADEMY</div></div>
           </div>
-          <p style="font-size:13px;line-height:1.8;color:#888;font-weight:600;">Personalised live learning for curious minds, KG–Grade 12. Building tomorrow's thinkers today.</p>
-          <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap;">
+          <p style="font-size:13px;line-height:1.8;color:#888;font-weight:600;">Personalised live learning for curious minds, grades 3–12. Building tomorrow's thinkers today.</p>
+          <div style="margin-top:16px;display:flex;gap:12px;">
             <a href="https://wa.me/8796502497" target="_blank" style="text-decoration:none;font-size:22px;" title="WhatsApp">💬</a>
             <a href="mailto:hello@intellikidsacademy.in" style="text-decoration:none;font-size:22px;" title="Email">📧</a>
-            <a href="https://www.instagram.com/intellikidsacademy?igsh=OWc2ZXZ6YXNsanA3" target="_blank" title="Instagram" style="text-decoration:none;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);font-size:18px;">📸</a>
-            <a href="https://www.facebook.com/share/1AcyZXhQtY/" target="_blank" title="Facebook" style="text-decoration:none;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:#1877F2;font-size:18px;">👥</a>
           </div>
         </div>
         <div>
           <div style="font-weight:800;font-size:15px;color:#fff;margin-bottom:16px;">Subjects</div>
-          <a class="footer-link">💻 Computer Basics (KG – Gr. 10)</a>
-          <a class="footer-link">🤖 Coding (KG – Gr. 12)</a>
-          <a class="footer-link">🔢 Maths (KG – Gr. 12)</a>
-          <a class="footer-link">✍️ English (KG – Gr. 12)</a>
+          <a class="footer-link">💻 Computer Basics (Gr. 3–10)</a>
+          <a class="footer-link">🤖 Coding (Gr. 3–10)</a>
+          <a class="footer-link">🔢 Maths (Gr. 3–10)</a>
+          <a class="footer-link">✍️ English (Gr. 3–10)</a>
           <a class="footer-link">🚀 Physics (Gr. 9–12)</a>
           <a class="footer-link">🔬 Chemistry (Gr. 9–12)</a>
         </div>
@@ -1028,7 +757,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
       </div>
       <div class="footer-bottom">
         <span style="font-size:13px;color:#555;font-weight:600;">© 2026 Intellikids Academy · Made with ❤️ for curious kids</span>
-        <span style="font-size:13px;color:#555;font-weight:600;">KG – Grade 12 · Personalised · Live · Fun</span>
+        <span style="font-size:13px;color:#555;font-weight:600;">Grades 3–12 · Personalised · Live · Fun</span>
       </div>
     </div>
   </footer>
@@ -1042,49 +771,48 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
     <div class="section">
       <div style="text-align:center;margin-bottom:52px;">
         <h2>All Subjects <span style="color:#6C63FF;">✨</span></h2>
-        <p style="font-size:16px;color:#777;font-weight:600;margin-top:8px;">KG to Grade 12 · Live 1-on-1 or small group (max 4). Fully personalised curriculum.</p>
+        <p style="font-size:16px;color:#777;font-weight:600;margin-top:8px;">Live sessions — 1-on-1 or small group (max 4). Fully personalised curriculum.</p>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;">
-        <!-- EXISTING SUBJECTS -->
         <div class="card card-hover sc-cs" style="padding:32px;cursor:pointer;">
           <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
             <div style="width:60px;height:60px;border-radius:18px;background:#FFF0F0;display:flex;align-items:center;justify-content:center;font-size:32px;">🖥️</div>
             <div><div style="font-weight:800;font-size:18px;">Computer Basics</div><span class="chip chip-red">Gr. 3–10</span></div>
           </div>
           <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Mouse, keyboard, internet, MS Office & digital safety — made fun! Essential digital skills for the modern world.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-red" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-red" style="font-size:11px;">Group (max 4)</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-red" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-red" style="font-size:11px;">Group (max 4)</span><span class="chip chip-red" style="font-size:11px;">Custom Curriculum</span></div>
         </div>
         <div class="card card-hover sc-code" style="padding:32px;cursor:pointer;">
           <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
             <div style="width:60px;height:60px;border-radius:18px;background:#F0EEFF;display:flex;align-items:center;justify-content:center;font-size:32px;">🤖</div>
-            <div><div style="font-weight:800;font-size:18px;">Coding (Scratch, Python, Web Dev)</div><span class="chip chip-purple">Gr. 3–12</span></div>
+            <div><div style="font-weight:800;font-size:18px;">Coding</div><span class="chip chip-purple">Gr. 3–10</span></div>
           </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Scratch → Python → Web Dev. Build real projects from day one. The fastest-growing area for young learners.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-purple" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-purple" style="font-size:11px;">Group (max 4)</span></div>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Scratch → Python → Web Dev. Build real stuff from day one. Projects-first approach that makes coding click.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-purple" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-purple" style="font-size:11px;">Group (max 4)</span><span class="chip chip-purple" style="font-size:11px;">Custom Curriculum</span></div>
         </div>
         <div class="card card-hover sc-math" style="padding:32px;cursor:pointer;">
           <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
             <div style="width:60px;height:60px;border-radius:18px;background:#FFF6E8;display:flex;align-items:center;justify-content:center;font-size:32px;">🔢</div>
-            <div><div style="font-weight:800;font-size:18px;">Maths & Math Improvement</div><span class="chip chip-orange">Gr. 3–12</span></div>
+            <div><div style="font-weight:800;font-size:18px;">Maths</div><span class="chip chip-orange">Gr. 3–10</span></div>
           </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Personalised 1-to-1 tutoring to build real understanding. Especially powerful for kids who struggle — we make it click.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-orange" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-orange" style="font-size:11px;">Group (max 4)</span></div>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Numbers, algebra, geometry & beyond. We make it click, for real. From basic arithmetic to advanced algebra.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-orange" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-orange" style="font-size:11px;">Group (max 4)</span><span class="chip chip-orange" style="font-size:11px;">Custom Curriculum</span></div>
         </div>
         <div class="card card-hover sc-eng" style="padding:32px;cursor:pointer;">
           <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
             <div style="width:60px;height:60px;border-radius:18px;background:#E8FFF8;display:flex;align-items:center;justify-content:center;font-size:32px;">✍️</div>
-            <div><div style="font-weight:800;font-size:18px;">English Communication & Public Speaking</div><span class="chip chip-green">Gr. 3–12</span></div>
+            <div><div style="font-weight:800;font-size:18px;">English</div><span class="chip chip-green">Gr. 3–10</span></div>
           </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Reading, writing, grammar, speaking & confidence-building. Includes public speaking training for competitions and life.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-green" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-green" style="font-size:11px;">Group (max 4)</span></div>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Reading, writing, grammar & speaking — the whole package. Build confidence in communication from the ground up.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-green" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-green" style="font-size:11px;">Group (max 4)</span><span class="chip chip-green" style="font-size:11px;">Custom Curriculum</span></div>
         </div>
         <div class="card card-hover sc-phy" style="padding:32px;cursor:pointer;">
           <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
             <div style="width:60px;height:60px;border-radius:18px;background:#EBF4FF;display:flex;align-items:center;justify-content:center;font-size:32px;">🚀</div>
             <div><div style="font-weight:800;font-size:18px;">Physics</div><span class="chip chip-blue">Gr. 9–12</span></div>
           </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Forces, waves, optics, electricity — physics that makes you go 'whoa'. CBSE, ICSE & IGCSE aligned.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-blue" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-blue" style="font-size:11px;">Group (max 4)</span></div>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Forces, waves, optics, electricity — physics that makes you go 'whoa'. CBSE & ICSE aligned curriculum.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-blue" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-blue" style="font-size:11px;">Group (max 4)</span><span class="chip chip-blue" style="font-size:11px;">Custom Curriculum</span></div>
           <div style="margin-top:16px;background:#FFF6E8;border-radius:12px;padding:10px 14px;font-size:13px;color:#FF9F43;font-weight:700;">⚠️ Available for Grade 9, 10, 11 & 12 only</div>
         </div>
         <div class="card card-hover sc-chem" style="padding:32px;cursor:pointer;">
@@ -1092,115 +820,19 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
             <div style="width:60px;height:60px;border-radius:18px;background:#F3F0FF;display:flex;align-items:center;justify-content:center;font-size:32px;">🔬</div>
             <div><div style="font-weight:800;font-size:18px;">Chemistry</div><span class="chip chip-purple">Gr. 9–12</span></div>
           </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Atoms, bonds, reactions & organic chem. Science but make it cool. Concept-first with real-world examples.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-purple" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-purple" style="font-size:11px;">Group (max 4)</span></div>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Atoms, bonds, reactions & organic chem. Science but make it cool. Concept-first approach with real-world examples.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-purple" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-purple" style="font-size:11px;">Group (max 4)</span><span class="chip chip-purple" style="font-size:11px;">Custom Curriculum</span></div>
           <div style="margin-top:16px;background:#FFF6E8;border-radius:12px;padding:10px 14px;font-size:13px;color:#FF9F43;font-weight:700;">⚠️ Available for Grade 9, 10, 11 & 12 only</div>
-        </div>
+
+
         <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #00CEC9;">
           <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
             <div style="width:60px;height:60px;border-radius:18px;background:#E0FAFA;display:flex;align-items:center;justify-content:center;font-size:32px;">🔭</div>
-            <div><div style="font-weight:800;font-size:18px;">Science Support</div><span class="chip" style="background:#E0FAFA;color:#00CEC9;">Gr. 3–8</span></div>
+            <div><div style="font-weight:800;font-size:18px;">Science</div><span class="chip" style="background:#E0FAFA;color:#00CEC9;">Gr. 3–8</span></div>
           </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Physics, Chemistry & Biology support for younger grades. Visual, hands-on and genuinely exciting for young explorers.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip" style="background:#E0FAFA;color:#00CEC9;font-size:11px;">1-on-1 Sessions</span><span class="chip" style="background:#E0FAFA;color:#00CEC9;font-size:11px;">Group (max 4)</span></div>
+          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">From living cells to outer space — general science made visual, hands-on and genuinely exciting for young explorers.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip" style="background:#E0FAFA;color:#00CEC9;font-size:11px;">1-on-1 Sessions</span><span class="chip" style="background:#E0FAFA;color:#00CEC9;font-size:11px;">Group (max 4)</span><span class="chip" style="background:#E0FAFA;color:#00CEC9;font-size:11px;">Custom Curriculum</span></div>
         </div>
-
-        <!-- NEW: CODING & AI -->
-        <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #0984E3;">
-          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-            <div style="width:60px;height:60px;border-radius:18px;background:#EBF4FF;display:flex;align-items:center;justify-content:center;font-size:32px;">🧠</div>
-            <div><div style="font-weight:800;font-size:18px;">AI for Kids & Machine Learning</div><span class="chip" style="background:#EBF4FF;color:#0984E3;">Gr. 5–12</span></div>
-          </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Understand how AI works, build simple ML models, and learn the future of technology. The fastest-growing area!</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip" style="background:#EBF4FF;color:#0984E3;font-size:11px;">1-on-1 Sessions</span><span class="chip" style="background:#EBF4FF;color:#0984E3;font-size:11px;">Group (max 4)</span></div>
-        </div>
-        <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #E17055;">
-          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-            <div style="width:60px;height:60px;border-radius:18px;background:#FFF3F0;display:flex;align-items:center;justify-content:center;font-size:32px;">🦾</div>
-            <div><div style="font-weight:800;font-size:18px;">Robotics</div><span class="chip" style="background:#FFF3F0;color:#E17055;">Gr. 3–10</span></div>
-          </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Build, program, and control robots! Intro to mechanical thinking and coding through hands-on robot projects.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip" style="background:#FFF3F0;color:#E17055;font-size:11px;">1-on-1 Sessions</span><span class="chip" style="background:#FFF3F0;color:#E17055;font-size:11px;">Group (max 4)</span></div>
-        </div>
-        <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #00B894;">
-          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-            <div style="width:60px;height:60px;border-radius:18px;background:#E8FFF8;display:flex;align-items:center;justify-content:center;font-size:32px;">🌐</div>
-            <div><div style="font-weight:800;font-size:18px;">Web Development</div><span class="chip" style="background:#E8FFF8;color:#00B894;">Gr. 6–12</span></div>
-          </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">HTML, CSS, JavaScript — build your own websites and web apps from scratch. Real skills for a digital future.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip" style="background:#E8FFF8;color:#00B894;font-size:11px;">1-on-1 Sessions</span><span class="chip" style="background:#E8FFF8;color:#00B894;font-size:11px;">Group (max 4)</span></div>
-        </div>
-        <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #FF9F43;">
-          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-            <div style="width:60px;height:60px;border-radius:18px;background:#FFF6E8;display:flex;align-items:center;justify-content:center;font-size:32px;">🏅</div>
-            <div><div style="font-weight:800;font-size:18px;">Math Olympiad Training</div><span class="chip chip-orange">Gr. 3–10</span></div>
-          </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Targeted prep for Math Olympiads and competitions. Advanced problem-solving and speed techniques.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-orange" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-orange" style="font-size:11px;">Group (max 4)</span></div>
-        </div>
-        <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #FF6B6B;">
-          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-            <div style="width:60px;height:60px;border-radius:18px;background:#FFF0F0;display:flex;align-items:center;justify-content:center;font-size:32px;">🔮</div>
-            <div><div style="font-weight:800;font-size:18px;">Vedic Math</div><span class="chip chip-red">Gr. 3–10</span></div>
-          </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Ancient Indian speed-math techniques that make calculations lightning-fast. Boosts mental maths and number confidence.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-red" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-red" style="font-size:11px;">Group (max 4)</span></div>
-        </div>
-        <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #A29BFE;">
-          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-            <div style="width:60px;height:60px;border-radius:18px;background:#F3F0FF;display:flex;align-items:center;justify-content:center;font-size:32px;">📚</div>
-            <div><div style="font-weight:800;font-size:18px;">SAT, IELTS & Academic Test Prep</div><span class="chip chip-purple">Gr. 9–12</span></div>
-          </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Targeted preparation for SAT, IELTS and other standardised tests. Strategies, practice tests & personal coaching.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-purple" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-purple" style="font-size:11px;">Group (max 4)</span></div>
-        </div>
-        <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #FD79A8;">
-          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-            <div style="width:60px;height:60px;border-radius:18px;background:#FFF0F6;display:flex;align-items:center;justify-content:center;font-size:32px;">🎤</div>
-            <div><div style="font-weight:800;font-size:18px;">Public Speaking</div><span class="chip" style="background:#FFF0F6;color:#FD79A8;">Gr. 4–12</span></div>
-          </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Build the confidence to speak up. Presentations, debate skills, storytelling and overcoming stage fright.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip" style="background:#FFF0F6;color:#FD79A8;font-size:11px;">1-on-1 Sessions</span><span class="chip" style="background:#FFF0F6;color:#FD79A8;font-size:11px;">Group (max 4)</span></div>
-        </div>
-        <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #E17055;">
-          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-            <div style="width:60px;height:60px;border-radius:18px;background:#FFF3F0;display:flex;align-items:center;justify-content:center;font-size:32px;">🇫🇷</div>
-            <div><div style="font-weight:800;font-size:18px;">French & German Languages</div><span class="chip" style="background:#FFF3F0;color:#E17055;">All Ages</span></div>
-          </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Beginner to advanced language learning in French or German. Speaking, reading, grammar and pronunciation.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip" style="background:#FFF3F0;color:#E17055;font-size:11px;">1-on-1 Sessions</span></div>
-        </div>
-        <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #FD79A8;">
-          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-            <div style="width:60px;height:60px;border-radius:18px;background:#FFF0F6;display:flex;align-items:center;justify-content:center;font-size:32px;">🎨</div>
-            <div><div style="font-weight:800;font-size:18px;">Art & Music</div><span class="chip" style="background:#FFF0F6;color:#FD79A8;">All Ages</span></div>
-          </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Creative expression through drawing, painting, and music. Structured lessons that nurture artistic talent and joy.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip" style="background:#FFF0F6;color:#FD79A8;font-size:11px;">1-on-1 Sessions</span><span class="chip" style="background:#FFF0F6;color:#FD79A8;font-size:11px;">Group (max 4)</span></div>
-        </div>
-        <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #6C63FF;">
-          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-            <div style="width:60px;height:60px;border-radius:18px;background:#F0EEFF;display:flex;align-items:center;justify-content:center;font-size:32px;">💡</div>
-            <div><div style="font-weight:800;font-size:18px;">Critical Thinking & Problem Solving</div><span class="chip chip-purple">Gr. 4–12</span></div>
-          </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Train kids to analyse, reason and solve — skills that benefit every subject and career. Logic, puzzles and strategy.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-purple" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-purple" style="font-size:11px;">Group (max 4)</span></div>
-        </div>
-        <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #FF9F43;">
-          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-            <div style="width:60px;height:60px;border-radius:18px;background:#FFF6E8;display:flex;align-items:center;justify-content:center;font-size:32px;">📓</div>
-            <div><div style="font-weight:800;font-size:18px;">Study Skills & Time Management</div><span class="chip chip-orange">Gr. 5–12</span></div>
-          </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">How to study smart, not hard. Note-taking, revision strategies, time management and exam technique.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-orange" style="font-size:11px;">1-on-1 Sessions</span></div>
-        </div>
-        <div class="card card-hover" style="padding:32px;cursor:pointer;border-top:4px solid #1DD1A1;">
-          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-            <div style="width:60px;height:60px;border-radius:18px;background:#E8FFF8;display:flex;align-items:center;justify-content:center;font-size:32px;">✏️</div>
-            <div><div style="font-weight:800;font-size:18px;">Homework & Assignment Support</div><span class="chip chip-green">Gr. 3–12</span></div>
-          </div>
-          <p style="color:#777;font-size:14px;line-height:1.7;font-weight:600;margin-bottom:20px;">Expert help with homework and assignments across all subjects. Get unstuck, understand better, and submit with confidence.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="chip chip-green" style="font-size:11px;">1-on-1 Sessions</span><span class="chip chip-green" style="font-size:11px;">Group (max 4)</span></div>
         </div>
       </div>
       <div style="text-align:center;margin-top:48px;">
@@ -1339,27 +971,9 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
                 <label>Student's Grade *</label>
                 <select id="cf-grade">
                   <option value="">Select Grade</option>
-                  <optgroup label="🌱 Early Years (Ages 4–6)">
-                    <option value="Kindergarten (KG)">Kindergarten (KG)</option>
-                    <option value="Grade 1">Grade 1</option>
-                    <option value="Grade 2">Grade 2</option>
-                  </optgroup>
-                  <optgroup label="📚 Elementary School (Grades 3–5)">
-                    <option value="Grade 3">Grade 3</option>
-                    <option value="Grade 4">Grade 4</option>
-                    <option value="Grade 5">Grade 5</option>
-                  </optgroup>
-                  <optgroup label="🏫 Middle School (Grades 6–8)">
-                    <option value="Grade 6">Grade 6</option>
-                    <option value="Grade 7">Grade 7</option>
-                    <option value="Grade 8">Grade 8</option>
-                  </optgroup>
-                  <optgroup label="🎓 High School (Grades 9–12)">
-                    <option value="Grade 9">Grade 9</option>
-                    <option value="Grade 10">Grade 10</option>
-                    <option value="Grade 11">Grade 11</option>
-                    <option value="Grade 12">Grade 12</option>
-                  </optgroup>
+                  <option>Grade 3</option><option>Grade 4</option><option>Grade 5</option>
+                  <option>Grade 6</option><option>Grade 7</option><option>Grade 8</option>
+                  <option>Grade 9</option><option>Grade 10</option><option>Grade 11</option><option>Grade 12</option>
                 </select>
                 <div class="form-error" id="cf-grade-err">Please select a grade</div>
               </div>
@@ -1367,32 +981,8 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
                 <label>Subject Interested In</label>
                 <select id="cf-subject">
                   <option value="">Any / Not sure</option>
-                  <optgroup label="🖥️ Core Subjects">
-                    <option>Computer Basics</option><option>Coding (Scratch, Python, Web Dev)</option><option>Maths</option>
-                    <option>English Communication</option><option>Physics</option><option>Chemistry</option><option>Biology</option><option>Science (Gr. 3–8)</option>
-                  </optgroup>
-                  <optgroup label="💻 Coding & AI">
-                    <option>Python Programming</option><option>Web Development</option><option>Artificial Intelligence & Data Science</option>
-                    <option>Machine Learning</option><option>AI for Kids</option><option>Scratch Programming</option><option>Robotics</option>
-                  </optgroup>
-                  <optgroup label="🔢 Math Specialist">
-                    <option>Vedic Math</option><option>Math Olympiad Training</option>
-                  </optgroup>
-                  <optgroup label="📚 Test Prep">
-                    <option>SAT Preparation</option><option>IELTS Preparation</option><option>Academic Test Prep</option>
-                  </optgroup>
-                  <optgroup label="🌍 Languages">
-                    <option>French</option><option>German</option>
-                  </optgroup>
-                  <optgroup label="🎤 Skills">
-                    <option>Public Speaking</option><option>Critical Thinking & Problem Solving</option><option>Study Skills & Time Management</option>
-                  </optgroup>
-                  <optgroup label="🎨 Creative">
-                    <option>Art</option><option>Music</option>
-                  </optgroup>
-                  <optgroup label="✏️ Support">
-                    <option>Homework & Assignment Support</option>
-                  </optgroup>
+                  <option>Computer Basics</option><option>Coding</option><option>Maths</option>
+                  <option>English</option><option>Physics</option><option>Chemistry</option>
                 </select>
               </div>
             </div>
@@ -1521,7 +1111,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
         </div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-        <button class="btn btn-sec btn-sm" onclick="studentData=null;window._studentDashLoading=false;initStudentDash()">🔄 Refresh</button>
+        <button class="btn btn-sec btn-sm" onclick="studentData=null;initStudentDash()">🔄 Refresh</button>
         <button class="btn btn-sec btn-sm" onclick="nav('home')">← Home</button>
         <button class="btn" onclick="doLogout()" style="background:#FFF0F0;color:#FF6B6B;padding:9px 20px;font-size:13px;font-weight:800;border-radius:50px;">Logout</button>
       </div>
@@ -1532,7 +1122,6 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
       <button class="tab-btn" onclick="sdTab(this,'book')">➕ Book a Class</button>
       <button class="tab-btn" onclick="sdTab(this,'requests')">⏳ Requests</button>
       <button class="tab-btn" onclick="sdTab(this,'homework')">📝 Homework</button>
-      <button class="tab-btn" onclick="sdTab(this,'materials')">📚 My Materials</button>
       <button class="tab-btn" onclick="sdTab(this,'performance')">📈 Progress</button>
     </div>
     <div id="sd-content"><div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading your data…</div></div>
@@ -1554,7 +1143,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
         </div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-        <button class="btn btn-sec btn-sm" onclick="teacherData=null;window._teacherDashLoading=false;initTeacherDash()">🔄 Refresh</button>
+        <button class="btn btn-sec btn-sm" onclick="teacherData=null;initTeacherDash()">🔄 Refresh</button>
         <button class="btn btn-sec btn-sm" onclick="nav('home')">← Home</button>
         <button class="btn" onclick="doLogout()" style="background:#FFF0F0;color:#FF6B6B;padding:9px 20px;font-size:13px;font-weight:800;border-radius:50px;">Logout</button>
       </div>
@@ -1600,197 +1189,6 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
   </div>
 </div>
 
-<!-- ─── LMS MODALS (permanent – never wiped by tab switches) ─────────────── -->
-<style>
-  .lms-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:none;align-items:center;justify-content:center;padding:20px;}
-  .lms-modal-overlay.open{display:flex;}
-  .lms-modal{background:#fff;border-radius:24px;padding:32px;width:100%;max-width:580px;max-height:85vh;overflow-y:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.25);}
-  .lms-modal h3{font-family:'Nunito',sans-serif;font-size:20px;margin-bottom:6px;}
-  .lms-close{position:absolute;top:16px;right:16px;background:#f0f0f0;border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900;line-height:1;}
-  .lms-rating-star{font-size:28px;cursor:pointer;transition:transform .15s;}
-  .lms-rating-star:hover{transform:scale(1.2);}
-</style>
-
-<!-- UPLOAD MODAL -->
-<div id="lms-upload-modal" class="lms-modal-overlay" onclick="if(event.target===this)closeLmsModal('lms-upload-modal')">
-  <div class="lms-modal">
-    <button class="lms-close" onclick="closeLmsModal('lms-upload-modal')">✕</button>
-    <div style="font-size:36px;margin-bottom:8px;">📤</div>
-    <h3 style="color:#FF6B6B;">Upload Content</h3>
-    <p style="font-size:13px;color:#888;font-weight:600;margin-bottom:20px;">Upload videos, PDFs &amp; worksheets for your students.</p>
-    <div class="form-group"><label>Content Title</label><input type="text" id="up-title" placeholder="e.g. Python Loops - Worksheet 1"/></div>
-    <div class="form-group"><label>Content Type</label>
-      <select id="up-type" onchange="var fw=document.getElementById('up-file-wrap'),lw=document.getElementById('up-link-wrap');fw.style.display=(this.value==='pdf'||this.value==='doc')?'block':'none';lw.style.display=(this.value==='video'||this.value==='link')?'block':'none';">
-        <option value="pdf">📄 PDF / Worksheet</option><option value="video">🎬 Video (link)</option><option value="doc">📝 Document</option><option value="link">🔗 External Link</option>
-      </select>
-    </div>
-    <div id="up-file-wrap" class="form-group"><label>Upload File</label>
-      <input type="file" id="up-file" accept=".pdf,.doc,.docx,.ppt,.pptx" style="padding:10px;border:2px dashed #ddd;border-radius:12px;width:100%;background:#FAFAFA;cursor:pointer;"/>
-    </div>
-    <div id="up-link-wrap" class="form-group" style="display:none;"><label>Video / Link URL</label><input type="url" id="up-link" placeholder="https://..."/></div>
-    <div class="form-group"><label>Subject</label>
-      <select id="up-subject"><option value="">All Subjects</option></select>
-    </div>
-    <div class="form-group"><label>Assign To</label>
-      <select id="up-assign"><option value="all">All My Students</option></select>
-    </div>
-    <div class="form-group"><label>Notes for Students (optional)</label><textarea id="up-notes" rows="2" placeholder="Any instructions or context..."></textarea></div>
-    <button id="up-submit-btn" class="btn btn-main btn-full" onclick="submitLmsUpload()" style="background:linear-gradient(135deg,#FF6B6B,#FF9F43);">Upload Content 📤</button>
-    <div id="up-msg" style="display:none;margin-top:14px;padding:12px 16px;border-radius:12px;font-size:13px;font-weight:700;"></div>
-  </div>
-</div>
-
-<!-- ASSESSMENT MODAL -->
-<div id="lms-assessment-modal" class="lms-modal-overlay" onclick="if(event.target===this)closeLmsModal('lms-assessment-modal')">
-  <div class="lms-modal">
-    <button class="lms-close" onclick="closeLmsModal('lms-assessment-modal')">✕</button>
-    <div style="font-size:36px;margin-bottom:8px;">📝</div>
-    <h3 style="color:#6C63FF;">Create Assessment</h3>
-    <p style="font-size:13px;color:#888;font-weight:600;margin-bottom:20px;">Build a quiz or assignment and assign it to your students.</p>
-    <div class="form-group"><label>Assessment Title</label><input type="text" id="ass-title" placeholder="e.g. Python Quiz Week 3"/></div>
-    <div class="form-group"><label>Type</label>
-      <select id="ass-type"><option value="quiz">✅ Quiz (MCQ / Short Answer)</option><option value="assignment">📋 Assignment (Written)</option><option value="project">🚀 Project</option></select>
-    </div>
-    <div class="form-group"><label>Subject</label>
-      <select id="ass-subject"><option value="">Select Subject</option></select>
-    </div>
-    <div class="form-group"><label>Assign To</label>
-      <select id="ass-assign"><option value="all">All My Students</option></select>
-    </div>
-    <div class="form-group"><label>Due Date</label><input type="date" id="ass-due"/></div>
-    <div class="form-group"><label>Instructions / Questions</label><textarea id="ass-instructions" rows="4" placeholder="Write your questions or instructions here..."></textarea></div>
-    <div class="form-group"><label>Max Marks</label><input type="number" id="ass-marks" placeholder="100" min="1"/></div>
-    <button class="btn btn-main btn-full" onclick="submitLmsAssessment()" style="background:linear-gradient(135deg,#6C63FF,#A29BFE);">Create &amp; Assign Assessment 📝</button>
-    <div id="ass-msg" style="display:none;margin-top:14px;padding:12px 16px;border-radius:12px;font-size:13px;font-weight:700;"></div>
-  </div>
-</div>
-
-<!-- ANALYTICS MODAL -->
-<div id="lms-analytics-modal" class="lms-modal-overlay" onclick="if(event.target===this)closeLmsModal('lms-analytics-modal')">
-  <div class="lms-modal">
-    <button class="lms-close" onclick="closeLmsModal('lms-analytics-modal')">✕</button>
-    <div style="font-size:36px;margin-bottom:8px;">📊</div>
-    <h3 style="color:#FF9F43;">Analytics — Session Ratings</h3>
-    <p style="font-size:13px;color:#888;font-weight:600;margin-bottom:20px;">Your per-session ratings given by students. Keep it up! ⭐</p>
-    <div style="text-align:center;padding:32px 0;">
-      <div style="font-size:48px;margin-bottom:8px;">⭐</div>
-      <div style="font-weight:900;font-size:32px;color:#FF9F43;" id="avg-rating">—</div>
-      <div style="font-size:14px;color:#999;font-weight:700;margin-top:4px;">Average Rating</div>
-    </div>
-    <div id="session-ratings-list"><div style="text-align:center;color:#aaa;font-size:13px;font-weight:600;">Loading ratings…</div></div>
-  </div>
-</div>
-
-<!-- SCHEDULE MODAL -->
-<div id="lms-schedule-modal" class="lms-modal-overlay" onclick="if(event.target===this)closeLmsModal('lms-schedule-modal')">
-  <div class="lms-modal">
-    <button class="lms-close" onclick="closeLmsModal('lms-schedule-modal')">✕</button>
-    <div style="font-size:36px;margin-bottom:8px;">📆</div>
-    <h3 style="color:#1DD1A1;">My Availability Schedule</h3>
-    <p style="font-size:13px;color:#888;font-weight:600;margin-bottom:20px;">Set the days and hours you are available to teach.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
-      <div style="background:#F8F8FF;border-radius:12px;padding:14px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><span style="font-weight:800;font-size:13px;">Monday</span><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="avail-monday" style="width:16px;height:16px;accent-color:#1DD1A1;"/><span style="font-size:11px;color:#888;font-weight:700;">Available</span></label></div>
-        <div style="display:flex;gap:6px;align-items:center;"><select id="from-monday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>8:00 AM</option><option>9:00 AM</option><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option></select><span style="font-size:11px;color:#aaa;">to</span><select id="to-monday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option><option>8:00 PM</option><option>9:00 PM</option></select></div>
-      </div>
-      <div style="background:#F8F8FF;border-radius:12px;padding:14px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><span style="font-weight:800;font-size:13px;">Tuesday</span><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="avail-tuesday" style="width:16px;height:16px;accent-color:#1DD1A1;"/><span style="font-size:11px;color:#888;font-weight:700;">Available</span></label></div>
-        <div style="display:flex;gap:6px;align-items:center;"><select id="from-tuesday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>8:00 AM</option><option>9:00 AM</option><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option></select><span style="font-size:11px;color:#aaa;">to</span><select id="to-tuesday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option><option>8:00 PM</option><option>9:00 PM</option></select></div>
-      </div>
-      <div style="background:#F8F8FF;border-radius:12px;padding:14px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><span style="font-weight:800;font-size:13px;">Wednesday</span><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="avail-wednesday" style="width:16px;height:16px;accent-color:#1DD1A1;"/><span style="font-size:11px;color:#888;font-weight:700;">Available</span></label></div>
-        <div style="display:flex;gap:6px;align-items:center;"><select id="from-wednesday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>8:00 AM</option><option>9:00 AM</option><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option></select><span style="font-size:11px;color:#aaa;">to</span><select id="to-wednesday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option><option>8:00 PM</option><option>9:00 PM</option></select></div>
-      </div>
-      <div style="background:#F8F8FF;border-radius:12px;padding:14px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><span style="font-weight:800;font-size:13px;">Thursday</span><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="avail-thursday" style="width:16px;height:16px;accent-color:#1DD1A1;"/><span style="font-size:11px;color:#888;font-weight:700;">Available</span></label></div>
-        <div style="display:flex;gap:6px;align-items:center;"><select id="from-thursday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>8:00 AM</option><option>9:00 AM</option><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option></select><span style="font-size:11px;color:#aaa;">to</span><select id="to-thursday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option><option>8:00 PM</option><option>9:00 PM</option></select></div>
-      </div>
-      <div style="background:#F8F8FF;border-radius:12px;padding:14px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><span style="font-weight:800;font-size:13px;">Friday</span><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="avail-friday" style="width:16px;height:16px;accent-color:#1DD1A1;"/><span style="font-size:11px;color:#888;font-weight:700;">Available</span></label></div>
-        <div style="display:flex;gap:6px;align-items:center;"><select id="from-friday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>8:00 AM</option><option>9:00 AM</option><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option></select><span style="font-size:11px;color:#aaa;">to</span><select id="to-friday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option><option>8:00 PM</option><option>9:00 PM</option></select></div>
-      </div>
-      <div style="background:#F8F8FF;border-radius:12px;padding:14px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><span style="font-weight:800;font-size:13px;">Saturday</span><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="avail-saturday" style="width:16px;height:16px;accent-color:#1DD1A1;"/><span style="font-size:11px;color:#888;font-weight:700;">Available</span></label></div>
-        <div style="display:flex;gap:6px;align-items:center;"><select id="from-saturday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>8:00 AM</option><option>9:00 AM</option><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option></select><span style="font-size:11px;color:#aaa;">to</span><select id="to-saturday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option><option>8:00 PM</option><option>9:00 PM</option></select></div>
-      </div>
-      <div style="background:#F8F8FF;border-radius:12px;padding:14px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><span style="font-weight:800;font-size:13px;">Sunday</span><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="avail-sunday" style="width:16px;height:16px;accent-color:#1DD1A1;"/><span style="font-size:11px;color:#888;font-weight:700;">Available</span></label></div>
-        <div style="display:flex;gap:6px;align-items:center;"><select id="from-sunday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>8:00 AM</option><option>9:00 AM</option><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option></select><span style="font-size:11px;color:#aaa;">to</span><select id="to-sunday" style="flex:1;font-size:11px;padding:4px 6px;border-radius:8px;border:1.5px solid #eee;"><option>10:00 AM</option><option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option><option>7:00 PM</option><option>8:00 PM</option><option>9:00 PM</option></select></div>
-      </div>
-    </div>
-    <button class="btn btn-main btn-full" onclick="submitLmsSchedule()" style="background:linear-gradient(135deg,#1DD1A1,#00B894);">Save My Availability 📆</button>
-    <div id="sched-msg" style="display:none;margin-top:14px;padding:12px 16px;border-radius:12px;font-size:13px;font-weight:700;"></div>
-  </div>
-</div>
-
-<!-- ANNOUNCEMENT MODAL -->
-<div id="lms-announcement-modal" class="lms-modal-overlay" onclick="if(event.target===this)closeLmsModal('lms-announcement-modal')">
-  <div class="lms-modal">
-    <button class="lms-close" onclick="closeLmsModal('lms-announcement-modal')">✕</button>
-    <div style="font-size:36px;margin-bottom:8px;">💬</div>
-    <h3 style="color:#A29BFE;">Send Announcement</h3>
-    <p style="font-size:13px;color:#888;font-weight:600;margin-bottom:20px;">Broadcast a message to all your students.</p>
-    <div class="form-group"><label>Announcement Title</label><input type="text" id="ann-title" placeholder="e.g. Class rescheduled to Thursday!"/></div>
-    <div class="form-group"><label>Message</label><textarea id="ann-body" rows="4" placeholder="Write your announcement here..."></textarea></div>
-    <div class="form-group"><label>Priority</label>
-      <select id="ann-priority"><option value="normal">📢 Normal</option><option value="urgent">🚨 Urgent</option><option value="info">ℹ️ Informational</option></select>
-    </div>
-    <div class="form-group"><label>Send To</label>
-      <select id="ann-to"><option value="all">All My Students</option></select>
-    </div>
-    <button class="btn btn-main btn-full" onclick="submitLmsAnnouncement()" style="background:linear-gradient(135deg,#A29BFE,#6C63FF);">Send Announcement 💬</button>
-    <div id="ann-msg" style="display:none;margin-top:14px;padding:12px 16px;border-radius:12px;font-size:13px;font-weight:700;"></div>
-  </div>
-</div>
-
-<!-- RESOURCES MODAL -->
-<div id="lms-resources-modal" class="lms-modal-overlay" onclick="if(event.target===this)closeLmsModal('lms-resources-modal')">
-  <div class="lms-modal">
-    <button class="lms-close" onclick="closeLmsModal('lms-resources-modal')">✕</button>
-    <div style="font-size:36px;margin-bottom:8px;">🗂️</div>
-    <h3 style="color:#54A0FF;">Share Resources</h3>
-    <p style="font-size:13px;color:#888;font-weight:600;margin-bottom:20px;">Share PDFs, links, or study materials your students can access.</p>
-    <div class="form-group"><label>Resource Title</label><input type="text" id="res-title" placeholder="e.g. Chapter 3 Notes - Algebra"/></div>
-    <div class="form-group"><label>Subject</label>
-      <select id="res-subject"><option value="">All Subjects</option></select>
-    </div>
-    <div class="form-group"><label>Resource Type</label>
-      <select id="res-type"><option value="pdf">📄 PDF</option><option value="link">🔗 Link / URL</option><option value="video">🎬 Video Link</option><option value="doc">📝 Document</option></select>
-    </div>
-    <div class="form-group"><label>Upload File or Paste Link</label>
-      <input type="file" id="res-file" accept=".pdf,.doc,.docx" style="padding:10px;border:2px dashed #ddd;border-radius:12px;width:100%;background:#FAFAFA;cursor:pointer;margin-bottom:8px;"/>
-      <input type="url" id="res-link" placeholder="Or paste a URL here: https://..."/>
-    </div>
-    <div class="form-group"><label>Assign To</label>
-      <select id="res-assign"><option value="all">All My Students</option></select>
-    </div>
-    <div class="form-group"><label>Description (optional)</label><textarea id="res-desc" rows="2" placeholder="What is this resource about?"></textarea></div>
-    <button class="btn btn-main btn-full" onclick="submitLmsResources()" style="background:linear-gradient(135deg,#54A0FF,#0984E3);">Share Resource 🗂️</button>
-    <div id="res-msg" style="display:none;margin-top:14px;padding:12px 16px;border-radius:12px;font-size:13px;font-weight:700;"></div>
-  </div>
-</div>
-
-<!-- ─── RATING MODAL ──────────────────────────────────────────────────── -->
-<div id="rating-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10001;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:#fff;border-radius:24px;padding:32px;width:100%;max-width:440px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25);position:relative;">
-    <button onclick="document.getElementById('rating-modal-overlay').style.display='none'" style="position:absolute;top:16px;right:16px;background:#f0f0f0;border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900;">✕</button>
-    <div style="font-size:48px;margin-bottom:10px;">⭐</div>
-    <h3 style="font-family:'Nunito',sans-serif;font-size:20px;margin-bottom:6px;">Rate Your Session</h3>
-    <p id="rating-modal-sub" style="font-size:13px;color:#888;font-weight:600;margin-bottom:20px;"></p>
-    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px;" id="rating-stars-row">
-      <span class="rating-star" onclick="selectRating(1)" data-val="1" style="font-size:36px;cursor:pointer;opacity:.35;transition:all .15s;">⭐</span>
-      <span class="rating-star" onclick="selectRating(2)" data-val="2" style="font-size:36px;cursor:pointer;opacity:.35;transition:all .15s;">⭐</span>
-      <span class="rating-star" onclick="selectRating(3)" data-val="3" style="font-size:36px;cursor:pointer;opacity:.35;transition:all .15s;">⭐</span>
-      <span class="rating-star" onclick="selectRating(4)" data-val="4" style="font-size:36px;cursor:pointer;opacity:.35;transition:all .15s;">⭐</span>
-      <span class="rating-star" onclick="selectRating(5)" data-val="5" style="font-size:36px;cursor:pointer;opacity:.35;transition:all .15s;">⭐</span>
-    </div>
-    <div id="rating-label" style="font-size:14px;font-weight:800;color:#FF9F43;min-height:20px;margin-bottom:12px;"></div>
-    <textarea id="rating-comment" rows="2" placeholder="Optional: Any feedback for your teacher?" style="width:100%;padding:12px 16px;border:2px solid #E8E8FF;border-radius:14px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;resize:none;margin-bottom:16px;box-sizing:border-box;"></textarea>
-    <button class="btn btn-main btn-full" id="rating-submit-btn" onclick="submitSessionRating()" style="background:linear-gradient(135deg,#FF9F43,#FDCB6E);color:#fff;">Submit Rating ⭐</button>
-    <div id="rating-modal-msg" style="display:none;margin-top:12px;padding:10px 14px;border-radius:12px;font-size:13px;font-weight:700;"></div>
-  </div>
-</div>
-
 <!-- ─── FLOATING BUTTONS ──────────────────────────────────────────────── -->
 <a class="wa-float" href="https://wa.me/918796502497?text=Hi%20Intellikids%20Academy!%20I%27d%20like%20to%20book%20a%20free%20demo." target="_blank" title="Chat on WhatsApp">💬</a>
 <button id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">↑</button>
@@ -1805,34 +1203,13 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────
 const SUBJECT_COLORS = {
-  "Computer Basics":           {"color":"#FF6B6B","bg":"#FFF0F0","emoji":"🖥️"},
-  "Coding":                    {"color":"#6C63FF","bg":"#F0EEFF","emoji":"🤖"},
-  "Maths":                     {"color":"#FF9F43","bg":"#FFF6E8","emoji":"🔢"},
-  "English":                   {"color":"#1DD1A1","bg":"#E8FFF8","emoji":"✍️"},
-  "Science":                   {"color":"#00CEC9","bg":"#E0FAFA","emoji":"🔭"},
-  "Physics":                   {"color":"#54A0FF","bg":"#EBF4FF","emoji":"🚀"},
-  "Chemistry":                 {"color":"#A29BFE","bg":"#F3F0FF","emoji":"🔬"},
-  "Robotics":                  {"color":"#E17055","bg":"#FFF3F0","emoji":"🤖"},
-  "Machine Learning":          {"color":"#6C63FF","bg":"#F0EEFF","emoji":"🧠"},
-  "Artificial Intelligence":   {"color":"#0984E3","bg":"#EBF4FF","emoji":"🤖"},
-  "Art":                       {"color":"#FD79A8","bg":"#FFF0F6","emoji":"🎨"},
-  "Music":                     {"color":"#FDCB6E","bg":"#FFFBF0","emoji":"🎵"},
-  "Python Programming":        {"color":"#6C63FF","bg":"#F0EEFF","emoji":"🐍"},
-  "Web Development":           {"color":"#00B894","bg":"#E8FFF8","emoji":"🌐"},
-  "AI & Data Science":         {"color":"#0984E3","bg":"#EBF4FF","emoji":"📊"},
-  "French":                    {"color":"#E17055","bg":"#FFF3F0","emoji":"🇫🇷"},
-  "German":                    {"color":"#FDCB6E","bg":"#FFFBF0","emoji":"🇩🇪"},
-  "Math Olympiad Training":    {"color":"#FF9F43","bg":"#FFF6E8","emoji":"🏅"},
-  "Vedic Math":                {"color":"#FF6B6B","bg":"#FFF0F0","emoji":"🔮"},
-  "SAT Preparation":           {"color":"#A29BFE","bg":"#F3F0FF","emoji":"📚"},
-  "IELTS Preparation":         {"color":"#54A0FF","bg":"#EBF4FF","emoji":"📖"},
-  "Academic Test Prep":        {"color":"#1DD1A1","bg":"#E8FFF8","emoji":"📝"},
-  "Public Speaking":           {"color":"#FD79A8","bg":"#FFF0F6","emoji":"🎤"},
-  "Critical Thinking":         {"color":"#6C63FF","bg":"#F0EEFF","emoji":"💡"},
-  "Study Skills":              {"color":"#FF9F43","bg":"#FFF6E8","emoji":"📓"},
-  "Scratch Programming":       {"color":"#FF9F43","bg":"#FFF6E8","emoji":"🐱"},
-  "Homework Support":          {"color":"#1DD1A1","bg":"#E8FFF8","emoji":"✏️"},
-  "Biology":                   {"color":"#00B894","bg":"#E8FFF8","emoji":"🌿"},
+  "Computer Basics":{"color":"#FF6B6B","bg":"#FFF0F0","emoji":"🖥️"},
+  "Coding":          {"color":"#6C63FF","bg":"#F0EEFF","emoji":"🤖"},
+  "Maths":           {"color":"#FF9F43","bg":"#FFF6E8","emoji":"🔢"},
+  "English":         {"color":"#1DD1A1","bg":"#E8FFF8","emoji":"✍️"},
+  "Science":         {"color":"#00CEC9","bg":"#E0FAFA","emoji":"🔭"},
+  "Physics":         {"color":"#54A0FF","bg":"#EBF4FF","emoji":"🚀"},
+  "Chemistry":       {"color":"#A29BFE","bg":"#F3F0FF","emoji":"🔬"},
 };
 const SUBJECTS = Object.keys(SUBJECT_COLORS);
 const TIMES = ["8:00 AM","8:30 AM","9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","12:30 PM","1:00 PM","1:30 PM","2:00 PM","2:30 PM","3:00 PM","3:30 PM","4:00 PM","4:30 PM","5:00 PM","5:30 PM","6:00 PM","6:30 PM","7:00 PM","7:30 PM","8:00 PM"];
@@ -1841,10 +1218,10 @@ const DEMO_SESSIONS = [
   {id:2,subject:"Maths",topic:"Linear Equations",date:"Tue, May 27",time:"5:00 PM",grade:7,teacher:"Ms. Priya",type:"Group"},
   {id:3,subject:"Computer Basics",topic:"How the Internet Works",date:"Wed, May 28",time:"4:30 PM",grade:5,teacher:"Mr. Leandre",type:"1-on-1"},
   {id:4,subject:"English",topic:"Creative Writing Workshop",date:"Thu, May 29",time:"3:30 PM",grade:8,teacher:"Mr. Leandre",type:"Group"},
-  {id:5,subject:"Physics",topic:"Electricity & Magnetism",date:"Fri, May 30",time:"5:30 PM",grade:9,teacher:"Ms. Anju",type:"1-on-1"},
+  {id:5,subject:"Physics",topic:"Newton Laws of Motion",date:"Fri, May 30",time:"5:30 PM",grade:9,teacher:"Ms. Anju",type:"1-on-1"},
 ];
 const FAQS_DATA = [
-  {q:"What grades does Intellikids support?",c:"#FF6B6B",a:"Kindergarten to Grade 2 (Early Years), Grades 3–5 (Elementary), Grades 6–8 (Middle School), Grades 9–12 (High School). All core subjects from KG onwards; Physics & Chemistry from Grade 9."},
+  {q:"What grades does Intellikids support?",c:"#FF6B6B",a:"Grades 3–10 for Computer Basics, Coding, Maths & English. Physics and Chemistry for Grades 9–12."},
   {q:"Difference between 1-on-1 and Group sessions?",c:"#6C63FF",a:"1-on-1 is just you and your teacher. Group sessions have maximum 4 students — everyone still gets personal attention."},
   {q:"How personalised is the curriculum?",c:"#FF9F43",a:"100% personalised. Every student gets a plan built from scratch based on their level, goals, and pace. No templates."},
   {q:"How do live classes work?",c:"#1DD1A1",a:"All sessions are live over Google Meet. A link is automatically generated when you book. Ask questions in real time, share screens, work together."},
@@ -1856,13 +1233,53 @@ const MARQUEE_ITEMS = ["🎯 1-on-1 Sessions","👥 Small Group (Max 4)","📚 G
 const AC = ["#FF6B6B","#FF9F43","#1DD1A1","#6C63FF","#54A0FF","#A29BFE","#FD79A8","#FDCB6E"];
 
 // ─── STATE ────────────────────────────────────────────────────────────
+let currentPage    = 'home';
 let gradeFilter    = 'All';
 let studentData    = null;
 let teacherData    = null;
 let _adminData     = null;
+let _toastTimer;
 
 // ─── NAV ─────────────────────────────────────────────────────────────
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  const el = document.getElementById('page-' + page);
+  if (el) el.classList.add('active');
+  const nl = document.getElementById('nl-' + page);
+  if (nl) nl.classList.add('active');
+  currentPage = page;
+  window.scrollTo({top:0, behavior:'smooth'});
+  if (page === 'sessions')          renderSessionsPage();
+  if (page === 'student-dashboard') initStudentDash();
+  if (page === 'teacher-dashboard') initTeacherDash();
+  if (page === 'admin-dashboard')   initAdminDash();
+  if (page === 'pricing')           renderPricingCards();
+}
+
+function showDashboard(role) {
+  showLoader(false);
+  if (role === 'student') nav('student-dashboard');
+  else if (role === 'teacher') nav('teacher-dashboard');
+  else if (role === 'admin')   nav('admin-dashboard');
+  else showToast('Unknown role. Contact admin.','error');
+}
+
 // ─── UTILS ────────────────────────────────────────────────────────────
+function toggleMobile() { document.getElementById('mobile-menu').classList.toggle('open'); }
+
+function showLoader(show) {
+  document.getElementById('global-loader').classList.toggle('show', show);
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type==='error'?' error':type==='success'?' success':'');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show','error','success'), 3500);
+}
+
 function emptyState(icon, title, desc) {
   return `<div style="text-align:center;padding:60px 20px;">
     <div style="font-size:52px;margin-bottom:12px;">${icon}</div>
@@ -1895,9 +1312,6 @@ function sessionRowHtml(s) {
     : isToday
       ? '<span class="chip" style="background:#FFF6E8;color:#FF9F43;animation:pulse 1.5s infinite;">🔔 Today!</span>'
       : '<span class="chip" style="background:#E8FFF8;color:#1DD1A1;">📅 Upcoming</span>';
-  const rateBtn = isPast
-    ? `<button onclick="openRatingModal('${s.id}','${(s.subject||'').replace(/'/g,"\\'")}','${(s.teacherName||s.teacher||'').replace(/'/g,"\\'")}','${(s.teacherId||'').replace(/'/g,"\\'")}','${(s.studentName||'').replace(/'/g,"\\'")}')" class="btn btn-sm" style="background:#FFF6E8;color:#FF9F43;font-weight:800;">⭐ Rate</button>`
-    : '';
   return `<div class="session-row" style="border-left:4px solid ${sc.color};${isToday?'background:linear-gradient(135deg,#FFFDF8,#FFF6E8);box-shadow:0 4px 20px rgba(255,159,67,.15);':''}">
     <div style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;">
       <div style="width:48px;height:48px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">${sc.emoji}</div>
@@ -1911,73 +1325,11 @@ function sessionRowHtml(s) {
       ${statusBadge}
       <span class="chip ${s.type==='1-on-1'?'chip-1on1':'chip-group'}">${s.type==='1-on-1'?'🎯 1-on-1':'👥 Group'}</span>
       ${meetBtn(s.meetLink)}
-      ${rateBtn}
     </div>
   </div>`;
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// STUDENT SESSION RATING
-// ══════════════════════════════════════════════════════════════════════
-let _ratingSession = {};
-let _selectedRating = 0;
-const RATING_LABELS = ['','Needs improvement 😞','Could be better 😐','Good 🙂','Very Good 😊','Excellent! 🌟'];
-
-function openRatingModal(sessionId, subject, teacherName, teacherId, studentName) {
-  _ratingSession = { sessionId, subject, teacherName, teacherId, studentName };
-  _selectedRating = 0;
-  document.querySelectorAll('.rating-star').forEach(s=>s.style.opacity='0.35');
-  const sub = document.getElementById('rating-modal-sub');
-  if(sub) sub.textContent = `How was your ${subject} session with ${teacherName||'your teacher'}?`;
-  const lbl = document.getElementById('rating-label'); if(lbl) lbl.textContent='';
-  const cmt = document.getElementById('rating-comment'); if(cmt) cmt.value='';
-  const msg = document.getElementById('rating-modal-msg'); if(msg) msg.style.display='none';
-  const btn = document.getElementById('rating-submit-btn'); if(btn){btn.textContent='Submit Rating ⭐';btn.disabled=false;}
-  document.getElementById('rating-modal-overlay').style.display='flex';
-}
-
-function selectRating(n) {
-  _selectedRating = n;
-  document.querySelectorAll('.rating-star').forEach((s,i) => { s.style.opacity = i < n ? '1' : '0.35'; });
-  const lbl = document.getElementById('rating-label');
-  if(lbl) lbl.textContent = RATING_LABELS[n] || '';
-}
-
-async function submitSessionRating() {
-  if(!_selectedRating) { showToast('Please select a star rating.','error'); return; }
-  const btn = document.getElementById('rating-submit-btn');
-  if(btn){btn.textContent='Saving…';btn.disabled=true;}
-  const comment = document.getElementById('rating-comment')?.value.trim()||'';
-  try {
-    await db.collection('session_ratings').add({
-      sessionId:   _ratingSession.sessionId,
-      teacherId:   _ratingSession.teacherId,
-      teacherName: _ratingSession.teacherName,
-      studentId:   window._ika?.uid,
-      studentName: _ratingSession.studentName || window._ika?.name || window._ika?.email || '',
-      subject:     _ratingSession.subject,
-      rating:      _selectedRating,
-      comment,
-      createdAt:   firebase.firestore.FieldValue.serverTimestamp()
-    });
-    // Update teacher's average rating in their user doc
-    if(_ratingSession.teacherId) {
-      const ratingsSnap = await db.collection('session_ratings').where('teacherId','==',_ratingSession.teacherId).get();
-      const allRatings = ratingsSnap.docs.map(d=>d.data().rating||0);
-      const avg = allRatings.reduce((a,b)=>a+b,0)/allRatings.length;
-      await db.doc('users/'+_ratingSession.teacherId).update({ averageRating: parseFloat(avg.toFixed(2)), totalRatings: allRatings.length });
-    }
-    const msg = document.getElementById('rating-modal-msg');
-    if(msg){msg.style.display='block';msg.style.background='#E8FFF8';msg.style.color='#00B894';msg.textContent='✅ Rating submitted! Thank you for your feedback.';}
-    setTimeout(()=>{ document.getElementById('rating-modal-overlay').style.display='none'; },1800);
-  } catch(e) {
-    const msg = document.getElementById('rating-modal-msg');
-    if(msg){msg.style.display='block';msg.style.background='#FFF0F0';msg.style.color='#FF6B6B';msg.textContent='Failed to save rating. Please try again.';}
-    if(btn){btn.textContent='Submit Rating ⭐';btn.disabled=false;}
-  }
-}
-
-
+// ─── ADMIN LOGIN BUTTON ───────────────────────────────────────────────
 function adminLoginBtn() {
   const email = document.getElementById('al-email').value.trim();
   const pass  = document.getElementById('al-pass').value;
@@ -2073,8 +1425,7 @@ async function submitContactForm() {
 // STUDENT DASHBOARD
 // ══════════════════════════════════════════════════════════════════════
 async function initStudentDash() {
-  if(window._studentDashLoading) return;
-  window._studentDashLoading = true;
+  const p=window._ika||{};
   const name=p.name||p.displayName||'there';
   document.getElementById('sd-greeting').textContent=`Hey ${name}! 🙌`;
   document.getElementById('sd-email').textContent=p.email||'';
@@ -2100,8 +1451,7 @@ async function initStudentDash() {
     studentData=await loadStudentData();
     document.getElementById('sd-up-cnt').textContent=studentData.sessions.filter(s=>!s.completed).length;
     document.getElementById('sd-done-cnt').textContent=studentData.sessions.filter(s=>s.completed).length;
-  } catch(e){console.error('Student load error:',e);studentData={sessions:[],homework:[],requests:[]};}
-  window._studentDashLoading = false;
+  } catch(e){studentData={sessions:[],homework:[],requests:[]};}
   renderStudentTab('upcoming');
 }
 
@@ -2110,7 +1460,7 @@ function sdTab(btn,tab){
   btn.classList.add('active'); renderStudentTab(tab);
 }
 
-async function renderStudentTab(tab){
+function renderStudentTab(tab){
   const el=document.getElementById('sd-content');
   if(!studentData){el.innerHTML='<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>';return;}
 
@@ -2201,110 +1551,6 @@ async function renderStudentTab(tab){
       </div>`;}).join('');
   }
 
-  else if(tab==='materials'){
-    el.innerHTML='<div style="text-align:center;padding:32px;color:#888;font-weight:700;">Loading materials…</div>';
-    const uid = window._ika?.uid;
-    try {
-      const [uploadsSnap, assessSnap, resSnap, annSnap] = await Promise.all([
-        db.collection('lms_uploads').where('teacherId','==', window._ika?.assignedTeacherId||'zzz').get().catch(()=>({docs:[]})),
-        db.collection('assessments').where('teacherId','==', window._ika?.assignedTeacherId||'zzz').get().catch(()=>({docs:[]})),
-        db.collection('resources').where('teacherId','==', window._ika?.assignedTeacherId||'zzz').get().catch(()=>({docs:[]})),
-        db.collection('announcements').where('teacherId','==', window._ika?.assignedTeacherId||'zzz').get().catch(()=>({docs:[]}))
-      ]);
-
-      const filter = (docs) => docs.filter(d => {
-        const data = d.data();
-        return data.assignTo === 'all' || data.sendTo === 'all' || data.assignTo === uid || data.sendTo === uid;
-      });
-
-      const uploads    = filter(uploadsSnap.docs||[]).map(d=>({id:d.id,...d.data()}));
-      const assessments= filter(assessSnap.docs||[]).map(d=>({id:d.id,...d.data()}));
-      const resources  = filter(resSnap.docs||[]).map(d=>({id:d.id,...d.data()}));
-      const announcements= filter(annSnap.docs||[]).map(d=>({id:d.id,...d.data()}));
-
-      if(!uploads.length && !assessments.length && !resources.length && !announcements.length){
-        el.innerHTML=emptyState('📚','No materials yet','Your teacher hasn\'t shared any content yet. Check back after your next session!');
-        return;
-      }
-
-      const typeIcon = {pdf:'📄',video:'🎬',doc:'📝',link:'🔗'};
-      const priorityColor = {urgent:'#FF6B6B',normal:'#6C63FF',info:'#1DD1A1'};
-
-      let html = '';
-
-      if(announcements.length){
-        html += `<div style="font-weight:800;font-size:16px;color:#A29BFE;margin-bottom:12px;">💬 Announcements (${announcements.length})</div>`;
-        html += announcements.map(a=>{
-          const pc = priorityColor[a.priority]||'#6C63FF';
-          return `<div class="card" style="padding:20px;margin-bottom:12px;border-left:5px solid ${pc};">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-              <span style="font-size:20px;">${a.priority==='urgent'?'🚨':a.priority==='info'?'ℹ️':'📢'}</span>
-              <div style="font-weight:800;font-size:15px;">${a.title}</div>
-            </div>
-            <div style="font-size:14px;color:#555;font-weight:600;line-height:1.6;">${a.body||''}</div>
-            ${a.createdAt?.toDate?`<div style="font-size:12px;color:#aaa;font-weight:600;margin-top:8px;">${a.createdAt.toDate().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div>`:''}
-          </div>`;
-        }).join('');
-      }
-
-      if(assessments.length){
-        html += `<div style="font-weight:800;font-size:16px;color:#6C63FF;margin:20px 0 12px;">📝 Assessments & Quizzes (${assessments.length})</div>`;
-        html += assessments.map(a=>`
-          <div class="session-row" style="border-left:4px solid #6C63FF;flex-direction:column;align-items:flex-start;gap:10px;">
-            <div style="display:flex;align-items:center;gap:12px;width:100%;">
-              <div style="width:46px;height:46px;border-radius:14px;background:#F0EEFF;display:flex;align-items:center;justify-content:center;font-size:22px;">📝</div>
-              <div style="flex:1;">
-                <div style="font-weight:800;font-size:15px;">${a.title}</div>
-                <div style="font-size:13px;color:#999;font-weight:600;">${a.subject||'General'} · ${a.type==='quiz'?'✅ Quiz':a.type==='assignment'?'📋 Assignment':'🚀 Project'} · Max: ${a.maxMarks||100} marks</div>
-                ${a.dueDate?`<div style="font-size:12px;color:#FF9F43;font-weight:700;margin-top:3px;">📅 Due: ${a.dueDate}</div>`:''}
-              </div>
-              <span class="chip chip-orange">Pending</span>
-            </div>
-            ${a.instructions?`<div style="width:100%;background:#F8F8FF;border-radius:12px;padding:12px 16px;font-size:13px;color:#555;font-weight:600;line-height:1.6;white-space:pre-wrap;">${a.instructions}</div>`:''}
-          </div>`).join('');
-      }
-
-      if(uploads.length){
-        html += `<div style="font-weight:800;font-size:16px;color:#FF6B6B;margin:20px 0 12px;">📤 Uploaded Content (${uploads.length})</div>`;
-        html += uploads.map(u=>`
-          <div class="session-row" style="border-left:4px solid #FF6B6B;">
-            <div style="display:flex;align-items:center;gap:12px;">
-              <div style="width:46px;height:46px;border-radius:14px;background:#FFF0F0;display:flex;align-items:center;justify-content:center;font-size:22px;">${typeIcon[u.type]||'📄'}</div>
-              <div>
-                <div style="font-weight:800;font-size:15px;">${u.title}</div>
-                <div style="font-size:13px;color:#999;font-weight:600;">${u.subject||'General'}</div>
-                ${u.notes?`<div style="font-size:12px;color:#555;font-weight:600;margin-top:3px;">${u.notes}</div>`:''}
-              </div>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0;">
-              ${u.fileData?`<a href="${u.fileData}" download="${u.fileName||u.title}" class="btn btn-main btn-sm" style="text-decoration:none;">⬇️ Download</a>`:''}
-              ${u.link?`<a href="${u.link}" target="_blank" class="btn btn-purple btn-sm" style="text-decoration:none;">🔗 Open</a>`:''}
-            </div>
-          </div>`).join('');
-      }
-
-      if(resources.length){
-        html += `<div style="font-weight:800;font-size:16px;color:#54A0FF;margin:20px 0 12px;">🗂️ Shared Resources (${resources.length})</div>`;
-        html += resources.map(r=>`
-          <div class="session-row" style="border-left:4px solid #54A0FF;">
-            <div style="display:flex;align-items:center;gap:12px;">
-              <div style="width:46px;height:46px;border-radius:14px;background:#EBF4FF;display:flex;align-items:center;justify-content:center;font-size:22px;">${typeIcon[r.type]||'🗂️'}</div>
-              <div>
-                <div style="font-weight:800;font-size:15px;">${r.title}</div>
-                <div style="font-size:13px;color:#999;font-weight:600;">${r.subject||'General'}</div>
-                ${r.description?`<div style="font-size:12px;color:#555;font-weight:600;margin-top:3px;">${r.description}</div>`:''}
-              </div>
-            </div>
-            ${r.link?`<a href="${r.link}" target="_blank" class="btn btn-sm" style="text-decoration:none;background:#EBF4FF;color:#0984E3;font-weight:800;">🔗 Open</a>`:''}
-          </div>`).join('');
-      }
-
-      el.innerHTML = html;
-    } catch(e){
-      el.innerHTML=emptyState('⚠️','Could not load materials','Please refresh or contact your teacher.');
-    }
-  }
-
   else if(tab==='performance'){
     const hw=studentData.homework||[];
     const doneHw=hw.filter(h=>h.status==='done');
@@ -2355,7 +1601,7 @@ async function submitBooking(){
   const btn=document.getElementById('bk-btn');btn.textContent='Booking…';btn.disabled=true;
   try {
     await bookSession({subject,topic,type,dateTimeISO,studentName:window._ika?.name||window._ika?.email||''});
-    studentData=null; window._studentDashLoading=false; initStudentDash();
+    studentData=null; initStudentDash();
   } catch(e){showToast('Booking failed. Try WhatsApp.','error');}
   btn.textContent='Book Class 🚀';btn.disabled=false;
 }
@@ -2364,8 +1610,6 @@ async function submitBooking(){
 // TEACHER DASHBOARD
 // ══════════════════════════════════════════════════════════════════════
 async function initTeacherDash(){
-  if(window._teacherDashLoading) return;
-  window._teacherDashLoading = true;
   const p=window._ika||{};const name=p.name||'Teacher';
   document.getElementById('td-greeting').textContent=`Welcome, ${name}! 🏆`;
   document.getElementById('td-email').textContent=p.email||'';
@@ -2376,7 +1620,6 @@ async function initTeacherDash(){
     <div class="stat-card" style="border-top:4px solid #6C63FF;background:#F0EEFF;"><div style="font-size:22px;">👥</div><div class="stat-val" style="color:#6C63FF;" id="td-s-cnt">0</div><div class="stat-lbl">My Students</div></div>
     <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFF6E8;"><div style="font-size:22px;">📅</div><div class="stat-val" style="color:#FF9F43;" id="td-sess-cnt">0</div><div class="stat-lbl">Upcoming Sessions</div></div>
     <div class="stat-card" style="border-top:4px solid #1DD1A1;background:#E8FFF8;"><div style="font-size:22px;">🗓️</div><div class="stat-val" style="color:#1DD1A1;" id="td-today-cnt">0</div><div class="stat-lbl">Today Classes</div></div>
-    <div class="stat-card" style="border-top:4px solid #FF9F43;background:#FFFBF0;"><div style="font-size:22px;">⭐</div><div class="stat-val" style="color:#FF9F43;" id="td-rating-val">${p.averageRating ? p.averageRating.toFixed(1) : '—'}</div><div class="stat-lbl">Avg. Rating${p.totalRatings?' ('+p.totalRatings+' reviews)':''}</div></div>
     <div class="stat-card" style="border-top:4px solid #0071C5;background:#EBF4FF;"><div style="font-size:22px;">🏅</div><div class="stat-val" style="color:#0071C5;font-size:16px;">Certified</div><div class="stat-lbl">Intel Labs</div></div>`;
   try {
     teacherData=await loadTeacherData();
@@ -2384,8 +1627,7 @@ async function initTeacherDash(){
     document.getElementById('td-s-cnt').textContent=teacherData.students.length;
     document.getElementById('td-sess-cnt').textContent=teacherData.sessions.filter(s=>!s.completed).length;
     document.getElementById('td-today-cnt').textContent=teacherData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);return d.toDateString()===tod;}).length;
-  } catch(e){console.error('Teacher load error:',e);teacherData={sessions:[],students:[]};}
-  window._teacherDashLoading = false;
+  } catch(e){teacherData={sessions:[],students:[]};}
   renderTeacherTab('sessions');
 }
 
@@ -2452,273 +1694,18 @@ function renderTeacherTab(tab){
     </div>`;
   }
   else if(tab==='lms'){
-    el.innerHTML=`
-    <div style="margin-bottom:20px;background:linear-gradient(135deg,#F0EEFF,#FFF9F0);border-radius:16px;padding:16px 20px;border:2px dashed #C0B8FF;">
-      <div style="font-weight:800;font-size:16px;color:#6C63FF;margin-bottom:4px;">🛠️ LMS Tools — Teacher Control Centre</div>
-      <p style="font-size:13px;color:#888;font-weight:600;margin:0;">Click any tool to open it and take action.</p>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;">
-      <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #FF6B6B;" onclick="openLmsUpload()">
-        <div style="font-size:36px;margin-bottom:14px;">📤</div>
-        <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Upload Content</div>
-        <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">Add videos, PDFs &amp; worksheets</div>
-        <div style="margin-top:14px;font-size:13px;font-weight:800;color:#FF6B6B;">Open →</div>
-      </div>
-      <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #6C63FF;" onclick="openLmsAssessment()">
-        <div style="font-size:36px;margin-bottom:14px;">📝</div>
-        <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Create Assessment</div>
-        <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">Build quizzes &amp; assign to students</div>
-        <div style="margin-top:14px;font-size:13px;font-weight:800;color:#6C63FF;">Open →</div>
-      </div>
-      <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #FF9F43;" onclick="openLmsAnalytics()">
-        <div style="font-size:36px;margin-bottom:14px;">📊</div>
-        <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Analytics</div>
-        <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">Your session ratings from students</div>
-        <div style="margin-top:14px;font-size:13px;font-weight:800;color:#FF9F43;">Open →</div>
-      </div>
-      <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #1DD1A1;" onclick="openLmsSchedule()">
-        <div style="font-size:36px;margin-bottom:14px;">📆</div>
-        <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Schedule</div>
-        <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">Set your available hours</div>
-        <div style="margin-top:14px;font-size:13px;font-weight:800;color:#1DD1A1;">Open →</div>
-      </div>
-      <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #A29BFE;" onclick="openLmsAnnouncement()">
-        <div style="font-size:36px;margin-bottom:14px;">💬</div>
-        <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Announcement</div>
-        <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">Send message to all your students</div>
-        <div style="margin-top:14px;font-size:13px;font-weight:800;color:#A29BFE;">Open →</div>
-      </div>
-      <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid #54A0FF;" onclick="openLmsResources()">
-        <div style="font-size:36px;margin-bottom:14px;">🗂️</div>
-        <div style="font-weight:800;font-size:15px;margin-bottom:8px;">Resources</div>
-        <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">Share PDFs &amp; materials with students</div>
-        <div style="margin-top:14px;font-size:13px;font-weight:800;color:#54A0FF;">Open →</div>
-      </div>
+    el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;">
+      ${[["📤","Upload Content","Add videos, PDFs & worksheets","#FF6B6B"],["📝","Create Assessment","Build quizzes & assignments","#6C63FF"],
+         ["📊","Analytics","Class performance reports","#FF9F43"],["📆","Schedule","Book class slots","#1DD1A1"],
+         ["💬","Announcement","Ping all students","#A29BFE"],["🗂️","Resources","Organise materials","#54A0FF"]].map(([ic,t,d,c])=>`
+        <div class="card card-hover" style="padding:24px;cursor:pointer;border-top:4px solid ${c};">
+          <div style="font-size:32px;margin-bottom:14px;">${ic}</div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:8px;">${t}</div>
+          <div style="font-size:13px;color:#999;line-height:1.6;font-weight:600;">${d}</div>
+          <div style="margin-top:14px;font-size:13px;font-weight:800;color:${c};">Open →</div>
+        </div>`).join('')}
     </div>`;
-
-    // Populate student dropdowns in the permanent modals
-    lmsPopulateStudentDropdowns();
-    loadLmsAnalytics();
   }
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// LMS TOOL FUNCTIONS
-// ══════════════════════════════════════════════════════════════════════
-function closeLmsModal(id) { document.getElementById(id).classList.remove('open'); }
-function openLmsUpload()       { lmsPopulateStudentDropdowns(); document.getElementById('lms-upload-modal').classList.add('open'); }
-function openLmsAssessment()   { lmsPopulateStudentDropdowns(); document.getElementById('lms-assessment-modal').classList.add('open'); }
-function openLmsSchedule()     { document.getElementById('lms-schedule-modal').classList.add('open'); }
-function openLmsAnnouncement() { lmsPopulateStudentDropdowns(); document.getElementById('lms-announcement-modal').classList.add('open'); }
-function openLmsResources()    { lmsPopulateStudentDropdowns(); document.getElementById('lms-resources-modal').classList.add('open'); }
-function openLmsAnalytics()    { document.getElementById('lms-analytics-modal').classList.add('open'); loadLmsAnalytics(); }
-
-function lmsPopulateStudentDropdowns() {
-  const students = teacherData?.students || [];
-  const studentOpts = students.map(s=>`<option value="${s.id}">${s.name||s.email}</option>`).join('');
-  const subjectOpts = SUBJECTS.map(s=>`<option value="${s}">${SUBJECT_COLORS[s].emoji} ${s}</option>`).join('');
-
-  // Upload modal
-  const upSubj = document.getElementById('up-subject');
-  if(upSubj && upSubj.options.length <= 1) upSubj.innerHTML = '<option value="">All Subjects</option>' + subjectOpts;
-  const upAssign = document.getElementById('up-assign');
-  if(upAssign) upAssign.innerHTML = '<option value="all">All My Students</option>' + studentOpts;
-
-  // Assessment modal
-  const assSubj = document.getElementById('ass-subject');
-  if(assSubj && assSubj.options.length <= 1) assSubj.innerHTML = '<option value="">Select Subject</option>' + subjectOpts;
-  const assAssign = document.getElementById('ass-assign');
-  if(assAssign) assAssign.innerHTML = '<option value="all">All My Students</option>' + studentOpts;
-
-  // Announcement modal
-  const annTo = document.getElementById('ann-to');
-  if(annTo) annTo.innerHTML = '<option value="all">All My Students</option>' + studentOpts;
-
-  // Resources modal
-  const resSubj = document.getElementById('res-subject');
-  if(resSubj && resSubj.options.length <= 1) resSubj.innerHTML = '<option value="">All Subjects</option>' + subjectOpts;
-  const resAssign = document.getElementById('res-assign');
-  if(resAssign) resAssign.innerHTML = '<option value="all">All My Students</option>' + studentOpts;
-}
-
-
-
-function lmsMsg(id, txt, ok) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.display='block';
-  el.style.background = ok ? '#E8FFF8' : '#FFF0F0';
-  el.style.color       = ok ? '#00B894' : '#FF6B6B';
-  el.textContent       = txt;
-}
-
-async function submitLmsUpload() {
-  const title   = document.getElementById('up-title')?.value.trim();
-  const type    = document.getElementById('up-type')?.value;
-  const subject = document.getElementById('up-subject')?.value;
-  const notes   = document.getElementById('up-notes')?.value.trim();
-  const link    = document.getElementById('up-link')?.value.trim();
-  const fileEl  = document.getElementById('up-file');
-  const assignEl= document.getElementById('up-assign');
-  const assignTo= assignEl ? assignEl.value : 'all';
-  if (!title) { lmsMsg('up-msg','Please enter a content title.', false); return; }
-
-  const btn = document.getElementById('up-submit-btn');
-  if(btn){ btn.textContent='Uploading…'; btn.disabled=true; }
-
-  let fileData = '', fileName = '';
-  const file = fileEl && fileEl.files && fileEl.files[0];
-  if (file) {
-    // Read file as base64 for Firestore storage (for small files; large files need Firebase Storage)
-    try {
-      fileData = await new Promise((res,rej)=>{
-        const r=new FileReader();
-        r.onload=()=>res(r.result); // data URL
-        r.onerror=()=>rej(new Error('File read error'));
-        r.readAsDataURL(file);
-      });
-      fileName = file.name;
-    } catch(e) { lmsMsg('up-msg','Could not read file. Try a smaller file or use a link.', false); if(btn){btn.textContent='Upload Content 📤';btn.disabled=false;} return; }
-  }
-
-  if ((type==='pdf'||type==='doc') && !fileData && !link) {
-    lmsMsg('up-msg','Please select a file to upload.', false);
-    if(btn){btn.textContent='Upload Content 📤';btn.disabled=false;}
-    return;
-  }
-
-  try {
-    await db.collection('lms_uploads').add({
-      teacherId:  window._ika?.uid,
-      teacherName: window._ika?.name || window._ika?.email || '',
-      title, type, subject, notes, link: link||'',
-      fileData: fileData || '',   // base64 data URL
-      fileName: fileName || '',
-      assignTo,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    lmsMsg('up-msg','✅ Content uploaded! Your students can now see it on their dashboard.', true);
-    document.getElementById('up-title').value='';
-    document.getElementById('up-notes').value='';
-    if(fileEl) fileEl.value='';
-  } catch(e) { lmsMsg('up-msg','Upload failed. Try again or contact admin.', false); }
-  if(btn){btn.textContent='Upload Content 📤';btn.disabled=false;}
-} {
-  const title   = document.getElementById('ass-title')?.value.trim();
-  const type    = document.getElementById('ass-type')?.value;
-  const subject = document.getElementById('ass-subject')?.value;
-  const assign  = document.getElementById('ass-assign')?.value;
-  const due     = document.getElementById('ass-due')?.value;
-  const inst    = document.getElementById('ass-instructions')?.value.trim();
-  const marks   = document.getElementById('ass-marks')?.value;
-  if (!title || !inst) { lmsMsg('ass-msg','Please fill in title and instructions.', false); return; }
-  try {
-    await db.collection('assessments').add({
-      teacherId:  window._ika?.uid,
-      teacherName: window._ika?.name || window._ika?.email || '',
-      title, type, subject, assignTo: assign, dueDate: due||'', instructions: inst,
-      maxMarks: marks ? parseInt(marks) : 100,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    lmsMsg('ass-msg','✅ Assessment created and assigned! Students will see it on their dashboard.', true);
-    document.getElementById('ass-title').value='';
-    document.getElementById('ass-instructions').value='';
-  } catch(e) { lmsMsg('ass-msg','Failed to create assessment. Try again.', false); }
-}
-
-async function submitLmsSchedule() {
-  const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
-  const availability = {};
-  days.forEach(d => {
-    const checked = document.getElementById('avail-'+d)?.checked;
-    const from    = document.getElementById('from-'+d)?.value;
-    const to      = document.getElementById('to-'+d)?.value;
-    availability[d] = { available: !!checked, from: from||'', to: to||'' };
-  });
-  try {
-    await db.doc('teacher_availability/'+window._ika?.uid).set({
-      teacherId: window._ika?.uid,
-      teacherName: window._ika?.name || window._ika?.email || '',
-      availability,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    lmsMsg('sched-msg','✅ Availability saved! Students can now see your open slots.', true);
-  } catch(e) { lmsMsg('sched-msg','Failed to save schedule. Try again.', false); }
-}
-
-async function submitLmsAnnouncement() {
-  const title    = document.getElementById('ann-title')?.value.trim();
-  const body     = document.getElementById('ann-body')?.value.trim();
-  const priority = document.getElementById('ann-priority')?.value;
-  const to       = document.getElementById('ann-to')?.value;
-  if (!title || !body) { lmsMsg('ann-msg','Please enter both a title and message.', false); return; }
-  try {
-    await db.collection('announcements').add({
-      teacherId:   window._ika?.uid,
-      teacherName: window._ika?.name || window._ika?.email || '',
-      title, body, priority, sendTo: to,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    lmsMsg('ann-msg','✅ Announcement sent! All selected students have been notified.', true);
-    document.getElementById('ann-title').value='';
-    document.getElementById('ann-body').value='';
-  } catch(e) { lmsMsg('ann-msg','Failed to send. Try again.', false); }
-}
-
-async function submitLmsResources() {
-  const title   = document.getElementById('res-title')?.value.trim();
-  const subject = document.getElementById('res-subject')?.value;
-  const type    = document.getElementById('res-type')?.value;
-  const link    = document.getElementById('res-link')?.value.trim();
-  const assign  = document.getElementById('res-assign')?.value;
-  const desc    = document.getElementById('res-desc')?.value.trim();
-  if (!title) { lmsMsg('res-msg','Please enter a resource title.', false); return; }
-  try {
-    await db.collection('resources').add({
-      teacherId:   window._ika?.uid,
-      teacherName: window._ika?.name || window._ika?.email || '',
-      title, subject, type, link: link||'', assignTo: assign, description: desc||'',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    lmsMsg('res-msg','✅ Resource shared! Students can now access it.', true);
-    document.getElementById('res-title').value='';
-    document.getElementById('res-link').value='';
-  } catch(e) { lmsMsg('res-msg','Failed to share resource. Try again.', false); }
-}
-
-async function loadLmsAnalytics() {
-  const listEl = document.getElementById('session-ratings-list');
-  const avgEl  = document.getElementById('avg-rating');
-  if (!listEl || !avgEl) return;
-  try {
-    const snap = await db.collection('session_ratings')
-      .where('teacherId','==', window._ika?.uid || '').get();
-    if (snap.empty) {
-      listEl.innerHTML='<div style="text-align:center;color:#aaa;font-size:13px;font-weight:600;padding:16px 0;">No ratings yet. Students rate sessions from their dashboard after each class.</div>';
-      avgEl.textContent = '—';
-      return;
-    }
-    const ratings = snap.docs.map(d=>({id:d.id,...d.data()}));
-    const avg = ratings.reduce((s,r)=>s+(r.rating||0),0)/ratings.length;
-    avgEl.textContent = avg.toFixed(1) + ' ⭐';
-    listEl.innerHTML = ratings.slice(0,10).map(r=>`
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#FAFAFA;border-radius:12px;margin-bottom:8px;">
-        <div>
-          <div style="font-weight:800;font-size:14px;">${r.studentName||'Student'} — ${r.subject||'Session'}</div>
-          <div style="font-size:12px;color:#aaa;font-weight:600;">${r.comment||'No comment'}</div>
-        </div>
-        <div style="font-size:22px;font-weight:900;color:#FF9F43;">${'⭐'.repeat(r.rating||0)}</div>
-      </div>`).join('');
-  } catch(e) {
-    listEl.innerHTML='<div style="text-align:center;color:#aaa;font-size:13px;font-weight:600;padding:16px 0;">Could not load ratings.</div>';
-  }
-}
-
-function previewRating(n) {
-  document.querySelectorAll('.lms-rating-star').forEach((s,i)=>{s.style.opacity=i<n?'1':'0.35';});
-  const msgs=['','Needs improvement','Average','Good','Very Good','Excellent!'];
-  const el=document.getElementById('rating-preview-msg');
-  if(el)el.textContent='Preview: '+n+'/5 — '+msgs[n];
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -2992,12 +1979,6 @@ window.addEventListener('scroll',()=>{
 // ─── INIT ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
   initMarquee(); initFaq(); renderSessionsPage();
-  // Route to correct section based on URL hash (for Google Ads landing pages)
-  const hash = window.location.hash.replace('#','');
-  const publicPages = ['home','subjects','pricing','contact'];
-  if (hash && publicPages.includes(hash)) {
-    nav(hash);
-  }
 });
 </script>
 
