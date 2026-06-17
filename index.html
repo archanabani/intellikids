@@ -575,19 +575,19 @@ label{display:block;font-weight:800;font-size:14px;color:#555;margin-bottom:7px;
 .page.active{display:block;}
 
 /* ─── NAVBAR ──────────────────────────────────────────────────────────── */
-#navbar{position:sticky;top:0;z-index:900;background:rgba(255,253,248,.97);backdrop-filter:blur(16px);border-bottom:2px solid #FFE8E8;}
-.nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:68px;padding:0 24px;position:relative;z-index:901;}
+#navbar{position:sticky;top:0;z-index:500;background:rgba(255,253,248,.95);backdrop-filter:blur(16px);border-bottom:2px solid #FFE8E8;}
+.nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:68px;padding:0 24px;}
 .nav-logo{display:flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none;}
 .nav-logo-icon{width:44px;height:44px;background:linear-gradient(135deg,#FF6B6B,#FF9F43);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 12px rgba(255,107,107,.35);}
 .nav-logo-text .brand{font-family:'Baloo 2',sans-serif;font-size:18px;font-weight:800;background:linear-gradient(135deg,#FF6B6B,#6C63FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;}
 .nav-logo-text .sub{font-size:10px;font-weight:800;color:#FF9F43;letter-spacing:1px;}
-.nav-links{display:flex;gap:4px;position:relative;z-index:901;}
-.nav-link{background:transparent;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#444;padding:8px 14px;border-radius:50px;transition:all .2s;position:relative;z-index:901;}
+.nav-links{display:flex;gap:4px;}
+.nav-link{background:transparent;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:#444;padding:8px 14px;border-radius:50px;transition:all .2s;}
 .nav-link:hover,.nav-link.active{background:#FFF0F0;color:#FF6B6B;}
-.nav-actions{display:flex;gap:10px;align-items:center;position:relative;z-index:901;}
-.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:8px;border:none;background:transparent;position:relative;z-index:901;}
+.nav-actions{display:flex;gap:10px;align-items:center;}
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:8px;border:none;background:transparent;}
 .hamburger span{display:block;width:24px;height:2.5px;background:#444;border-radius:2px;transition:all .3s;}
-.mobile-menu{display:none;background:#fff;border-bottom:2px solid #FFE8E8;padding:16px 24px;flex-direction:column;gap:10px;position:relative;z-index:900;}
+.mobile-menu{display:none;background:#fff;border-bottom:2px solid #FFE8E8;padding:16px 24px;flex-direction:column;gap:10px;}
 .mobile-menu.open{display:flex;}
 
 /* ─── HERO ────────────────────────────────────────────────────────────── */
@@ -1665,7 +1665,7 @@ const DEMO_SESSIONS = [
   {id:2,subject:"Maths",topic:"Linear Equations",date:"Tue, May 27",time:"5:00 PM",grade:7,teacher:"Ms. Priya",type:"Group"},
   {id:3,subject:"Computer Basics",topic:"How the Internet Works",date:"Wed, May 28",time:"4:30 PM",grade:5,teacher:"Mr. Leandre",type:"1-on-1"},
   {id:4,subject:"English",topic:"Creative Writing Workshop",date:"Thu, May 29",time:"3:30 PM",grade:8,teacher:"Mr. Leandre",type:"Group"},
-  {id:5,subject:"Physics",topic:"Light & Optics – Reflection & Refraction",date:"Fri, May 30",time:"5:30 PM",grade:9,teacher:"Ms. Anju",type:"1-on-1"},
+  {id:5,subject:"Physics",topic:"Light & Optics – Reflection and Refraction",date:"Fri, May 30",time:"5:30 PM",grade:9,teacher:"Ms. Anju",type:"1-on-1"},
 ];
 const FAQS_DATA = [
   {q:"What grades does Intellikids support?",c:"#FF6B6B",a:"Grades 3–10 for Computer Basics, Coding, Maths & English. Physics and Chemistry for Grades 9–12."},
@@ -2713,7 +2713,6 @@ async function saveAnnouncement(){
     btn.disabled=false;btn.textContent='Send Announcement 📣';
   }
 }
-}
 
 async function deleteShared(coll,id){
   try{
@@ -3135,14 +3134,6 @@ function setCurrency(c){
   document.querySelectorAll('.cur-btn').forEach(b=>{const a=b.id==='cur-'+c;b.style.background=a?'linear-gradient(135deg,#FF6B6B,#FF9F43)':'transparent';b.style.color=a?'#fff':'#888';});
   renderPricingCards();
 }
-function renderPricingCards(){
-  const el=document.getElementById('pricing-cards');if(!el)return;
-  const sym=CURRENCY_SYMBOL[pricingCurrency];
-  const formatPrice=(val)=>{
-    if(pricingCurrency==='COP') return val.toLocaleString();
-    if(pricingCurrency==='INR') return val.toLocaleString('en-IN');
-    return val.toLocaleString();
-  };
 function setSessionType(t){
   pricingType=t;
   const b1=document.getElementById('type-1on1'),b2=document.getElementById('type-group');
@@ -3153,6 +3144,14 @@ function setSessionType(t){
 function renderPricingCards(){
   const el=document.getElementById('pricing-cards');if(!el)return;
   const sym=CURRENCY_SYMBOL[pricingCurrency];
+  const formatPrice=(val)=>{
+    if(pricingCurrency==='COP'){
+      if(val>=1000) return Math.round(val/1000).toLocaleString()+'K';
+      return Math.round(val).toLocaleString();
+    }
+    if(pricingCurrency==='INR') return val.toLocaleString('en-IN');
+    return val.toLocaleString();
+  };
   el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:20px;">
     ${PRICING_DATA[pricingType].packs.map(p=>{const tot=Math.round(p.perClass[pricingCurrency]*p.classes);return`
       <div class="card ${p.popular?'':'card-hover'}" style="padding:28px;border-top:5px solid ${p.color};position:relative;${p.popular?'box-shadow:0 16px 48px rgba(108,99,255,.22);transform:scale(1.03);':''}">
@@ -3160,8 +3159,8 @@ function renderPricingCards(){
         <div style="font-size:32px;margin-bottom:10px;">${p.emoji}</div>
         <div style="font-weight:900;font-size:18px;margin-bottom:4px;">${p.label}</div>
         <div style="font-size:13px;color:#999;font-weight:700;margin-bottom:20px;">${p.classes} Classes Pack</div>
-        <div style="font-size:34px;font-weight:900;color:${p.color};margin-bottom:4px;">${sym}${formatPrice(tot)}</div>
-        <div style="font-size:13px;color:#999;font-weight:700;margin-bottom:20px;">${sym}${Number.isInteger(p.perClass[pricingCurrency])?formatPrice(p.perClass[pricingCurrency]):p.perClass[pricingCurrency].toFixed(1)} per class</div>
+        <div style="font-size:${pricingCurrency==='COP'?'26':'34'}px;font-weight:900;color:${p.color};margin-bottom:4px;">${sym}${formatPrice(tot)}</div>
+        <div style="font-size:13px;color:#999;font-weight:700;margin-bottom:20px;">${sym}${formatPrice(p.perClass[pricingCurrency])} per class</div>
         <div style="border-top:1.5px dashed #f0f0f0;padding-top:16px;margin-bottom:20px;display:flex;flex-direction:column;gap:8px;">
           <div style="font-size:13px;font-weight:700;color:#555;">✅ ${p.classes} live sessions</div>
           <div style="font-size:13px;font-weight:700;color:#555;">✅ Personalised curriculum</div>
