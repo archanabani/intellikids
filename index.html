@@ -68,13 +68,13 @@
     "@type": "OfferCatalog",
     "name": "Online Tuition Packages",
     "itemListElement": [
-      { "@type": "Offer", "name": "1-on-1 Starter Pack – 4 Classes", "price": "799", "priceCurrency": "INR" },
+      { "@type": "Offer", "name": "1-on-1 Starter Pack – 4 Classes", "price": "1825", "priceCurrency": "INR" },
       { "@type": "Offer", "name": "1-on-1 Starter Pack – 4 Classes", "price": "22", "priceCurrency": "USD" },
       { "@type": "Offer", "name": "1-on-1 Starter Pack – 4 Classes", "price": "38", "priceCurrency": "NZD" },
       { "@type": "Offer", "name": "1-on-1 Starter Pack – 4 Classes", "price": "34", "priceCurrency": "AUD" },
       { "@type": "Offer", "name": "1-on-1 Starter Pack – 4 Classes", "price": "30", "priceCurrency": "CAD" },
-      { "@type": "Offer", "name": "1-on-1 Achiever Pack – 16 Classes", "price": "699", "priceCurrency": "INR" },
-      { "@type": "Offer", "name": "Group Achiever Pack – 16 Classes", "price": "369", "priceCurrency": "INR" }
+      { "@type": "Offer", "name": "1-on-1 Achiever Pack – 16 Classes", "price": "1660", "priceCurrency": "INR" },
+      { "@type": "Offer", "name": "Group Achiever Pack – 16 Classes", "price": "913", "priceCurrency": "INR" }
     ]
   }
 }
@@ -394,6 +394,74 @@ async function approveUser(reqId, role, name) {
 async function rejectUser(reqId) {
   await db.doc('access_requests/'+reqId).update({status:'rejected'});
   showToast('User rejected.','error'); _adminData=null; initAdminDash();
+}
+
+async function assignDemoToTeacher(bookingId) {
+  const tSel=document.getElementById('demo-t-'+bookingId);
+  const dateSel=document.getElementById('demo-date-'+bookingId);
+  const timeSel=document.getElementById('demo-time-'+bookingId);
+  if(!tSel||!tSel.value){showToast('Select a teacher first.','error');return;}
+  if(!dateSel||!dateSel.value){showToast('Pick a date.','error');return;}
+  if(!timeSel||!timeSel.value){showToast('Pick a time slot.','error');return;}
+  const teacherId=tSel.value;
+  const teacherName=tSel.options[tSel.selectedIndex]?.dataset?.name||'';
+  const teacherEmail=tSel.options[tSel.selectedIndex]?.dataset?.email||'';
+  const dateVal=dateSel.value;
+  const timeVal=timeSel.value;
+  // Build ISO datetime
+  const [h12,ap]=timeVal.split(' ');let[h,m]=h12.split(':').map(Number);
+  if(ap==='PM'&&h!==12)h+=12;if(ap==='AM'&&h===12)h=0;
+  const dateTimeISO=dateVal+'T'+String(h).padStart(2,'0')+':'+String(m||0).padStart(2,'0')+':00';
+
+  // Get booking details
+  const bSnap=await db.doc('demo_bookings/'+bookingId).get();
+  if(!bSnap.exists){showToast('Booking not found.','error');return;}
+  const b=bSnap.data();
+
+  try {
+    // Create a demo session in sessions collection
+    const meet=await createMeetLink(
+      `Demo: ${b.subject||'General'} — ${b.studentName||'Student'} | Intellikids`, dateTimeISO, 60
+    );
+    const sessionRef=await db.collection('sessions').add({
+      studentId: b.studentId||'',
+      studentName: b.studentName||b.parentName||'',
+      studentEmail: b.email||'',
+      teacherId, teacherName, teacherEmail,
+      subject: b.subject||'General',
+      topic: b.topic||'Demo Class',
+      type: '1-on-1',
+      isDemo: true,
+      parentName: b.parentName||'',
+      phone: b.phone||'',
+      grade: b.grade||'',
+      country: b.country||'',
+      status: 'confirmed',
+      meetLink: meet||'',
+      scheduledAt: firebase.firestore.Timestamp.fromDate(new Date(dateTimeISO)),
+      dateTimeISO,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    // Update the booking record to mark assigned
+    await db.doc('demo_bookings/'+bookingId).update({
+      assignedTeacherId: teacherId,
+      assignedTeacherName: teacherName,
+      assignedSessionId: sessionRef.id,
+      assignedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      scheduledDate: dateVal,
+      scheduledTime: timeVal,
+      dateTimeISO
+    });
+    showToast(`🎉 Demo assigned to ${teacherName}! Google Meet link created.`,'success');
+    _adminData=null; initAdminDash();
+    setTimeout(()=>{
+      const btn=[...document.querySelectorAll('#page-admin-dashboard .tab-btn')].find(b=>b.textContent.includes('Assign Demo'));
+      if(btn)btn.click();
+    },800);
+  } catch(e) {
+    console.error('assignDemoToTeacher error:',e);
+    showToast('Failed to assign. Try again. Error: '+(e.message||'unknown'),'error');
+  }
 }
 
 async function assignTeacher(studentId) {
@@ -1596,9 +1664,9 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
     <div class="stat-grid" id="td-stats"></div>
     <div class="tabs">
       <button class="tab-btn active" onclick="tdTab(this,'sessions')">📅 My Schedule</button>
+      <button class="tab-btn" onclick="tdTab(this,'students')">👥 My Students <span id="td-stu-badge" style="display:none;background:#1DD1A1;color:#fff;border-radius:50px;padding:1px 8px;font-size:11px;margin-left:4px;font-weight:900;"></span></button>
       <button class="tab-btn" onclick="tdTab(this,'requests')">⏳ Requests <span id="td-req-badge" style="display:none;background:#FF6B6B;color:#fff;border-radius:50px;padding:1px 8px;font-size:11px;margin-left:4px;"></span></button>
-      <button class="tab-btn" onclick="tdTab(this,'availability')">🗓️ My Availability</button>
-      <button class="tab-btn" onclick="tdTab(this,'students')">👥 My Students</button>
+      <button class="tab-btn" onclick="tdTab(this,'availability')">🗓️ Weekly Schedule</button>
       <button class="tab-btn" onclick="tdTab(this,'curriculum')">🧬 Curriculum</button>
       <button class="tab-btn" onclick="tdTab(this,'lms')">🛠️ LMS Tools</button>
     </div>
@@ -1630,6 +1698,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
       <button class="tab-btn" onclick="adminTab(this,'teachers')">👩‍🏫 Teachers</button>
       <button class="tab-btn" onclick="adminTab(this,'sessions')">📅 All Sessions</button>
       <button class="tab-btn" onclick="adminTab(this,'demo_bookings')">🎯 Demo Bookings</button>
+      <button class="tab-btn" onclick="adminTab(this,'assign_demo')">🔗 Assign Demo → Teacher</button>
       <button class="tab-btn" onclick="adminTab(this,'enquiries')">📩 Enquiries</button>
     </div>
     <div id="admin-content"><div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div></div>
@@ -1768,7 +1837,7 @@ function sessionRowHtml(s) {
     <div style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;">
       <div style="width:48px;height:48px;border-radius:14px;background:${sc.bg};display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">${sc.emoji}</div>
       <div style="min-width:0;">
-        <div style="font-weight:800;font-size:15px;margin-bottom:3px;">${s.topic||s.subject}</div>
+        <div style="font-weight:800;font-size:15px;margin-bottom:3px;">${s.topic||s.subject}${s.isDemo?' <span style="background:#FFF6E8;color:#FF9F43;font-size:10px;border-radius:10px;padding:2px 8px;font-weight:800;margin-left:4px;">🎯 Demo</span>':''}</div>
         <div style="font-size:13px;color:#777;font-weight:600;">${s.subject}${teacher?' · 👩‍🏫 '+teacher:''}</div>
         <div style="font-size:12px;color:#aaa;font-weight:600;margin-top:2px;">🗓️ ${when}</div>
       </div>
@@ -2201,7 +2270,9 @@ function bkPickDate(key){
   document.querySelectorAll('#bk-days button').forEach(b=>{b.style.background='#fff';b.style.borderColor='#E8E8FF';b.style.color='#555';});
   const btn=document.getElementById('bkd-'+key);
   if(btn){btn.style.background='linear-gradient(135deg,#FF6B6B,#FF9F43)';btn.style.borderColor='transparent';btn.style.color='#fff';}
-  const slots=(studentData.availability&&studentData.availability.slots&&studentData.availability.slots[key])||[];
+  // Support both legacy date-keyed and new weekly: recurring availability
+  const expandedSlots=expandWeeklySlots(studentData.availability,90);
+  const slots=(expandedSlots&&expandedSlots[key])||(studentData.availability&&studentData.availability.slots&&studentData.availability.slots[key])||[];
   const booked=studentData.bookedSlots&&studentData.bookedSlots[key];
   const now=new Date();
   const free=slots.filter(t=>{
@@ -2282,6 +2353,9 @@ async function initTeacherDash(){
     document.getElementById('td-req-cnt').textContent=pend;
     const badge=document.getElementById('td-req-badge');
     if(badge){badge.textContent=pend;badge.style.display=pend?'inline-block':'none';}
+    const stuBadge=document.getElementById('td-stu-badge');
+    const stuCount=teacherData.students.length;
+    if(stuBadge){stuBadge.textContent=stuCount;stuBadge.style.display=stuCount?'inline-block':'none';}
     if(!teacherData.availability||!Object.keys(teacherData.availability.slots||{}).length){
       showToast('Tip: set your 🗓️ Availability so students can book you!','');
     }
@@ -2341,16 +2415,26 @@ function renderTeacherTab(tab){
   }
 
   else if(tab==='students'){
-    if(!teacherData.students.length){
+    // Also include students from demo sessions assigned to this teacher
+    const demoStudents=(teacherData.sessions||[])
+      .filter(s=>s.isDemo&&s.studentName&&!teacherData.students.find(st=>st.id===s.studentId))
+      .reduce((acc,s)=>{
+        if(!acc.find(x=>x.email===s.studentEmail&&x.name===s.studentName)){
+          acc.push({id:'demo_'+s.id,name:s.studentName,email:s.studentEmail||'',grade:s.grade||'',subject:s.subject,isDemo:true,parentName:s.parentName||''});
+        }
+        return acc;
+      },[]);
+    const allStudents=[...teacherData.students,...demoStudents];
+    if(!allStudents.length){
       el.innerHTML=`<div style="text-align:center;padding:48px 20px;">
         <div style="font-size:56px;margin-bottom:16px;">👥</div>
         <h3 style="font-family:'Nunito',sans-serif;font-size:18px;margin-bottom:8px;">No students assigned yet</h3>
-        <p style="color:#888;font-size:14px;font-weight:600;">Admin will assign students to you. Once assigned, their bookings and sessions will appear here automatically.</p>
+        <p style="color:#888;font-size:14px;font-weight:600;">Admin will assign students and schedule demo sessions for you. They will appear here automatically.</p>
       </div>`;
       return;
     }
-    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:18px;">👥 My Assigned Students (${teacherData.students.length})</h3>`+
-    teacherData.students.map((s,i)=>{
+    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:18px;">👥 My Students (${allStudents.length})</h3>`+
+    allStudents.map((s,i)=>{
       const sess=teacherData.sessions.filter(x=>x.studentId===s.id);
       const upcoming=sess.filter(x=>{const d=x.scheduledAt?.toDate?x.scheduledAt.toDate():new Date(x.scheduledAt?.seconds*1000||0);return d>=new Date();});
       const past=sess.filter(x=>{const d=x.scheduledAt?.toDate?x.scheduledAt.toDate():new Date(x.scheduledAt?.seconds*1000||0);return d<new Date();});
@@ -2372,7 +2456,7 @@ function renderTeacherTab(tab){
               <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
                 ${s.grade?`<span class="chip chip-purple" style="font-size:11px;">Grade ${s.grade}</span>`:''}
                 ${s.subject?`<span class="chip chip-orange" style="font-size:11px;">${s.subject}</span>`:''}
-                <span class="chip chip-green" style="font-size:11px;">✅ Assigned to you</span>
+                ${s.isDemo?'<span class="chip" style="background:#FFF6E8;color:#FF9F43;font-size:11px;">🎯 Demo Student</span>':`<span class="chip chip-green" style="font-size:11px;">✅ Assigned to you</span>`}
               </div>
             </div>
           </div>
@@ -2733,64 +2817,69 @@ async function gradeHomework(id){
   }catch(e){showToast('Could not save score.','error');}
 }
 
-// ─── AVAILABILITY EDITOR (teacher) — redesigned with dropdowns & week view ────
+// ─── AVAILABILITY EDITOR (teacher) — PERMANENT recurring weekly schedule ────
 let _availDraft=null;
 const WEEKDAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-function getWeekKey(d){
-  // Returns YYYY-WNN for display grouping, but we store by date key
-  return d.getFullYear()+'-W'+String(Math.ceil((d.getDate())/7)).padStart(2,'0');
+// Permanent availability uses weekday keys: 'weekly:0' (Sun) … 'weekly:6' (Sat)
+// plus specific date overrides: 'YYYY-MM-DD'
+// When generating slots for student, we expand weekly keys into the next 90 days
+
+function expandWeeklySlots(availability, daysAhead){
+  // Given availability object {slots:{...}}, returns expanded {YYYY-MM-DD:[times]}
+  if(!availability||!availability.slots) return {};
+  const expanded={};
+  const today=new Date(); today.setHours(0,0,0,0);
+  // Copy specific date overrides first
+  Object.entries(availability.slots).forEach(([k,v])=>{
+    if(!k.startsWith('weekly:')) expanded[k]=[...v];
+  });
+  // Expand weekly patterns
+  for(let i=0;i<(daysAhead||90);i++){
+    const d=new Date(today); d.setDate(today.getDate()+i);
+    const wk='weekly:'+d.getDay();
+    const dk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    if(availability.slots[wk]&&availability.slots[wk].length){
+      // Date-specific override takes precedence
+      if(!expanded[dk]) expanded[dk]=[...availability.slots[wk]];
+    }
+  }
+  return expanded;
 }
 
 function renderAvailabilityEditor(el, fromLms){
   const saved=(teacherData.availability&&teacherData.availability.slots)||{};
   if(!_availDraft) _availDraft=JSON.parse(JSON.stringify(saved));
-  // booked map
-  const booked={};
-  (teacherData.sessions||[]).forEach(s=>{
-    const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);
-    const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    let h=d.getHours();const m=d.getMinutes();const ap=h>=12?'PM':'AM';h=h%12;if(h===0)h=12;
-    (booked[key]=booked[key]||new Set()).add(h+':'+String(m).padStart(2,'0')+' '+ap);
-  });
-  // Build 28 days
-  const days=[];
-  for(let i=0;i<28;i++){
-    const d=new Date();d.setDate(d.getDate()+i);
-    days.push(d);
-  }
-  const dkey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 
-  // Group by week
-  const weeks=[];
-  let week=[];
-  days.forEach((d,i)=>{
-    week.push(d);
-    if(week.length===7||i===days.length-1){weeks.push([...week]);week=[];}
+  // Init weekly keys if missing
+  WEEKDAYS.forEach((_,di)=>{
+    const wk='weekly:'+di;
+    if(_availDraft[wk]===undefined) _availDraft[wk]=saved[wk]||[];
   });
+
+  const dayColors=['#FF6B6B','#FF9F43','#1DD1A1','#6C63FF','#54A0FF','#A29BFE','#FD79A8'];
 
   el.innerHTML=(fromLms?lmsBack():'')+`
     <div style="background:linear-gradient(135deg,#E8FFF8,#F0EEFF);border-radius:20px;padding:22px;margin-bottom:22px;border:2px dashed #9BE8D0;">
-      <div style="font-weight:800;font-size:17px;color:#1DD1A1;margin-bottom:6px;">🗓️ Set Your Weekly Availability</div>
-      <p style="font-size:13px;color:#777;font-weight:600;margin:0;">Select time slots for each day. Students can only book slots you mark as available. 🟢 selected · ⚪ free · 🔒 booked</p>
+      <div style="font-weight:800;font-size:17px;color:#1DD1A1;margin-bottom:6px;">🗓️ Recurring Weekly Schedule</div>
+      <p style="font-size:13px;color:#777;font-weight:600;margin:0;">Set once — repeats every week forever. Students see these slots and can book any available time. 🟢 available · ⚪ off</p>
     </div>
 
-    <!-- Quick Fill by Weekday -->
     <div class="card" style="padding:20px;margin-bottom:20px;border-top:4px solid #6C63FF;">
-      <div style="font-weight:800;font-size:15px;color:#6C63FF;margin-bottom:14px;">⚡ Quick Fill by Weekday</div>
+      <div style="font-weight:800;font-size:15px;color:#6C63FF;margin-bottom:12px;">⚡ Quick Fill a Weekday</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
         ${WEEKDAYS.map((day,di)=>`<button class="btn btn-sec btn-sm" onclick="quickFillWeekday(${di})">${day.slice(0,3)}</button>`).join('')}
       </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <div style="flex:1;min-width:140px;">
-          <label style="font-size:12px;color:#888;font-weight:800;margin-bottom:4px;display:block;">FROM TIME</label>
+          <label style="font-size:12px;color:#888;font-weight:800;margin-bottom:4px;display:block;">FROM</label>
           <select id="qf-from" style="padding:8px 12px;border-radius:12px;border:2px solid #E8E8FF;font-size:13px;font-weight:700;">
             ${TIMES.map(t=>`<option value="${t}" ${t==='4:00 PM'?'selected':''}>${t}</option>`).join('')}
           </select>
         </div>
         <div style="flex:1;min-width:140px;">
-          <label style="font-size:12px;color:#888;font-weight:800;margin-bottom:4px;display:block;">TO TIME</label>
+          <label style="font-size:12px;color:#888;font-weight:800;margin-bottom:4px;display:block;">TO</label>
           <select id="qf-to" style="padding:8px 12px;border-radius:12px;border:2px solid #E8E8FF;font-size:13px;font-weight:700;">
             ${TIMES.map(t=>`<option value="${t}" ${t==='8:00 PM'?'selected':''}>${t}</option>`).join('')}
           </select>
@@ -2801,48 +2890,40 @@ function renderAvailabilityEditor(el, fromLms){
       </div>
     </div>
 
-    <!-- Month/Week View -->
-    <div style="display:flex;flex-direction:column;gap:24px;margin-bottom:24px;">
-    ${weeks.map((week,wi)=>{
-      const monthName=MONTHS[week[0].getMonth()];
-      const nextMonthName=week[week.length-1].getMonth()!==week[0].getMonth()?` / ${MONTHS[week[week.length-1].getMonth()]}`:'';
-      return `<div>
-        <div style="font-weight:800;font-size:14px;color:#888;letter-spacing:.5px;margin-bottom:10px;">📅 ${monthName}${nextMonthName} — Week ${wi+1}</div>
-        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;">
-        ${week.map(d=>{
-          const key=dkey(d);
-          const sel=_availDraft[key]||[];
-          const dayBooked=booked[key]||new Set();
-          const isToday=d.toDateString()===new Date().toDateString();
-          const dayName=WEEKDAYS[d.getDay()].slice(0,3);
-          const dateNum=d.getDate();
-          const selCount=sel.length;
-          return `<div class="card" style="padding:10px 8px;${isToday?'border:2px solid #FF9F43;':'border:1px solid #f0f0f0;'}min-width:0;">
-            <div style="text-align:center;margin-bottom:8px;">
-              <div style="font-size:11px;font-weight:800;color:${isToday?'#FF9F43':'#888'};letter-spacing:.3px;">${dayName}</div>
-              <div style="font-size:18px;font-weight:900;color:${isToday?'#FF9F43':'#1a1a2e'};">${dateNum}</div>
-              ${selCount>0?`<div style="font-size:10px;font-weight:800;color:#1DD1A1;background:#E8FFF8;border-radius:10px;padding:2px 6px;margin-top:4px;">${selCount} slot${selCount>1?'s':''}</div>`:`<div style="font-size:10px;color:#ccc;font-weight:700;margin-top:4px;">none</div>`}
-            </div>
-            <div style="display:flex;flex-direction:column;gap:3px;max-height:140px;overflow-y:auto;">
-              ${TIMES.map(t=>{
-                const isBooked=dayBooked.has(t);
-                const on=sel.includes(t);
-                if(isBooked) return `<div style="font-size:10px;padding:3px 6px;border-radius:6px;background:#f0f0f0;color:#bbb;font-weight:700;cursor:not-allowed;white-space:nowrap;">🔒 ${t}</div>`;
-                return `<button onclick="availToggle('${key}','${t}')" style="font-size:10px;padding:3px 6px;border-radius:6px;border:none;cursor:pointer;font-weight:800;white-space:nowrap;transition:all .1s;${on?'background:linear-gradient(135deg,#1DD1A1,#10ac84);color:#fff;':'background:#f8f8f8;color:#888;'}">${t}</button>`;
-              }).join('')}
-            </div>
-            <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;">
-              <button style="font-size:9px;padding:3px 6px;border-radius:6px;border:1px solid #E8E8FF;background:#fff;cursor:pointer;font-weight:800;color:#6C63FF;" onclick="availQuick('${key}','eve')">Eve ▶</button>
-              <button style="font-size:9px;padding:3px 6px;border-radius:6px;border:1px solid #FFE8E8;background:#fff;cursor:pointer;font-weight:800;color:#FF6B6B;" onclick="availQuick('${key}','clear')">Clear</button>
-            </div>
-          </div>`;}).join('')}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:24px;">
+    ${WEEKDAYS.map((dayName,di)=>{
+      const wk='weekly:'+di;
+      const sel=_availDraft[wk]||[];
+      const selCount=sel.length;
+      const c=dayColors[di];
+      return `<div class="card" style="padding:14px 10px;border-top:4px solid ${c};">
+        <div style="text-align:center;margin-bottom:10px;">
+          <div style="font-size:15px;font-weight:900;color:${c};">${dayName}</div>
+          <div style="font-size:10px;font-weight:800;margin-top:4px;${selCount>0?'color:#1DD1A1;background:#E8FFF8;border-radius:10px;padding:2px 6px;':'color:#ccc;'}">
+            ${selCount>0?selCount+' slot'+(selCount>1?'s':''):'off this day'}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;max-height:200px;overflow-y:auto;">
+          ${TIMES.map(t=>{
+            const on=sel.includes(t);
+            return `<button onclick="availToggleWeekly(${di},'${t}')" style="font-size:10px;padding:3px 6px;border-radius:6px;border:none;cursor:pointer;font-weight:800;white-space:nowrap;transition:all .1s;${on?'background:linear-gradient(135deg,'+c+','+c+'99);color:#fff;':'background:#f8f8f8;color:#888;'}">${t}</button>`;
+          }).join('')}
+        </div>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+          <button style="font-size:9px;padding:3px 6px;border-radius:6px;border:1px solid #E8E8FF;background:#fff;cursor:pointer;font-weight:800;color:${c};" onclick="availQuick('weekly:${di}','eve')">4–8 PM ▶</button>
+          <button style="font-size:9px;padding:3px 6px;border-radius:6px;border:1px solid #E8E8FF;background:#fff;cursor:pointer;font-weight:800;color:#888;" onclick="availQuick('weekly:${di}','morn')">8 AM–12 ▶</button>
+          <button style="font-size:9px;padding:3px 6px;border-radius:6px;border:1px solid #FFE8E8;background:#fff;cursor:pointer;font-weight:800;color:#FF6B6B;" onclick="availQuick('weekly:${di}','clear')">Clear</button>
         </div>
       </div>`;
     }).join('')}
     </div>
 
+    <div style="background:#FFF6E8;border-radius:14px;padding:14px 18px;margin-bottom:20px;border:1.5px solid #FDCB6E;font-size:13px;font-weight:600;color:#FF9F43;">
+      ℹ️ These recurring slots are visible to your assigned students every week. After a student books a slot, it will show as taken for that specific date only.
+    </div>
+
     <div style="position:sticky;bottom:14px;display:flex;justify-content:center;gap:12px;">
-      <button class="btn btn-main" id="avail-save" onclick="saveAvailability(${fromLms?'true':'false'})" style="box-shadow:0 8px 30px rgba(255,107,107,.4);">💾 Save Availability</button>
+      <button class="btn btn-main" id="avail-save" onclick="saveAvailability(${fromLms?'true':'false'})" style="box-shadow:0 8px 30px rgba(255,107,107,.4);">💾 Save Weekly Schedule</button>
     </div>`;
 }
 
@@ -2854,25 +2935,11 @@ function quickFillWeekday(dayIndex){
   const fromIdx=TIMES.indexOf(fromTime);
   const toIdx=TIMES.indexOf(toTime);
   const slots=TIMES.slice(Math.max(0,fromIdx),toIdx+1);
-  for(let i=0;i<28;i++){
-    const d=new Date();d.setDate(d.getDate()+i);
-    if(d.getDay()===dayIndex){
-      const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-      _availDraft[key]=slots.filter(t=>{
-        // don't overwrite booked
-        const booked=(teacherData.sessions||[]).some(s=>{
-          const sd=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);
-          const sk=sd.getFullYear()+'-'+String(sd.getMonth()+1).padStart(2,'0')+'-'+String(sd.getDate()).padStart(2,'0');
-          if(sk!==key)return false;
-          let h=sd.getHours();const m=sd.getMinutes();const ap=h>=12?'PM':'AM';h=h%12;if(h===0)h=12;
-          return (h+':'+String(m).padStart(2,'0')+' '+ap)===t;
-        });
-        return !booked;
-      });
-    }
-  }
+  // Write to recurring weekly key
+  const wk='weekly:'+dayIndex;
+  _availDraft[wk]=slots;
   renderAvailabilityEditor(document.getElementById('td-content'), document.querySelector('#page-teacher-dashboard .tab-btn.active')?.textContent.includes('LMS'));
-  showToast(`${WEEKDAYS[dayIndex]} slots filled from ${fromTime} to ${toTime} ✅`,'success');
+  showToast(`${WEEKDAYS[dayIndex]} recurring slots set from ${fromTime} to ${toTime} ✅`,'success');
 }
 
 function clearAllAvailability(){
@@ -2887,19 +2954,29 @@ function availToggle(key,t){
   if(i>=0)arr.splice(i,1);else arr.push(t);
   renderAvailabilityEditor(document.getElementById('td-content'), document.querySelector('#page-teacher-dashboard .tab-btn.active')?.textContent.includes('LMS'));
 }
+function availToggleWeekly(dayIndex,t){
+  const wk='weekly:'+dayIndex;
+  const arr=_availDraft[wk]=(_availDraft[wk]||[]);
+  const i=arr.indexOf(t);
+  if(i>=0)arr.splice(i,1);else arr.push(t);
+  renderAvailabilityEditor(document.getElementById('td-content'), document.querySelector('#page-teacher-dashboard .tab-btn.active')?.textContent.includes('LMS'));
+}
 function availQuick(key,mode){
-  if(mode==='clear')_availDraft[key]=[];
-  else _availDraft[key]=TIMES.filter(t=>t.includes('PM')&&parseInt(t)>=4&&parseInt(t)<=8);
+  if(mode==='clear') _availDraft[key]=[];
+  else if(mode==='eve') _availDraft[key]=TIMES.filter(t=>t.includes('PM')&&parseInt(t)>=4&&parseInt(t)<=8);
+  else if(mode==='morn') _availDraft[key]=TIMES.filter(t=>(t.includes('AM')&&parseInt(t)>=8)||(t==='12:00 PM'));
   renderAvailabilityEditor(document.getElementById('td-content'), document.querySelector('#page-teacher-dashboard .tab-btn.active')?.textContent.includes('LMS'));
 }
 async function saveAvailability(fromLms){
   const btn=document.getElementById('avail-save');btn.disabled=true;btn.textContent='Saving…';
   try{
-    // prune empty days + past days
+    // save weekly recurring keys (weekly:0..6) as-is; prune empty date-specific overrides
     const clean={};
     const today=new Date();today.setHours(0,0,0,0);
     Object.entries(_availDraft).forEach(([k,v])=>{
-      if(v&&v.length&&new Date(k+'T23:59:59')>=today) clean[k]=[...new Set(v)].sort((a,b)=>TIMES.indexOf(a)-TIMES.indexOf(b));
+      if(!v||!v.length) return;
+      if(k.startsWith('weekly:')) { clean[k]=[...new Set(v)].sort((a,b)=>TIMES.indexOf(a)-TIMES.indexOf(b)); }
+      else if(new Date(k+'T23:59:59')>=today) { clean[k]=[...new Set(v)].sort((a,b)=>TIMES.indexOf(a)-TIMES.indexOf(b)); }
     });
     await db.doc('availability/'+window._ika.uid).set({
       teacherId:window._ika.uid,
@@ -3096,6 +3173,68 @@ function renderAdminTab(tab){
     el.innerHTML = html;
   }
 
+  else if(tab==='assign_demo'){
+    const bookings=(_adminData.demo_bookings||[]);
+    const teachers=_adminData.users.filter(u=>u.role==='teacher');
+    if(!bookings.length){el.innerHTML=emptyState('🔗','No demo bookings yet','Demo booking entries will appear here for you to assign to a teacher.');return;}
+    const sorted=[...bookings].sort((a,b)=>{
+      const ta=a.submittedAt?.toDate?a.submittedAt.toDate():new Date(a.submittedAt||0);
+      const tb=b.submittedAt?.toDate?b.submittedAt.toDate():new Date(b.submittedAt||0);
+      return tb-ta;
+    });
+    const teacherOptions=teachers.map(t=>`<option value="${t.id}" data-name="${t.name||t.email}" data-email="${t.email}">${t.name||t.email}</option>`).join('');
+    el.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+        <h3 style="font-family:Nunito,sans-serif;font-size:17px;margin:0;">🔗 Assign Demo Sessions to Teachers</h3>
+        <div style="font-size:13px;color:#888;font-weight:600;">Choose a teacher for each demo booking · visible on teacher & student dashboards after assignment</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+      ${sorted.map((b,i)=>{
+        const dt=b.submittedAt?.toDate?b.submittedAt.toDate():new Date(b.submittedAt||0);
+        const dateStr=dt.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+        const statusColor=b.assignedTeacherId?'#1DD1A1':'#FF9F43';
+        const statusLabel=b.assignedTeacherId?'✅ Assigned to '+(b.assignedTeacherName||'teacher'):'⏳ Unassigned';
+        return `<div class="card" style="padding:20px;border-left:5px solid ${statusColor};">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+            <div>
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#FF6B6B,#FF9F43);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:16px;">${(b.studentName||b.parentName||'?')[0].toUpperCase()}</div>
+                <div>
+                  <div style="font-weight:900;font-size:15px;">${b.studentName||'—'} <span style="font-size:12px;color:#888;font-weight:600;">(Grade ${b.grade||'?'})</span></div>
+                  <div style="font-size:12px;color:#999;font-weight:600;">Parent: ${b.parentName||'—'} · 📞 ${b.phone||'—'}</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+                <span class="chip chip-orange" style="font-size:11px;">📚 ${b.subject||'General'}</span>
+                ${b.topic?`<span class="chip chip-purple" style="font-size:11px;">${b.topic}</span>`:''}
+                <span class="chip chip-blue" style="font-size:11px;">🌍 ${b.country||'—'}</span>
+                <span style="font-size:11px;color:#888;font-weight:600;">📅 ${dateStr}</span>
+              </div>
+              ${b.preferredTime?`<div style="font-size:12px;color:#555;font-weight:600;margin-bottom:6px;">⏰ Preferred time: ${b.preferredTime}</div>`:''}
+              ${b.message?`<div style="font-size:12px;color:#777;font-weight:600;font-style:italic;">"${b.message}"</div>`:''}
+            </div>
+            <div style="min-width:220px;">
+              <div style="font-size:11px;font-weight:800;color:${statusColor};margin-bottom:8px;">${statusLabel}</div>
+              <select id="demo-t-${b.id}" style="width:100%;padding:8px 12px;border-radius:10px;border:2px solid #E8E8FF;font-weight:700;font-size:13px;margin-bottom:10px;">
+                <option value="">— Select Teacher —</option>
+                ${teacherOptions}
+              </select>
+              <select id="demo-date-${b.id}" style="width:100%;padding:8px 12px;border-radius:10px;border:2px solid #E8E8FF;font-weight:700;font-size:13px;margin-bottom:10px;">
+                <option value="">— Pick a date —</option>
+                ${Array.from({length:30},(_,i)=>{const d=new Date();d.setDate(d.getDate()+i+1);const iso=d.toISOString().split('T')[0];return `<option value="${iso}">${d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})}</option>`;}).join('')}
+              </select>
+              <select id="demo-time-${b.id}" style="width:100%;padding:8px 12px;border-radius:10px;border:2px solid #E8E8FF;font-weight:700;font-size:13px;margin-bottom:10px;">
+                <option value="">— Pick a time —</option>
+                ${TIMES.map(t=>`<option value="${t}">${t}</option>`).join('')}
+              </select>
+              <button class="btn btn-green btn-sm" style="width:100%;" onclick="assignDemoToTeacher('${b.id}')">✅ Assign & Schedule Demo</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+      </div>`;
+  }
+
   else if(tab==='enquiries'){
     if(!_adminData.enquiries.length){el.innerHTML=emptyState('📩','No enquiries yet','Demo booking forms appear here.');return;}
     el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:16px;">📩 Demo Enquiries (${_adminData.enquiries.length})</h3>
@@ -3115,16 +3254,16 @@ function renderAdminTab(tab){
 let pricingCurrency='INR', pricingType='1on1';
 const PRICING_DATA={
   '1on1':{packs:[
-    {classes:4, label:'Starter', tag:'',            popular:false,perClass:{INR:799,USD:22,GBP:17,AED:81, CAD:30,NZD:38,AUD:34,COP:88000},color:'#FF6B6B',emoji:'🌱'},
-    {classes:8, label:'Builder', tag:'Save 5%',     popular:false,perClass:{INR:749,USD:21,GBP:16,AED:77, CAD:28,NZD:36,AUD:32,COP:82000},color:'#FF9F43',emoji:'🚀'},
-    {classes:16,label:'Achiever',tag:'Most Popular', popular:true, perClass:{INR:699,USD:20,GBP:15,AED:73, CAD:27,NZD:34,AUD:30,COP:76000},color:'#6C63FF',emoji:'⭐'},
-    {classes:32,label:'Champion',tag:'Best Value',   popular:false,perClass:{INR:649,USD:18,GBP:14,AED:66, CAD:25,NZD:31,AUD:28,COP:70000},color:'#1DD1A1',emoji:'🏆'},
+    {classes:4, label:'Starter', tag:'',            popular:false,perClass:{INR:1825,USD:22,GBP:17,AED:81, CAD:30,NZD:38,AUD:34,COP:88000},color:'#FF6B6B',emoji:'🌱'},
+    {classes:8, label:'Builder', tag:'Save 5%',     popular:false,perClass:{INR:1745,USD:21,GBP:16,AED:77, CAD:28,NZD:36,AUD:32,COP:82000},color:'#FF9F43',emoji:'🚀'},
+    {classes:16,label:'Achiever',tag:'Most Popular', popular:true, perClass:{INR:1660,USD:20,GBP:15,AED:73, CAD:27,NZD:34,AUD:30,COP:76000},color:'#6C63FF',emoji:'⭐'},
+    {classes:32,label:'Champion',tag:'Best Value',   popular:false,perClass:{INR:1495,USD:18,GBP:14,AED:66, CAD:25,NZD:31,AUD:28,COP:70000},color:'#1DD1A1',emoji:'🏆'},
   ]},
   'group':{packs:[
-    {classes:4, label:'Starter', tag:'',            popular:false,perClass:{INR:449,USD:13,GBP:10,AED:48, CAD:18,NZD:22,AUD:20,COP:50000},color:'#FF6B6B',emoji:'🌱'},
-    {classes:8, label:'Builder', tag:'Save 5%',     popular:false,perClass:{INR:399,USD:12,GBP:9, AED:44, CAD:16,NZD:20,AUD:18,COP:45000},color:'#FF9F43',emoji:'🚀'},
-    {classes:16,label:'Achiever',tag:'Most Popular', popular:true, perClass:{INR:369,USD:11,GBP:8, AED:40, CAD:15,NZD:18,AUD:16,COP:41000},color:'#6C63FF',emoji:'⭐'},
-    {classes:32,label:'Champion',tag:'Best Value',   popular:false,perClass:{INR:329,USD:10,GBP:7, AED:37, CAD:14,NZD:17,AUD:15,COP:37000},color:'#1DD1A1',emoji:'🏆'},
+    {classes:4, label:'Starter', tag:'',            popular:false,perClass:{INR:1079,USD:13,GBP:10,AED:48, CAD:18,NZD:22,AUD:20,COP:50000},color:'#FF6B6B',emoji:'🌱'},
+    {classes:8, label:'Builder', tag:'Save 5%',     popular:false,perClass:{INR:995,USD:12,GBP:9, AED:44, CAD:16,NZD:20,AUD:18,COP:45000},color:'#FF9F43',emoji:'🚀'},
+    {classes:16,label:'Achiever',tag:'Most Popular', popular:true, perClass:{INR:913,USD:11,GBP:8, AED:40, CAD:15,NZD:18,AUD:16,COP:41000},color:'#6C63FF',emoji:'⭐'},
+    {classes:32,label:'Champion',tag:'Best Value',   popular:false,perClass:{INR:830,USD:10,GBP:7, AED:37, CAD:14,NZD:17,AUD:15,COP:37000},color:'#1DD1A1',emoji:'🏆'},
   ]}
 };
 const CURRENCY_SYMBOL={INR:'₹',USD:'$',GBP:'£',AED:'AED ',CAD:'CA$',NZD:'NZ$',AUD:'A$',COP:'COP$'};
