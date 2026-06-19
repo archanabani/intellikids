@@ -208,6 +208,41 @@ function doLogout() {
   auth.signOut().then(() => { window._ika = null; nav('home'); showToast('Logged out.'); });
 }
 
+// ─── FIRESTORE RULES DIAGNOSTIC ────────────────────────────────────────────
+// Required Firestore rules for this app to work fully:
+// rules_version = '2';
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     match /users/{userId} { allow read: if request.auth != null; allow write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'admin@intellikidsacademy.in'); }
+//     match /availability/{teacherId} { allow read: if request.auth != null; allow write: if request.auth != null && request.auth.uid == teacherId; }
+//     match /sessions/{sid} { allow read, write: if request.auth != null; }
+//     match /session_requests/{sid} { allow read, write: if request.auth != null; }
+//     match /homework/{hid} { allow read, write: if request.auth != null; }
+//     match /materials/{mid} { allow read, write: if request.auth != null; }
+//     match /announcements/{aid} { allow read, write: if request.auth != null; }
+//     match /enquiries/{eid} { allow read, write: if request.auth != null; }
+//     match /demo_bookings/{bid} { allow read, write: if request.auth != null; }
+//     match /access_requests/{uid} { allow read, write: if request.auth != null; }
+//     match /site_stats/{doc} { allow read, write: if true; }
+//   }
+// }
+async function testFirestoreAccess() {
+  if(!window._ika) return;
+  const uid = window._ika.uid;
+  try {
+    // Test write to availability
+    const testRef = db.doc('availability/'+uid);
+    await testRef.set({_test:true, _ts: firebase.firestore.FieldValue.serverTimestamp()}, {merge:true});
+    await testRef.update({_test: firebase.firestore.FieldValue.delete()});
+    console.log('✅ Firestore availability write: OK');
+  } catch(e) {
+    console.error('❌ Firestore availability write BLOCKED:', e.message);
+    if(e.code === 'permission-denied') {
+      showToast('⚠️ Firestore rules block saving. See admin → Firestore Rules tab for fix.','error');
+    }
+  }
+}
+
 // ─── CREATE GOOGLE MEET LINK ───────────────────────────────────────────────
 async function createMeetLink(title, dateTimeISO, mins) {
   if (!window._googleToken) return null;
@@ -337,27 +372,37 @@ async function loadStudentData() {
 }
 
 async function loadTeacherData() {
-  const uid = window._ika?.uid; if (!uid) return {sessions:[],students:[],requests:[],materials:[],announcements:[],homework:[],availability:null};
-  // No orderBy — avoids Firestore composite index requirement. Sort in JS.
-  const [a,b,c,d2,e2,f2,g2] = await Promise.all([
-    db.collection('sessions').where('teacherId','==',uid).get(),
-    db.collection('users').where('assignedTeacherId','==',uid).get(),
-    db.collection('session_requests').where('teacherId','==',uid).get(),
-    db.collection('materials').where('teacherId','==',uid).get(),
-    db.collection('announcements').where('teacherId','==',uid).get(),
-    db.collection('homework').where('teacherId','==',uid).get(),
-    db.doc('availability/'+uid).get()
-  ]);
+  const uid = window._ika?.uid;
+  if (!uid) return {sessions:[],students:[],requests:[],materials:[],announcements:[],homework:[],availability:null};
   const ts = d => d?.toDate ? d.toDate() : new Date(d?.seconds*1000||0);
-  const byNewest = (x,y)=>ts(y.createdAt)-ts(x.createdAt);
-  const sessions = a.docs.map(d=>({id:d.id,...d.data()})).sort((x,y)=>ts(x.scheduledAt)-ts(y.scheduledAt));
+  const byNewest = (x,y) => ts(y.createdAt) - ts(x.createdAt);
+  const safe = (p) => p.catch(e => { console.warn('Firestore query failed:', e.message); return {docs:[],exists:false,data:()=>({})}; });
+
+  // Run all queries independently so one failure doesn't block the others
+  const [a,b,c,d2,e2,f2,g2] = await Promise.all([
+    safe(db.collection('sessions').where('teacherId','==',uid).get()),
+    safe(db.collection('users').where('assignedTeacherId','==',uid).get()),
+    safe(db.collection('session_requests').where('teacherId','==',uid).get()),
+    safe(db.collection('materials').where('teacherId','==',uid).get()),
+    safe(db.collection('announcements').where('teacherId','==',uid).get()),
+    safe(db.collection('homework').where('teacherId','==',uid).get()),
+    safe(db.doc('availability/'+uid).get())
+  ]);
+
+  const sessions = (a.docs||[]).map(d=>({id:d.id,...d.data()})).sort((x,y)=>ts(x.scheduledAt)-ts(y.scheduledAt));
+  const students = (b.docs||[]).map(d=>({id:d.id,...d.data()}));
+
+  // Filter demo sessions from the already-loaded sessions (avoids composite index requirement)
+  const demoSessions = sessions.filter(s=>s.isDemo===true);
+
   return {
     sessions,
-    students:      b.docs.map(d=>({id:d.id,...d.data()})),
-    requests:      c.docs.map(d=>({id:d.id,...d.data()})).sort(byNewest),
-    materials:     d2.docs.map(d=>({id:d.id,...d.data()})).sort(byNewest),
-    announcements: e2.docs.map(d=>({id:d.id,...d.data()})).sort(byNewest),
-    homework:      f2.docs.map(d=>({id:d.id,...d.data()})).sort(byNewest),
+    demoSessions,
+    students,
+    requests:      (c.docs||[]).map(d=>({id:d.id,...d.data()})).sort(byNewest),
+    materials:     (d2.docs||[]).map(d=>({id:d.id,...d.data()})).sort(byNewest),
+    announcements: (e2.docs||[]).map(d=>({id:d.id,...d.data()})).sort(byNewest),
+    homework:      (f2.docs||[]).map(d=>({id:d.id,...d.data()})).sort(byNewest),
     availability:  g2.exists ? g2.data() : null
   };
 }
@@ -424,14 +469,15 @@ async function assignDemoToTeacher(bookingId) {
       `Demo: ${b.subject||'General'} — ${b.studentName||'Student'} | Intellikids`, dateTimeISO, 60
     );
     const sessionRef=await db.collection('sessions').add({
-      studentId: b.studentId||'',
-      studentName: b.studentName||b.parentName||'',
+      studentId: b.studentId||('demo_booking_'+bookingId),
+      studentName: b.studentName||b.parentName||'Demo Student',
       studentEmail: b.email||'',
       teacherId, teacherName, teacherEmail,
       subject: b.subject||'General',
       topic: b.topic||'Demo Class',
       type: '1-on-1',
       isDemo: true,
+      demoBbookingId: bookingId,
       parentName: b.parentName||'',
       phone: b.phone||'',
       grade: b.grade||'',
@@ -1700,6 +1746,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
       <button class="tab-btn" onclick="adminTab(this,'demo_bookings')">🎯 Demo Bookings</button>
       <button class="tab-btn" onclick="adminTab(this,'assign_demo')">🔗 Assign Demo → Teacher</button>
       <button class="tab-btn" onclick="adminTab(this,'enquiries')">📩 Enquiries</button>
+      <button class="tab-btn" onclick="adminTab(this,'firestore_rules')" style="background:#FFF0F0;color:#FF6B6B;border:1.5px solid #FFD0D0;">🔧 Firestore Rules</button>
     </div>
     <div id="admin-content"><div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div></div>
   </div>
@@ -2344,23 +2391,42 @@ async function initTeacherDash(){
     <div class="stat-card" style="border-top:4px solid #0071C5;background:#EBF4FF;"><div style="font-size:22px;">🏅</div><div class="stat-val" style="color:#0071C5;font-size:16px;">Certified</div><div class="stat-lbl">Intel Labs</div></div>`;
   _availDraft=null;
   try {
-    teacherData=await loadTeacherData();
-    const tod=new Date().toDateString();
-    document.getElementById('td-s-cnt').textContent=teacherData.students.length;
-    document.getElementById('td-sess-cnt').textContent=teacherData.sessions.filter(s=>!s.completed).length;
-    document.getElementById('td-today-cnt').textContent=teacherData.sessions.filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);return d.toDateString()===tod;}).length;
-    const pend=(teacherData.requests||[]).filter(r=>r.status==='pending_approval').length;
-    document.getElementById('td-req-cnt').textContent=pend;
-    const badge=document.getElementById('td-req-badge');
-    if(badge){badge.textContent=pend;badge.style.display=pend?'inline-block':'none';}
-    const stuBadge=document.getElementById('td-stu-badge');
-    const stuCount=teacherData.students.length;
-    if(stuBadge){stuBadge.textContent=stuCount;stuBadge.style.display=stuCount?'inline-block':'none';}
-    if(!teacherData.availability||!Object.keys(teacherData.availability.slots||{}).length){
-      showToast('Tip: set your 🗓️ Availability so students can book you!','');
-    }
-  } catch(e){teacherData={sessions:[],students:[],requests:[],materials:[],announcements:[],homework:[],availability:null};}
+    teacherData = await loadTeacherData();
+  } catch(e) {
+    console.error('loadTeacherData failed:', e);
+    teacherData = {sessions:[],demoSessions:[],students:[],requests:[],materials:[],announcements:[],homework:[],availability:null};
+    showToast('⚠️ Some data failed to load. Check console for details.','error');
+  }
+  const tod = new Date().toDateString();
+  // Combine regular students + unique demo students from demo sessions
+  const allStudentIds = new Set((teacherData.students||[]).map(s=>s.id));
+  const extraDemoStudents = (teacherData.demoSessions||[]).filter(s=>s.studentName&&!allStudentIds.has(s.studentId)).reduce((acc,s)=>{
+    const key = s.studentEmail||s.studentName;
+    if(!acc.find(x=>(x.email||x.name)===key)) acc.push({id:'demo_'+s.id,name:s.studentName,email:s.studentEmail||'',grade:s.grade||'',subject:s.subject,isDemo:true,parentName:s.parentName||''});
+    return acc;
+  },[]);
+  teacherData._allStudents = [...(teacherData.students||[]), ...extraDemoStudents];
+
+  const stuCount = teacherData._allStudents.length;
+  const sessCount = (teacherData.sessions||[]).filter(s=>!s.completed).length;
+  const todayCount = (teacherData.sessions||[]).filter(s=>{const d=s.scheduledAt?.toDate?s.scheduledAt.toDate():new Date(s.scheduledAt?.seconds*1000||0);return d.toDateString()===tod;}).length;
+  const pendCount = (teacherData.requests||[]).filter(r=>r.status==='pending_approval').length;
+
+  const setCnt = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  setCnt('td-s-cnt', stuCount);
+  setCnt('td-sess-cnt', sessCount);
+  setCnt('td-today-cnt', todayCount);
+  setCnt('td-req-cnt', pendCount);
+  const badge=document.getElementById('td-req-badge');
+  if(badge){badge.textContent=pendCount;badge.style.display=pendCount?'inline-block':'none';}
+  const stuBadge=document.getElementById('td-stu-badge');
+  if(stuBadge){stuBadge.textContent=stuCount;stuBadge.style.display=stuCount?'inline-block':'none';}
+  if(!teacherData.availability||!Object.keys(teacherData.availability.slots||{}).length){
+    showToast('Tip: Set your 🗓️ Weekly Schedule so students can book you!','');
+  }
   renderTeacherTab('sessions');
+  // Run async Firestore access test to surface rule errors early
+  setTimeout(()=>testFirestoreAccess(), 1500);
 }
 
 function tdTab(btn,tab){
@@ -2372,14 +2438,18 @@ function renderTeacherTab(tab){
   const el=document.getElementById('td-content');
   if(!teacherData){el.innerHTML='<div style="text-align:center;padding:40px;color:#888;font-weight:700;">Loading…</div>';return;}
   if(tab==='sessions'){
-    if(!teacherData.sessions.length){
+    const allSess = (teacherData.sessions||[]);  // demoSessions are already included in sessions
+    if(!allSess.length){
       el.innerHTML=`<div style="text-align:center;padding:48px 20px;">
         <div style="font-size:56px;margin-bottom:16px;">📅</div>
         <h3 style="font-family:'Nunito',sans-serif;font-size:18px;margin-bottom:8px;">No sessions scheduled yet</h3>
-        <p style="color:#888;font-size:14px;font-weight:600;">Set your availability in the 🗓️ My Availability tab so students can book you. Their bookings will appear here.</p>
+        <p style="color:#888;font-size:14px;font-weight:600;">Set your availability in the 🗓️ Weekly Schedule tab so students can book you. Admin-assigned demo sessions will also appear here.</p>
+        <div style="margin-top:16px;text-align:left;max-width:440px;margin-left:auto;margin-right:auto;">
+          <div style="background:#E8FFF8;border-radius:12px;padding:12px 16px;font-size:12px;color:#1DD1A1;font-weight:700;">✅ If admin assigned a demo session to you, it will appear here within a few seconds of assignment.</div>
+        </div>
       </div>`;
     } else {
-      el.innerHTML=teacherData.sessions.map(s=>sessionRowHtml(s)).join('');
+      el.innerHTML=allSess.map(s=>sessionRowHtml(s)).join('');
     }
   }
 
@@ -2415,25 +2485,22 @@ function renderTeacherTab(tab){
   }
 
   else if(tab==='students'){
-    // Also include students from demo sessions assigned to this teacher
-    const demoStudents=(teacherData.sessions||[])
-      .filter(s=>s.isDemo&&s.studentName&&!teacherData.students.find(st=>st.id===s.studentId))
-      .reduce((acc,s)=>{
-        if(!acc.find(x=>x.email===s.studentEmail&&x.name===s.studentName)){
-          acc.push({id:'demo_'+s.id,name:s.studentName,email:s.studentEmail||'',grade:s.grade||'',subject:s.subject,isDemo:true,parentName:s.parentName||''});
-        }
-        return acc;
-      },[]);
-    const allStudents=[...teacherData.students,...demoStudents];
+    const allStudents = teacherData._allStudents || teacherData.students || [];
     if(!allStudents.length){
       el.innerHTML=`<div style="text-align:center;padding:48px 20px;">
         <div style="font-size:56px;margin-bottom:16px;">👥</div>
         <h3 style="font-family:'Nunito',sans-serif;font-size:18px;margin-bottom:8px;">No students assigned yet</h3>
-        <p style="color:#888;font-size:14px;font-weight:600;">Admin will assign students and schedule demo sessions for you. They will appear here automatically.</p>
+        <p style="color:#888;font-size:14px;font-weight:600;">Admin will assign students to you from the admin console. Once assigned, they appear here automatically with their session history.</p>
+        <div style="margin-top:16px;padding:14px 20px;background:#FFF6E8;border-radius:14px;display:inline-block;text-align:left;max-width:440px;">
+          <div style="font-size:13px;color:#FF9F43;font-weight:700;">⚠️ If you expect to see students here but don't:</div>
+          <div style="font-size:12px;color:#888;font-weight:600;margin-top:6px;">1. Ask admin to assign you in the Students tab<br>2. Make sure your Firestore rules allow teachers to read the users collection<br>3. Try refreshing the page</div>
+        </div>
       </div>`;
       return;
     }
-    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:18px;">👥 My Students (${allStudents.length})</h3>`+
+    const regularCount = (teacherData.students||[]).length;
+    const demoCount = allStudents.length - regularCount;
+    el.innerHTML=`<h3 style="font-family:'Nunito',sans-serif;font-size:17px;margin-bottom:18px;">👥 My Students (${allStudents.length})${demoCount>0?' <span style="font-size:12px;color:#FF9F43;font-weight:700;">· '+demoCount+' demo</span>':''}</h3>`+
     allStudents.map((s,i)=>{
       const sess=teacherData.sessions.filter(x=>x.studentId===s.id);
       const upcoming=sess.filter(x=>{const d=x.scheduledAt?.toDate?x.scheduledAt.toDate():new Date(x.scheduledAt?.seconds*1000||0);return d>=new Date();});
@@ -2543,7 +2610,7 @@ function lmsBack(){
   return `<button class="btn btn-sec btn-sm" onclick="renderTeacherTab('lms')" style="margin-bottom:20px;">← Back to LMS Tools</button>`;
 }
 function lmsStudentSelect(id, preselect){
-  const students = (teacherData?.students||[]);
+  const students = (teacherData?._allStudents||teacherData?.students||[]).filter(s=>!s.isDemo);
   if(!students.length){
     return `<select id="${id}"><option value="all">📣 All my students (admin will assign students to you)</option></select>`;
   }
@@ -2559,7 +2626,7 @@ function lmsTargets(selId){
   const sel=document.getElementById(selId);
   const val=sel.value;
   if(val==='all'){
-    return (teacherData?.students||[]).map(s=>({id:s.id,name:s.name||s.email||''}));
+    return (teacherData?._allStudents||teacherData?.students||[]).filter(s=>!s.isDemo).map(s=>({id:s.id,name:s.name||s.email||''}));
   }
   return [{id:val, name: sel.options[sel.selectedIndex]?.dataset?.name||''}];
 }
@@ -2571,7 +2638,7 @@ function renderLmsTool(tool, preselectStudent){
   document.querySelectorAll('#page-teacher-dashboard .tab-btn').forEach(b=>b.classList.remove('active'));
   const lmsBtn=[...document.querySelectorAll('#page-teacher-dashboard .tab-btn')].find(b=>b.textContent.includes('LMS'));
   if(lmsBtn) lmsBtn.classList.add('active');
-  const noStudents = !(teacherData.students||[]).length;
+  const noStudents = !(teacherData._allStudents||teacherData.students||[]).length;
   const warn = noStudents ? `<div style="background:#FFF6E8;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#FF9F43;font-weight:700;">⚠️ You have no assigned students yet — content will be saved but only visible once admin assigns students to you.</div>` : '';
 
   if(tool==='upload'){
@@ -2623,8 +2690,8 @@ function renderLmsTool(tool, preselectStudent){
   }
 
   else if(tool==='analytics'){
-    const students=teacherData.students||[];
-    if(!students.length){el.innerHTML=lmsBack()+emptyState('📊','No data yet','Analytics appear once students are assigned to you.');return;}
+    const students=teacherData._allStudents||teacherData.students||[];
+    if(!students.length){el.innerHTML=lmsBack()+emptyState('📊','No data yet','Analytics appear once students are assigned to you or admin assigns a demo session to you.');return;}
     el.innerHTML=lmsBack()+`<h3 style="font-family:'Nunito',sans-serif;font-size:18px;margin-bottom:18px;">📊 Class Performance</h3>`+
       students.map((s,i)=>{
         const sess=teacherData.sessions.filter(x=>x.studentId===s.id);
@@ -2919,7 +2986,11 @@ function renderAvailabilityEditor(el, fromLms){
     </div>
 
     <div style="background:#FFF6E8;border-radius:14px;padding:14px 18px;margin-bottom:20px;border:1.5px solid #FDCB6E;font-size:13px;font-weight:600;color:#FF9F43;">
-      ℹ️ These recurring slots are visible to your assigned students every week. After a student books a slot, it will show as taken for that specific date only.
+      ℹ️ These recurring slots are visible to your assigned students every week. After a student books a slot it is marked as taken for that date only.
+    </div>
+    <div id="avail-rules-warn" style="display:none;background:#FFF0F0;border-radius:14px;padding:14px 18px;margin-bottom:16px;border:1.5px solid #FF6B6B;font-size:12px;font-weight:600;color:#FF6B6B;">
+      ⚠️ If saving fails with "permission denied", your admin needs to add this rule to Firestore:<br>
+      <code style="background:#1a1a2e;color:#1DD1A1;padding:6px 10px;border-radius:8px;display:block;margin-top:8px;font-size:11px;">match /availability/{teacherId} { allow read, write: if request.auth != null && request.auth.uid == teacherId; }</code>
     </div>
 
     <div style="position:sticky;bottom:14px;display:flex;justify-content:center;gap:12px;">
@@ -2968,26 +3039,51 @@ function availQuick(key,mode){
   renderAvailabilityEditor(document.getElementById('td-content'), document.querySelector('#page-teacher-dashboard .tab-btn.active')?.textContent.includes('LMS'));
 }
 async function saveAvailability(fromLms){
-  const btn=document.getElementById('avail-save');btn.disabled=true;btn.textContent='Saving…';
+  const btn=document.getElementById('avail-save');
+  if(!btn) return;
+  btn.disabled=true; btn.textContent='Saving…';
   try{
-    // save weekly recurring keys (weekly:0..6) as-is; prune empty date-specific overrides
+    if(!window._ika||!window._ika.uid){ showToast('Not logged in. Please refresh and log in again.','error'); btn.disabled=false; btn.textContent='💾 Save Weekly Schedule'; return; }
+    if(!_availDraft){ showToast('No changes to save. Select some time slots first.','error'); btn.disabled=false; btn.textContent='💾 Save Weekly Schedule'; return; }
+
+    // Build clean payload — keep all weekly: keys (even empty ones mean "day off")
     const clean={};
+    WEEKDAYS.forEach((_,di)=>{
+      const wk='weekly:'+di;
+      const slots=_availDraft[wk]||[];
+      if(slots.length>0) clean[wk]=[...new Set(slots)].sort((a,b)=>TIMES.indexOf(a)-TIMES.indexOf(b));
+    });
+    // Also keep any specific date overrides
     const today=new Date();today.setHours(0,0,0,0);
     Object.entries(_availDraft).forEach(([k,v])=>{
-      if(!v||!v.length) return;
-      if(k.startsWith('weekly:')) { clean[k]=[...new Set(v)].sort((a,b)=>TIMES.indexOf(a)-TIMES.indexOf(b)); }
-      else if(new Date(k+'T23:59:59')>=today) { clean[k]=[...new Set(v)].sort((a,b)=>TIMES.indexOf(a)-TIMES.indexOf(b)); }
+      if(!k.startsWith('weekly:')&&v&&v.length&&new Date(k+'T23:59:59')>=today){
+        clean[k]=[...new Set(v)].sort((a,b)=>TIMES.indexOf(a)-TIMES.indexOf(b));
+      }
     });
-    await db.doc('availability/'+window._ika.uid).set({
-      teacherId:window._ika.uid,
-      teacherName:window._ika.name||window._ika.email||'',
-      slots:clean,
-      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showToast('Availability saved! Students can now book these slots. ✅','success');
-    _availDraft=null; teacherData=null; await initTeacherDash();
-    if(fromLms) renderLmsTool('schedule'); else { renderTeacherTab('availability'); }
-  }catch(e){showToast('Save failed. Try again.','error');btn.disabled=false;btn.textContent='💾 Save Availability';}
+
+    const payload = {
+      teacherId: window._ika.uid,
+      teacherName: window._ika.name||window._ika.email||'',
+      slots: clean,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.doc('availability/'+window._ika.uid).set(payload, {merge:false});
+    showToast('✅ Weekly schedule saved! Students can now see and book your slots.','success');
+    _availDraft = null;
+    teacherData = null;
+    await initTeacherDash();
+    const lmsMode = (typeof fromLms === 'boolean') ? fromLms : (fromLms === 'true' || fromLms === true);
+    if(lmsMode) renderLmsTool('schedule'); else renderTeacherTab('availability');
+  } catch(e) {
+    console.error('saveAvailability error:', e);
+    let msg = 'Save failed.';
+    if(e.code === 'permission-denied') { msg = '❌ Permission denied — see the red box below for the Firestore rule to add.'; const w=document.getElementById('avail-rules-warn'); if(w) w.style.display='block'; }
+    else if(e.message) msg = 'Save failed: ' + e.message;
+    showToast(msg, 'error');
+    btn.disabled=false;
+    btn.textContent='💾 Save Weekly Schedule';
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -3232,6 +3328,81 @@ function renderAdminTab(tab){
           </div>
         </div>`;
       }).join('')}
+      </div>`;
+  }
+
+  else if(tab==='firestore_rules'){
+    el.innerHTML=`
+      <div style="background:linear-gradient(135deg,#1a1a2e,#2d1b69);border-radius:20px;padding:28px;margin-bottom:24px;color:#fff;">
+        <h3 style="font-size:18px;margin-bottom:8px;font-family:Nunito,sans-serif;">🔧 Required Firestore Security Rules</h3>
+        <p style="font-size:13px;color:#9090B0;font-weight:600;">Copy the rules below and paste them in your Firebase Console → Firestore Database → Rules tab. These rules are needed for teachers to save availability, see students, and for all dashboard data to load correctly.</p>
+      </div>
+      <div style="background:#1a1a2e;border-radius:16px;padding:24px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <span style="color:#1DD1A1;font-weight:800;font-size:14px;">📋 firestore.rules</span>
+          <button onclick="navigator.clipboard.writeText(document.getElementById('rules-code').textContent).then(()=>showToast('Copied to clipboard! ✅','success'))" class="btn btn-green btn-sm">📋 Copy All</button>
+        </div>
+        <pre id="rules-code" style="color:#E8F5E9;font-size:12px;line-height:1.7;overflow-x:auto;white-space:pre-wrap;font-family:monospace;">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Anyone authenticated can read users; only self or admin can write
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (
+        request.auth.uid == userId ||
+        request.auth.token.email == 'admin@intellikidsacademy.in'
+      );
+    }
+
+    // Teachers can read/write their own availability; students can read all
+    match /availability/{teacherId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == teacherId;
+    }
+
+    // Authenticated users can read/write sessions, requests, homework, etc.
+    match /sessions/{sid} {
+      allow read, write: if request.auth != null;
+    }
+    match /session_requests/{sid} {
+      allow read, write: if request.auth != null;
+    }
+    match /homework/{hid} {
+      allow read, write: if request.auth != null;
+    }
+    match /materials/{mid} {
+      allow read, write: if request.auth != null;
+    }
+    match /announcements/{aid} {
+      allow read, write: if request.auth != null;
+    }
+    match /enquiries/{eid} {
+      allow read, write: if request.auth != null;
+    }
+    match /demo_bookings/{bid} {
+      allow read, write: if request.auth != null;
+    }
+    match /access_requests/{uid} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Public traffic counter
+    match /site_stats/{doc} {
+      allow read, write: if true;
+    }
+  }
+}</pre>
+      </div>
+      <div style="background:#E8FFF8;border-radius:14px;padding:16px 20px;border:1.5px solid #1DD1A1;">
+        <div style="font-weight:800;font-size:14px;color:#1DD1A1;margin-bottom:8px;">✅ How to apply these rules:</div>
+        <ol style="font-size:13px;color:#555;font-weight:600;line-height:2;padding-left:18px;">
+          <li>Go to <strong>Firebase Console</strong> → Your Project → <strong>Firestore Database</strong></li>
+          <li>Click the <strong>Rules</strong> tab at the top</li>
+          <li>Replace ALL existing rules with the code above</li>
+          <li>Click <strong>Publish</strong></li>
+          <li>Teachers can now save availability and see their students ✅</li>
+        </ol>
       </div>`;
   }
 
