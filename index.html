@@ -609,13 +609,16 @@ async function initTrafficCounter() {
     const v = document.getElementById('tc-views'),
           u = document.getElementById('tc-visitors'),
           t = document.getElementById('tc-today');
-    if (v) v.textContent = fmt(d.views);
-    if (u) u.textContent = fmt(d.visitors);
-    if (t) t.textContent = fmt(d.daily ? d.daily[todayKey] : 0);
+    // Only show traffic strip to admin
+    if (window._ika && window._ika.role === 'admin') {
+      if (v) v.textContent = fmt(d.views);
+      if (u) u.textContent = fmt(d.visitors);
+      if (t) t.textContent = fmt(d.daily ? d.daily[todayKey] : 0);
+      const strip = document.getElementById('traffic-strip');
+      if (strip) strip.style.display = 'flex';
+    }
   } catch(e) {
-    // If Firestore rules block public writes, hide the strip gracefully
-    const strip = document.getElementById('traffic-strip');
-    if (strip) strip.style.display = 'none';
+    // On any error, keep the strip hidden
   }
 }
 </script>
@@ -1300,7 +1303,7 @@ footer{background:#1a1a2e;color:#ccc;padding:60px 24px 28px;}
           <div style="font-size:13px;color:#888;font-weight:600;margin-top:16px;">🌐 intellikidsacademy.com<br/>🌐 intellikidsacademy.in</div>
         </div>
       </div>
-      <div id="traffic-strip" style="display:flex;justify-content:center;align-items:center;gap:26px;flex-wrap:wrap;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px 22px;margin-bottom:24px;">
+      <div id="traffic-strip" style="display:none;justify-content:center;align-items:center;gap:26px;flex-wrap:wrap;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px 22px;margin-bottom:24px;">
         <div style="display:flex;align-items:center;gap:9px;">
           <span style="position:relative;display:inline-flex;width:10px;height:10px;"><span style="position:absolute;inset:0;border-radius:50%;background:#1DD1A1;animation:pulse 1.6s infinite;"></span><span style="position:relative;width:10px;height:10px;border-radius:50%;background:#1DD1A1;"></span></span>
           <span style="font-size:13px;font-weight:800;color:#1DD1A1;letter-spacing:.5px;">LIVE SITE TRAFFIC</span>
